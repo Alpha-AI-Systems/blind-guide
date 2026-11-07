@@ -2,13 +2,13 @@
 
 Examples:
     # 5 real sessions, chest camera, 1 frame per second, 10 frames each (~200 MB)
-    python scripts/download_sanpo.py --split sanpo-real --sessions 5
+    python fast_path/depth/scripts/download_sanpo.py --split sanpo-real --sessions 5
 
     # synthetic data (dense, perfect GT; head camera only)
-    python scripts/download_sanpo.py --split sanpo-synthetic --camera head --sessions 5 --stride 5
+    python fast_path/depth/scripts/download_sanpo.py --split sanpo-synthetic --camera head --sessions 5 --stride 5
 
     # just list sessions
-    python scripts/download_sanpo.py --split sanpo-real --list
+    python fast_path/depth/scripts/download_sanpo.py --split sanpo-real --list
 """
 
 from __future__ import annotations
@@ -19,11 +19,11 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from tqdm import tqdm  # noqa: E402
 
-from depth import sanpo  # noqa: E402
+from fast_path.depth import sanpo  # noqa: E402
 
 
 def main() -> None:

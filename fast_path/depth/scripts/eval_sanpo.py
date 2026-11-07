@@ -1,9 +1,9 @@
 """Evaluate a pretrained depth model on the downloaded SANPO frames.
 
 Examples:
-    python scripts/eval_sanpo.py --model da2-small-metric-outdoor
-    python scripts/eval_sanpo.py --model da2-small                     # relative -> scale/shift aligned
-    python scripts/eval_sanpo.py --model da2-small-metric-outdoor --input-size 364 --limit 20
+    python fast_path/depth/scripts/eval_sanpo.py --model da2-small-metric-outdoor
+    python fast_path/depth/scripts/eval_sanpo.py --model da2-small                     # relative -> scale/shift aligned
+    python fast_path/depth/scripts/eval_sanpo.py --model da2-small-metric-outdoor --input-size 364 --limit 20
 
 Outputs (in --out, default outputs/eval_<model>_<split>):
     per_frame.csv   one row per frame and alignment mode
@@ -24,15 +24,15 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 from tqdm import tqdm  # noqa: E402
 
-from depth import sanpo  # noqa: E402
-from depth.metrics import align_disparity_ssi, align_median, frame_report  # noqa: E402
-from depth.models import DepthEstimator, colorize_depth  # noqa: E402
+from fast_path.depth import sanpo  # noqa: E402
+from fast_path.depth.metrics import align_disparity_ssi, align_median, frame_report  # noqa: E402
+from fast_path.depth.models import DepthEstimator, colorize_depth  # noqa: E402
 
 
 def save_vis(path: Path, rgb: np.ndarray, gt: np.ndarray, pred: np.ndarray, mask: np.ndarray, vmax: float) -> None:
@@ -73,7 +73,7 @@ def main() -> None:
     if args.limit:
         frames = frames[: args.limit]
     if not frames:
-        sys.exit(f"No frames with {args.gt} under {args.root}/{args.split}. Run scripts/download_sanpo.py first.")
+        sys.exit(f"No frames with {args.gt} under {args.root}/{args.split}. Run fast_path/depth/scripts/download_sanpo.py first.")
 
     est = DepthEstimator(args.model, args.device, args.input_size, args.fp16)
     modes = args.align or (["none", "median"] if est.is_metric else ["ssi"])

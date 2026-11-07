@@ -1,9 +1,9 @@
 """Run YOLO26n on a webcam, video, or image.
 
 Run from the repository root:
-    python -m yolo_module.run --source 0
-    python -m yolo_module.run --source path/to/video.mp4
-    python -m yolo_module.run --source path/to/image.jpg --save-image out.jpg
+    python -m fast_path.yolo_module.run --source 0
+    python -m fast_path.yolo_module.run --source path/to/video.mp4
+    python -m fast_path.yolo_module.run --source path/to/image.jpg --save-image out.jpg
 """
 
 from __future__ import annotations

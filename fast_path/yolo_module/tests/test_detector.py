@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import numpy as np
 
-from yolo_module.detector import YOLODetector
+from fast_path.yolo_module.detector import YOLODetector
 
 
 class FakeTensor:

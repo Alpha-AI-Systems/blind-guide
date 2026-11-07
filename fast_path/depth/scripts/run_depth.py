@@ -1,10 +1,10 @@
 """Run a depth model on an image, a folder of images, a video file, or a webcam.
 
 Examples:
-    python scripts/run_depth.py --source path/to/street.jpg
-    python scripts/run_depth.py --source path/to/frames_dir
-    python scripts/run_depth.py --source walk.mp4 --input-size 364
-    python scripts/run_depth.py --source 0 --show                 # webcam 0, live window (q to quit)
+    python fast_path/depth/scripts/run_depth.py --source path/to/street.jpg
+    python fast_path/depth/scripts/run_depth.py --source path/to/frames_dir
+    python fast_path/depth/scripts/run_depth.py --source walk.mp4 --input-size 364
+    python fast_path/depth/scripts/run_depth.py --source 0 --show                 # webcam 0, live window (q to quit)
 
 Each output is RGB | colorized depth, with the latency and (for metric models) the
 distance to the closest thing in the walking corridor -- the bottom-centre region in
@@ -17,12 +17,12 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 import cv2  # noqa: E402
 import numpy as np  # noqa: E402
 
-from depth.models import DepthEstimator, colorize_depth  # noqa: E402
+from fast_path.depth.models import DepthEstimator, colorize_depth  # noqa: E402
 
 IMG_EXT = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 

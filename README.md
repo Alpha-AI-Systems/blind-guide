@@ -14,12 +14,12 @@ No GPU is required for testing (CPU works, just slowly). Model weights download 
 ## Layout
 
 ```
-depth/models.py      DepthEstimator (Depth Anything V2 via transformers), box_distance(), colorize_depth()
-depth/sanpo.py       SANPO file formats, remote listing/download, local index, SanpoDepthDataset
-depth/metrics.py     AbsRel / RMSE / delta metrics, per-distance-band and obstacle-pixel metrics, alignment
-scripts/download_sanpo.py   fetch a subset of SANPO
-scripts/eval_sanpo.py       evaluate a model on the downloaded frames
-scripts/run_depth.py        run a model on an image / folder / video / webcam
+fast_path/depth/models.py      DepthEstimator (Depth Anything V2 via transformers), box_distance(), colorize_depth()
+fast_path/depth/sanpo.py       SANPO file formats, remote listing/download, local index, SanpoDepthDataset
+fast_path/depth/metrics.py     AbsRel / RMSE / delta metrics, per-distance-band and obstacle-pixel metrics, alignment
+fast_path/depth/scripts/download_sanpo.py fetch a subset of SANPO
+fast_path/depth/scripts/eval_sanpo.py     evaluate a model on the downloaded frames
+fast_path/depth/scripts/run_depth.py      run a model on an image / folder / video / webcam
 ```
 
 ## 1. Get SANPO data
@@ -29,13 +29,13 @@ HTTPS, so no `gsutil` is needed. The full set is several TB, so the script sampl
 
 ```bash
 # 5 real sessions, chest camera, every 15th frame (1 fps), 10 frames each  (~200 MB)
-python scripts/download_sanpo.py --split sanpo-real --sessions 5
+python fast_path/depth/scripts/download_sanpo.py --split sanpo-real --sessions 5
 
 # add sparse ZED stereo depth and semantic masks (masks only exist on some frames)
-python scripts/download_sanpo.py --split sanpo-real --sessions 5 --gt depth_maps zed_depth_maps segmentation_masks
+python fast_path/depth/scripts/download_sanpo.py --split sanpo-real --sessions 5 --gt depth_maps zed_depth_maps segmentation_masks
 
 # synthetic: perfect dense GT plus masks on every frame (head camera only, 5 fps)
-python scripts/download_sanpo.py --split sanpo-synthetic --camera head --sessions 5 --stride 5 --gt depth_maps segmentation_masks
+python fast_path/depth/scripts/download_sanpo.py --split sanpo-synthetic --camera head --sessions 5 --stride 5 --gt depth_maps segmentation_masks
 ```
 
 Bucket contents: 702 real sessions and 1962 synthetic ones. Data is saved under `data/sanpo/`, which is git-ignored.
@@ -52,9 +52,9 @@ Depth format: a gzip of float16 values. The first two values are (H, W). `sanpo.
 ## 2. Evaluate
 
 ```bash
-python scripts/eval_sanpo.py --model da2-small-metric-outdoor   # metric: reports raw + median-scaled
-python scripts/eval_sanpo.py --model da2-small                  # relative: scale/shift aligned
-python scripts/eval_sanpo.py --model da2-small --split sanpo-synthetic
+python fast_path/depth/scripts/eval_sanpo.py --model da2-small-metric-outdoor   # metric: reports raw + median-scaled
+python fast_path/depth/scripts/eval_sanpo.py --model da2-small                  # relative: scale/shift aligned
+python fast_path/depth/scripts/eval_sanpo.py --model da2-small --split sanpo-synthetic
 ```
 
 Each run writes `outputs/eval_<model>_<split>/` with `summary.json`, `per_frame.csv` and `vis/` images
@@ -63,15 +63,15 @@ Each run writes `outputs/eval_<model>_<split>/` with `summary.json`, `per_frame.
 These are the numbers that matter for warnings. `frames_per_metric` in the summary shows how many frames
 back each number, because bands and obstacle pixels can be sparse.
 
-Model short names are listed in `depth/models.py` (`MODELS`). Any HF depth-estimation repo id also works.
+Model short names are listed in `fast_path/depth/models.py` (`MODELS`). Any HF depth-estimation repo id also works.
 `--input-size` sets the network input's short side (518 by default; smaller is faster, e.g. 364 or 266).
 
 ## 3. Run on your own images / video
 
 ```bash
-python scripts/run_depth.py --source street.jpg
-python scripts/run_depth.py --source walk.mp4 --input-size 364
-python scripts/run_depth.py --source 0 --show        # webcam
+python fast_path/depth/scripts/run_depth.py --source street.jpg
+python fast_path/depth/scripts/run_depth.py --source walk.mp4 --input-size 364
+python fast_path/depth/scripts/run_depth.py --source 0 --show        # webcam
 ```
 
 For metric models the overlay shows the distance to the nearest thing in the walking corridor
