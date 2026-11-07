@@ -12,7 +12,7 @@ separate depth and tracking modules after the first working baseline.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r fast_path/yolo_module/requirements.txt
+python -m pip install -r fast_path/object_detection/requirements.txt
 ```
 
 If the repository already has a `.venv` and dependency management, use its
@@ -21,11 +21,11 @@ existing environment instead; do not overwrite the team's files.
 ## Run
 
 ```powershell
-python -m fast_path.yolo_module.run --source 0
-python -m fast_path.yolo_module.run --source "examples/walk.mp4"
-python -m fast_path.yolo_module.run --source "examples/test.jpg" --save-image "outputs/yolo/test_annotated.jpg"
-python -m fast_path.yolo_module.run --source 0 --max-frames 120 --jsonl "outputs/yolo/detections.jsonl"
-python -m unittest discover -s fast_path/yolo_module/tests -t . -v
+python -m fast_path.object_detection.run --source 0
+python -m fast_path.object_detection.run --source "examples/walk.mp4"
+python -m fast_path.object_detection.run --source "examples/test.jpg" --save-image "outputs/yolo/test_annotated.jpg"
+python -m fast_path.object_detection.run --source 0 --max-frames 120 --jsonl "outputs/yolo/detections.jsonl"
+python -m unittest discover -s fast_path/object_detection/tests -t . -v
 ```
 
 Press **Q** to stop a webcam/video window. Ultralytics automatically downloads
@@ -35,7 +35,7 @@ Press **Q** to stop a webcam/video window. Ultralytics automatically downloads
 ## Python API for Depth and Tracking teammates
 
 ```python
-from fast_path.yolo_module import YOLODetector
+from fast_path.object_detection import YOLODetector
 
 detector = YOLODetector(weights="yolo26n.pt", confidence=0.35)
 # frame = cv2.VideoCapture(...).read()[1]  # BGR NumPy array
@@ -79,8 +79,8 @@ Do not replace or overwrite an existing `.gitignore`.
 ## PR checklist
 
 - [ ] Branch: `feat/yolo26n-detector` (not `main`)
-- [ ] Code kept inside `fast_path/yolo_module/`
-- [ ] `python -m unittest discover -s fast_path/yolo_module/tests -t . -v` passes
+- [ ] Code kept inside `fast_path/object_detection/`
+- [ ] `python -m unittest discover -s fast_path/object_detection/tests -t . -v` passes
 - [ ] Tested image or webcam inference locally
 - [ ] No model weights, personal footage, or `outputs/` in commit
 - [ ] Note local inference time and any observed issues in the PR
