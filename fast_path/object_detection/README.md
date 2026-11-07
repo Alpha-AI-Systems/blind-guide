@@ -11,8 +11,12 @@ or spoken warnings.** It is designed to be merged with the depth module
 All commands run from the repository root.
 
 ```powershell
-python -m pip install -r fast_path/object_detection/requirements.txt
+python -m pip install -r requirements.txt
 ```
+
+The single `requirements.txt` at the repo root covers the whole fast path
+(detection and depth). For GPU, install the CUDA build of PyTorch first
+(see pytorch.org).
 
 Ultralytics downloads `yolo26n.pt` automatically the first time it is used
 (internet required). A bare weight name like `yolo26n.pt` is stored in
@@ -23,16 +27,16 @@ Ultralytics downloads `yolo26n.pt` automatically the first time it is used
 
 ```powershell
 # Webcam
-python -m fast_path.object_detection.run_demo_detection --source 0
+python -m fast_path.object_detection.run_detection_demo --source 0
 
 # Video, saving an annotated copy
-python -m fast_path.object_detection.run_demo_detection --source path/to/walk.mp4 --save-video outputs/yolo/walk_annotated.mp4
+python -m fast_path.object_detection.run_detection_demo --source path/to/walk.mp4 --save-video outputs/yolo/walk_annotated.mp4
 
 # Image, saving an annotated copy
-python -m fast_path.object_detection.run_demo_detection --source path/to/test.jpg --save-image outputs/yolo/test_annotated.jpg
+python -m fast_path.object_detection.run_detection_demo --source path/to/test.jpg --save-image outputs/yolo/test_annotated.jpg
 
 # Log detections (not images) to JSONL, stop after 120 frames
-python -m fast_path.object_detection.run_demo_detection --source 0 --max-frames 120 --jsonl outputs/yolo/detections.jsonl
+python -m fast_path.object_detection.run_detection_demo --source 0 --max-frames 120 --jsonl outputs/yolo/detections.jsonl
 ```
 
 Press **Q** to stop a webcam or video window. Add `--no-display` to run without a window.

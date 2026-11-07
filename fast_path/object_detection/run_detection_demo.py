@@ -1,9 +1,9 @@
 """Run YOLO26n on a webcam, video, or image.
 
 Run from the repository root:
-    python -m fast_path.object_detection.run_demo_detection --source 0
-    python -m fast_path.object_detection.run_demo_detection --source path/to/video.mp4
-    python -m fast_path.object_detection.run_demo_detection --source path/to/image.jpg --save-image out.jpg
+    python -m fast_path.object_detection.run_detection_demo --source 0
+    python -m fast_path.object_detection.run_detection_demo --source path/to/video.mp4
+    python -m fast_path.object_detection.run_detection_demo --source path/to/image.jpg --save-image out.jpg
 """
 
 from __future__ import annotations
