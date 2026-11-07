@@ -1,93 +1,94 @@
-# YOLO26n Detection Module — Blind Guide
+# Object Detection (YOLO26n): Blind Guide Fast Path
 
 ## Scope
 
-This directory only performs object detection. **No depth, tracking, risk
-scoring, or spoken warnings.** It is designed to integrate with the team's
-separate depth and tracking modules after the first working baseline.
+This folder only performs object detection. **No depth, tracking, risk scoring,
+or spoken warnings.** It is designed to be merged with the depth module
+(`fast_path/depth/`) and a tracker later.
 
-## Setup on Windows (from the cloned repository root)
+## Setup
+
+All commands run from the repository root.
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
 python -m pip install -r fast_path/object_detection/requirements.txt
 ```
 
-If the repository already has a `.venv` and dependency management, use its
-existing environment instead; do not overwrite the team's files.
+Ultralytics downloads `yolo26n.pt` automatically the first time it is used
+(internet required). A bare weight name like `yolo26n.pt` is stored in
+`<repo>/weights/`, whatever folder you run from; a path with a folder
+(e.g. `runs/train/best.pt`) is used as given. `weights/` and `*.pt` are git-ignored.
 
-## Run
+## Run the demo
 
 ```powershell
-python -m fast_path.object_detection.run --source 0
-python -m fast_path.object_detection.run --source "examples/walk.mp4"
-python -m fast_path.object_detection.run --source "examples/test.jpg" --save-image "outputs/yolo/test_annotated.jpg"
-python -m fast_path.object_detection.run --source 0 --max-frames 120 --jsonl "outputs/yolo/detections.jsonl"
+# Webcam
+python -m fast_path.object_detection.run_demo_detection --source 0
+
+# Video, saving an annotated copy
+python -m fast_path.object_detection.run_demo_detection --source path/to/walk.mp4 --save-video outputs/yolo/walk_annotated.mp4
+
+# Image, saving an annotated copy
+python -m fast_path.object_detection.run_demo_detection --source path/to/test.jpg --save-image outputs/yolo/test_annotated.jpg
+
+# Log detections (not images) to JSONL, stop after 120 frames
+python -m fast_path.object_detection.run_demo_detection --source 0 --max-frames 120 --jsonl outputs/yolo/detections.jsonl
+```
+
+Press **Q** to stop a webcam or video window. Add `--no-display` to run without a window.
+
+| Option | Meaning |
+|---|---|
+| `--source` | Webcam index (`0`), image path, or video path |
+| `--weights` | Weights file or Ultralytics model name (default `yolo26n.pt`) |
+| `--confidence` | Minimum confidence to keep a box (default 0.35) |
+| `--image-size` | Model input size, long side in pixels (default 640) |
+| `--device` | `cpu` or GPU index `0` (default: automatic) |
+| `--warmup` | Untimed warm-up runs before timing an image (default 3) |
+| `--half` / `--no-half` | FP16 on GPU (default on; ignored on CPU) or FP32 |
+| `--classes` | Only keep these classes, by name or id, e.g. `--classes person car bicycle` (default: all) |
+| `--save-image` | Save the annotated image (image source) |
+| `--save-video` | Save the annotated video as `.mp4` (video or webcam source) |
+| `--jsonl` | Save per-frame detections as JSON lines |
+| `--no-display` | Do not open a window |
+| `--max-frames` | Stop after N frames |
+
+## Tests
+
+```powershell
 python -m unittest discover -s fast_path/object_detection/tests -t . -v
 ```
 
-Press **Q** to stop a webcam/video window. Ultralytics automatically downloads
-`yolo26n.pt` the first time it's used (internet required). The filename
-`yolo26n.pt` is from the official released YOLO26 family.
+The tests use a fake model, so no weights or GPU are needed.
 
-## Python API for Depth and Tracking teammates
+## Python API (for the depth and tracking code)
 
 ```python
 from fast_path.object_detection import YOLODetector
 
 detector = YOLODetector(weights="yolo26n.pt", confidence=0.35)
-# frame = cv2.VideoCapture(...).read()[1]  # BGR NumPy array
-prediction = detector.predict(frame)
+prediction = detector.predict(frame)  # frame: BGR NumPy array (H, W, 3), e.g. from OpenCV
 for obj in prediction.detections:
     print(obj.class_name, obj.confidence, obj.bbox_xyxy, obj.center_xy)
 ```
 
-`bbox_xyxy`: `(x1, y1, x2, y2)` in original-frame pixels, where `(x1,y1)` is
-top-left and `(x2,y2)` bottom-right. `center_xy` is a convenient center point,
-**not** an estimated physical distance. `prediction.inference_ms` measures one
-prediction call on the current machine; it is **not** full end-to-end warning
-latency or a validated wearable FPS measurement.
+- `bbox_xyxy`: `(x1, y1, x2, y2)` in original-frame pixels; `(x1, y1)` is the top-left corner, `(x2, y2)` the bottom-right.
+- `center_xy`: center of the box (not of the object, and not a distance).
+- Timing, in milliseconds:
+  - `total_ms`: wall-clock time of the whole `predict()` call.
+  - `preprocess_ms`, `model_ms`, `postprocess_ms`: the Ultralytics per-stage breakdown.
+  - None of these is the full end-to-end warning latency on the phone.
+- `prediction.to_dict()`: JSON-ready version of the result.
 
-`prediction.to_dict()` returns JSON-compatible metadata containing frame width,
-height, inference time, and detections. The optional `--jsonl` flag records
-metadata, not raw camera images.
+## Team integration notes
 
-## Team integration
-
-Use the **same original frame** as input for YOLO and Depth; match detections to
-a depth map in a separate integration module. Do not equate YOLO's confidence
-with a collision probability, or a bounding box center with an accurate meter
-distance. Tracking IDs and risk rules are intentionally left for later work.
-
-## Repository hygiene
-
-Do not commit model weights, `.venv`, images/videos, or generated output data.
-Append entries to the repository's existing `.gitignore` if needed:
-
-```
-.venv/
-__pycache__/
-*.pyc
-*.pt
-outputs/
-```
-
-Do not replace or overwrite an existing `.gitignore`.
-
-## PR checklist
-
-- [ ] Branch: `feat/yolo26n-detector` (not `main`)
-- [ ] Code kept inside `fast_path/object_detection/`
-- [ ] `python -m unittest discover -s fast_path/object_detection/tests -t . -v` passes
-- [ ] Tested image or webcam inference locally
-- [ ] No model weights, personal footage, or `outputs/` in commit
-- [ ] Note local inference time and any observed issues in the PR
+- Give YOLO and depth the **same original frame**, and match boxes to the depth map in a separate integration module.
+- YOLO's confidence is not a collision probability.
+- A box center is not a distance in meters.
 
 ## Research note
 
-YOLO26n is a pretrained COCO object detector. It returns boxes/classes/scores,
-not a depth map, collision probability, or reliable stair/drop-off detection.
-Future comparison with text-promptable YOLOE-26n should use comparable data and
-the same risk-evaluation pipeline after depth/tracking integration.
+YOLO26n is pretrained on COCO (80 classes). It returns boxes, classes and scores.
+It does not give depth or collision risk, and COCO has no classes for stairs,
+curbs, potholes or other drop-offs. Dataset options for evaluating and fine-tuning
+on pedestrian hazards are being collected separately.
