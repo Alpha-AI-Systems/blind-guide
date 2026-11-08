@@ -1,4 +1,5 @@
-"""Reusable object detection with YOLO26n.
+"""Reusable object detection with YOLO26n (fixed COCO classes) or YOLOE-26
+(open vocabulary, classes given as text prompts).
 
 This module performs detection ONLY. Depth, tracking and risk assessment belong
 in separate components so they can be tested and replaced independently.
@@ -6,14 +7,36 @@ in separate components so they can be tested and replaced independently.
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Sequence
 
+# =============================================================================
+# DEFAULT SETTINGS (edit here). Used when YOLODetector(...) gets no value.
+# =============================================================================
+
+# ---- Shared by both detectors ----------------------------------------------
+DEFAULT_CONFIDENCE = 0.35  # keep boxes with confidence >= this (0 to 1)
+DEFAULT_IMAGE_SIZE = 640  # model input size, long side in pixels (e.g. 1920x1080 -> 640x384)
+DEFAULT_DEVICE = None  # None = automatic (GPU if available), "cpu", or "0"
+DEFAULT_HALF = True  # FP16 on GPU (ignored on CPU)
+DEFAULT_CLASSES = None  # None = all classes, e.g. ["person", "car"]
+
+# ---- YOLO26 (fixed 80 COCO classes) ----------------------------------------
+DEFAULT_YOLO_WEIGHTS = "yolo26n.pt"
+
+# ---- YOLOE-26 (open vocabulary, used when text prompts are given) ----------
+DEFAULT_YOLOE_WEIGHTS = "yoloe-26n-seg.pt"  # all released YOLOE checkpoints are *-seg
+DEFAULT_TEXT_PROMPTS = None  # None = use YOLO26; e.g. ["pothole", "stairs"]
+
+# ---- Paths -----------------------------------------------------------------
 # Bare weight names (e.g. "yolo26n.pt") are stored/downloaded here, not in the
 # current working directory. Path: <repo root>/weights/
 WEIGHTS_DIR = Path(__file__).resolve().parents[2] / "weights"
+
+# =============================================================================
 
 
 def resolve_weights(weights: str) -> str:
@@ -26,6 +49,28 @@ def resolve_weights(weights: str) -> str:
         return weights
     WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
     return str(WEIGHTS_DIR / path.name)
+
+
+def load_yoloe_detection_only(weights: str) -> Any:
+    """Load YOLOE as a box-only model (no mask branch).
+
+    All released YOLOE checkpoints are segmentation models (*-seg.pt). Following
+    the official Ultralytics docs, we build the matching detection architecture
+    from its YAML (e.g. yoloe-26n.yaml) and load the seg weights into it:
+        YOLOE("yoloe-26n.yaml").load("yoloe-26n-seg.pt")
+    This removes the mask branch: we only use boxes, it is lighter, and it
+    avoids an FP16 crash in the Ultralytics 8.4.11 mask step.
+    A path that is not a "*-seg.pt" checkpoint (e.g. a fine-tuned detection
+    model) is loaded as given.
+    """
+    from ultralytics import YOLOE
+
+    resolved = resolve_weights(weights)
+    name = Path(resolved).name
+    if not name.endswith("-seg.pt"):
+        return YOLOE(resolved)
+    architecture = name.replace("-seg.pt", ".yaml")  # yoloe-26n-seg.pt -> yoloe-26n.yaml
+    return YOLOE(architecture).load(resolved)
 
 
 @dataclass(frozen=True)
@@ -60,24 +105,29 @@ class YOLODetector:
     """Load the model once, then reuse it for each image or video frame.
 
     Parameters:
-        weights: Local YOLO weights path or an Ultralytics model filename.
+        weights: Local weights path or an Ultralytics model filename. None picks
+            yolo26n.pt, or yoloe-26n-seg.pt when text_prompts is given.
+        text_prompts: Optional class names for YOLOE (e.g. ["pothole", "stairs"]).
+            Applied once here; predict() is unchanged. None = plain YOLO26.
         confidence: Minimum model confidence score accepted (0.0 to 1.0).
         image_size: Model input size (pixels); e.g. 640, the image longer number which coulc be either the H or the W is shrunk down to this number. for example: 1920*1080 -> 640*384.
         device: None=Ultralytics automatic, 'cpu', or GPU index '0'.
         classes: Optional classes to keep, as names ("person") or ids (0).
             None keeps all classes. Filtering is done inside Ultralytics.
-        half: Run in FP16 on GPU (default True). Ultralytics ignores it on CPU.
+        half: Run in FP16 on GPU. Ultralytics ignores it on CPU.
+        Defaults for all of these are the DEFAULT_* variables at the top of this file.
         model: Optional model instance for isolated unit testing.
     """
 
     def __init__(
         self,
-        weights: str = "yolo26n.pt",
-        confidence: float = 0.35,
-        image_size: int = 640,
-        device: str | None = None,
-        classes: Sequence[str | int] | None = None,
-        half: bool = True,
+        weights: str | None = None,
+        text_prompts: Sequence[str] | None = DEFAULT_TEXT_PROMPTS,
+        confidence: float = DEFAULT_CONFIDENCE,
+        image_size: int = DEFAULT_IMAGE_SIZE,
+        device: str | None = DEFAULT_DEVICE,
+        classes: Sequence[str | int] | None = DEFAULT_CLASSES,
+        half: bool = DEFAULT_HALF,
         model: Any | None = None,
     ) -> None:
         if not 0.0 < confidence <= 1.0:
@@ -90,16 +140,48 @@ class YOLODetector:
         self.device = device
         self.half = half
 
+        prompts = None
+        if text_prompts is not None:
+            prompts = [str(p).strip() for p in text_prompts if str(p).strip()]
+            if not prompts:
+                raise ValueError("text_prompts must contain at least one name")
+        self.text_prompts = prompts
+
         if model is None:
             # Import lazily so the detection schema/tests are usable without
             # downloading YOLO weights or importing its heavy dependencies.
-            from ultralytics import YOLO
+            chosen = weights or (DEFAULT_YOLO_WEIGHTS if prompts is None else DEFAULT_YOLOE_WEIGHTS)
+            self.weights_path = resolve_weights(chosen)
+            if prompts is None:
+                from ultralytics import YOLO
 
-            self.model = YOLO(resolve_weights(weights))
+                self.model = YOLO(resolve_weights(weights or DEFAULT_YOLO_WEIGHTS)) # core YOLO class from ulatralysic
+            else:
+                self.model = load_yoloe_detection_only(weights or DEFAULT_YOLOE_WEIGHTS)
         else:
             self.model = model
+            self.weights_path = None
+
+        if prompts is not None:
+            self._apply_text_prompts(prompts)
 
         self.class_ids = self._resolve_classes(classes)
+
+    def _apply_text_prompts(self, prompts: list[str]) -> None:
+        """Set YOLOE's vocabulary to the prompt names (runs the text encoder once).
+
+        The first call downloads the MobileCLIP text encoder (~254 MB) into the
+        current directory, so we run it from WEIGHTS_DIR to keep it there.
+        """
+        if not hasattr(self.model, "set_classes"):
+            raise ValueError("text_prompts need a YOLOE model (e.g. yoloe-26n-seg.pt)")
+        WEIGHTS_DIR.mkdir(parents=True, exist_ok=True)
+        previous_dir = os.getcwd()
+        try:
+            os.chdir(WEIGHTS_DIR)
+            self.model.set_classes(prompts)
+        finally:
+            os.chdir(previous_dir)
 
     def _resolve_classes(self, classes: Sequence[str | int] | None) -> list[int] | None:
         """Convert class names/ids to a sorted list of valid class ids."""

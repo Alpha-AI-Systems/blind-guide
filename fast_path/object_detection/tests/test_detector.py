@@ -94,6 +94,19 @@ class YOLODetectorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             YOLODetector(classes=[7], model=model)
 
+    def test_text_prompts(self):
+        model = FakeModel(None)
+        applied = []
+        model.set_classes = lambda names: applied.append(list(names))
+        detector = YOLODetector(text_prompts=[" pothole ", "puddle", ""], model=model)
+        self.assertEqual(applied, [["pothole", "puddle"]])
+        self.assertEqual(detector.text_prompts, ["pothole", "puddle"])
+        with self.assertRaises(ValueError):
+            YOLODetector(text_prompts=["  "], model=FakeModel(None))
+        # A non-YOLOE model (no set_classes) must be rejected.
+        with self.assertRaises(ValueError):
+            YOLODetector(text_prompts=["pothole"], model=FakeModel(None))
+
     def test_missing_boxes(self):
         result = YOLODetector(model=FakeModel(None)).predict(self.frame)
         self.assertEqual(result.detections, ())
