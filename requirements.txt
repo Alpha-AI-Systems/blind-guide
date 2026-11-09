@@ -1,6 +1,7 @@
 torch>=2.2
+ultralytics>=8.4.0,<9
 transformers>=4.45
-numpy
-opencv-python
+numpy>=1.26,<3
+opencv-python>=4.8,<5
 pillow
 tqdm

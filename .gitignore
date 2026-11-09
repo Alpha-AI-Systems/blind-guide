@@ -224,3 +224,10 @@ __marimo__/
 # Project data / outputs
 data/
 outputs/
+
+# Local research reports
+research_reports/
+md_files/
+weights/
+current_modal_commands.txt
+temp.md

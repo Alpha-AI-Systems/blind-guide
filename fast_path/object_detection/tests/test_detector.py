@@ -23,10 +23,15 @@ class FakeModel:
     def __init__(self, boxes):
         self.boxes = boxes
         self.kwargs = None
+        self.speed = None
 
     def predict(self, **kwargs):
         self.kwargs = kwargs
-        return [SimpleNamespace(boxes=self.boxes, names={0: "person", 1: "bicycle"})]
+        return [
+            SimpleNamespace(
+                boxes=self.boxes, names={0: "person", 1: "bicycle"}, speed=self.speed
+            )
+        ]
 
 
 class YOLODetectorTests(unittest.TestCase):
@@ -52,6 +57,7 @@ class YOLODetectorTests(unittest.TestCase):
         self.assertEqual(result.detections[0].confidence, 0.948)
         self.assertEqual(fake_model.kwargs["imgsz"], 640)
         self.assertNotIn("device", fake_model.kwargs)
+        self.assertTrue(fake_model.kwargs["half"])
         self.assertEqual(result.to_dict()["detections"][1]["class_name"], "bicycle")
 
     def test_empty_detection(self):
@@ -60,6 +66,46 @@ class YOLODetectorTests(unittest.TestCase):
         )
         result = YOLODetector(model=FakeModel(boxes)).predict(self.frame)
         self.assertEqual(result.detections, ())
+
+    def test_stage_timings(self):
+        boxes = SimpleNamespace(xyxy=FakeTensor([]), conf=FakeTensor([]), cls=FakeTensor([]))
+        model = FakeModel(boxes)
+        # Without result.speed the stage timings are None.
+        result = YOLODetector(model=model).predict(self.frame)
+        self.assertIsNone(result.model_ms)
+        self.assertGreaterEqual(result.total_ms, 0.0)
+        # With result.speed they are copied from Ultralytics.
+        model.speed = {"preprocess": 1.234, "inference": 10.5, "postprocess": 0.61}
+        result = YOLODetector(model=model).predict(self.frame)
+        self.assertEqual(
+            (result.preprocess_ms, result.model_ms, result.postprocess_ms), (1.23, 10.5, 0.61)
+        )
+
+    def test_class_filter(self):
+        model = FakeModel(None)
+        model.names = {0: "person", 1: "bicycle", 2: "car"}
+        detector = YOLODetector(classes=["Car", "person", 2], model=model)
+        self.assertEqual(detector.class_ids, [0, 2])
+        detector.predict(self.frame)
+        self.assertEqual(model.kwargs["classes"], [0, 2])
+        self.assertNotIn("classes", FakeModel(None).kwargs or {})
+        with self.assertRaises(ValueError):
+            YOLODetector(classes=["pothole"], model=model)
+        with self.assertRaises(ValueError):
+            YOLODetector(classes=[7], model=model)
+
+    def test_text_prompts(self):
+        model = FakeModel(None)
+        applied = []
+        model.set_classes = lambda names: applied.append(list(names))
+        detector = YOLODetector(text_prompts=[" pothole ", "puddle", ""], model=model)
+        self.assertEqual(applied, [["pothole", "puddle"]])
+        self.assertEqual(detector.text_prompts, ["pothole", "puddle"])
+        with self.assertRaises(ValueError):
+            YOLODetector(text_prompts=["  "], model=FakeModel(None))
+        # A non-YOLOE model (no set_classes) must be rejected.
+        with self.assertRaises(ValueError):
+            YOLODetector(text_prompts=["pothole"], model=FakeModel(None))
 
     def test_missing_boxes(self):
         result = YOLODetector(model=FakeModel(None)).predict(self.frame)
