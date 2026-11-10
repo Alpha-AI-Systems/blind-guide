@@ -1,0 +1,5530 @@
+{
+  "evaluation": "sanpo_masks_v1_yoloe26n_seg_text_prompts",
+  "run": "yoloe26n_seg_prompts_v1_img1280",
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "settings": {
+    "weights": "yoloe-26n-seg.pt",
+    "image_size": 1280,
+    "confidence_threshold": 0.001,
+    "nms_iou_threshold": 0.7,
+    "max_detections": 100,
+    "half_precision": true,
+    "batch_size": 64,
+    "cpu_cores": 16,
+    "loader_threads": 32,
+    "dataset": "sanpo_real_chest_5fps",
+    "view": "masks_v1",
+    "task": "segment",
+    "operating_confidences": [
+      0.25,
+      0.35,
+      0.5
+    ],
+    "match_iou": 0.5,
+    "evaluation_classes": {
+      "pedestrian": {
+        "sanpo_ground_truth": [
+          "pedestrian"
+        ],
+        "prompt": "person"
+      },
+      "rider": {
+        "sanpo_ground_truth": [
+          "rider"
+        ],
+        "prompt": "person riding a bicycle"
+      },
+      "animal": {
+        "sanpo_ground_truth": [
+          "animal"
+        ],
+        "prompt": "animal"
+      },
+      "vehicle": {
+        "sanpo_ground_truth": [
+          "vehicle"
+        ],
+        "prompt": "vehicle"
+      },
+      "obstacle": {
+        "sanpo_ground_truth": [
+          "obstacle"
+        ],
+        "prompt": "obstacle"
+      },
+      "pole": {
+        "sanpo_ground_truth": [
+          "pole"
+        ],
+        "prompt": "pole"
+      },
+      "tree": {
+        "sanpo_ground_truth": [
+          "tree"
+        ],
+        "prompt": "tree"
+      },
+      "traffic sign": {
+        "sanpo_ground_truth": [
+          "traffic sign"
+        ],
+        "prompt": "traffic sign"
+      },
+      "traffic light": {
+        "sanpo_ground_truth": [
+          "traffic light"
+        ],
+        "prompt": "traffic light"
+      },
+      "bike rack": {
+        "sanpo_ground_truth": [
+          "bike rack"
+        ],
+        "prompt": "bike rack"
+      },
+      "stairs": {
+        "sanpo_ground_truth": [
+          "stairs"
+        ],
+        "prompt": "stairs"
+      },
+      "crosswalk": {
+        "sanpo_ground_truth": [
+          "crosswalk"
+        ],
+        "prompt": "crosswalk"
+      },
+      "opening-door": {
+        "sanpo_ground_truth": [
+          "opening-door"
+        ],
+        "prompt": "door"
+      },
+      "guard rail/road barrier": {
+        "sanpo_ground_truth": [
+          "guard rail/road barrier"
+        ],
+        "prompt": "guard rail"
+      },
+      "wall/fence": {
+        "sanpo_ground_truth": [
+          "wall/fence"
+        ],
+        "prompt": "fence"
+      },
+      "water body": {
+        "sanpo_ground_truth": [
+          "water body"
+        ],
+        "prompt": "puddle"
+      }
+    }
+  },
+  "splits": {
+    "val": {
+      "overall": {
+        "AP50-95": 0.0505,
+        "AP50": 0.1021,
+        "AP75": 0.0454,
+        "AP_small": 0.0125,
+        "AP_medium": 0.0477,
+        "AP_large": 0.0838,
+        "AR1": 0.0532,
+        "AR10": 0.111,
+        "AR100": 0.119,
+        "AR_small": 0.0212,
+        "AR_medium": 0.0872,
+        "AR_large": 0.2005
+      },
+      "per_class": {
+        "pedestrian": {
+          "AP50-95": 0.3352,
+          "AP50": 0.6053,
+          "AP75": 0.3412,
+          "AR100": 0.4471,
+          "AP_small": 0.0334,
+          "AP_medium": 0.2241,
+          "AP_large": 0.5664,
+          "ground_truth_boxes": 2947,
+          "predictions": 58899
+        },
+        "rider": {
+          "AP50-95": 0.0261,
+          "AP50": 0.0842,
+          "AP75": 0.0072,
+          "AR100": 0.1221,
+          "AP_small": 0.0149,
+          "AP_medium": 0.0569,
+          "AP_large": 0.0218,
+          "ground_truth_boxes": 339,
+          "predictions": 3086
+        },
+        "animal": {
+          "AP50-95": 0.0082,
+          "AP50": 0.0227,
+          "AP75": 0.0038,
+          "AR100": 0.0717,
+          "AP_small": 0.0,
+          "AP_medium": 0.0805,
+          "AP_large": 0.0051,
+          "ground_truth_boxes": 145,
+          "predictions": 1357
+        },
+        "vehicle": {
+          "AP50-95": 0.2111,
+          "AP50": 0.3977,
+          "AP75": 0.2038,
+          "AR100": 0.3462,
+          "AP_small": 0.0394,
+          "AP_medium": 0.1701,
+          "AP_large": 0.4033,
+          "ground_truth_boxes": 8524,
+          "predictions": 37240
+        },
+        "obstacle": {
+          "AP50-95": 0.0198,
+          "AP50": 0.0279,
+          "AP75": 0.0212,
+          "AR100": 0.0401,
+          "AP_small": 0.0,
+          "AP_medium": 0.0158,
+          "AP_large": 0.0314,
+          "ground_truth_boxes": 8055,
+          "predictions": 1027
+        },
+        "pole": {
+          "AP50-95": 0.0043,
+          "AP50": 0.0084,
+          "AP75": 0.0039,
+          "AR100": 0.0537,
+          "AP_small": 0.0,
+          "AP_medium": 0.0143,
+          "AP_large": 0.0143,
+          "ground_truth_boxes": 888,
+          "predictions": 4252
+        },
+        "tree": {
+          "AP50-95": 0.0085,
+          "AP50": 0.0178,
+          "AP75": 0.0079,
+          "AR100": 0.0416,
+          "AP_small": 0.0,
+          "AP_medium": 0.0176,
+          "AP_large": 0.0099,
+          "ground_truth_boxes": 3658,
+          "predictions": 4013
+        },
+        "traffic sign": {
+          "AP50-95": 0.0291,
+          "AP50": 0.0613,
+          "AP75": 0.0202,
+          "AR100": 0.2132,
+          "AP_small": 0.0692,
+          "AP_medium": 0.0324,
+          "AP_large": 0.0942,
+          "ground_truth_boxes": 914,
+          "predictions": 22007
+        },
+        "traffic light": {
+          "AP50-95": 0.0846,
+          "AP50": 0.2528,
+          "AP75": 0.0344,
+          "AR100": 0.2538,
+          "AP_small": 0.0438,
+          "AP_medium": 0.129,
+          "AP_large": 0.0072,
+          "ground_truth_boxes": 1887,
+          "predictions": 22475
+        },
+        "bike rack": {
+          "AP50-95": 0.0008,
+          "AP50": 0.0038,
+          "AP75": 0.0,
+          "AR100": 0.036,
+          "AP_small": 0.0,
+          "AP_medium": 0.0138,
+          "AP_large": 0.0014,
+          "ground_truth_boxes": 1046,
+          "predictions": 8689
+        },
+        "stairs": {
+          "AP50-95": 0.0,
+          "AP50": 0.0,
+          "AP75": 0.0,
+          "AR100": 0.0036,
+          "AP_small": 0.0,
+          "AP_medium": 0.0026,
+          "AP_large": 0.0,
+          "ground_truth_boxes": 250,
+          "predictions": 754
+        },
+        "crosswalk": {
+          "AP50-95": 0.0388,
+          "AP50": 0.077,
+          "AP75": 0.0444,
+          "AR100": 0.1086,
+          "AP_small": 0.0,
+          "AP_medium": 0.0,
+          "AP_large": 0.0475,
+          "ground_truth_boxes": 678,
+          "predictions": 3594
+        },
+        "opening-door": {
+          "AP50-95": 0.027,
+          "AP50": 0.0471,
+          "AP75": 0.0262,
+          "AR100": 0.1503,
+          "AP_small": 0.0,
+          "AP_medium": 0.0059,
+          "AP_large": 0.0341,
+          "ground_truth_boxes": 660,
+          "predictions": 2130
+        },
+        "guard rail/road barrier": {
+          "AP50-95": 0.0,
+          "AP50": 0.0,
+          "AP75": 0.0,
+          "AR100": 0.0,
+          "AP_small": 0.0,
+          "AP_medium": 0.0,
+          "AP_large": null,
+          "ground_truth_boxes": 98,
+          "predictions": 38743
+        },
+        "wall/fence": {
+          "AP50-95": 0.0144,
+          "AP50": 0.0272,
+          "AP75": 0.0121,
+          "AR100": 0.0162,
+          "AP_small": 0.0,
+          "AP_medium": 0.0,
+          "AP_large": 0.0206,
+          "ground_truth_boxes": 5593,
+          "predictions": 792
+        },
+        "water body": {
+          "AP50-95": 0.0,
+          "AP50": 0.0,
+          "AP75": 0.0,
+          "AR100": 0.0,
+          "AP_small": 0.0,
+          "AP_medium": 0.0,
+          "AP_large": 0.0,
+          "ground_truth_boxes": 52,
+          "predictions": 20017
+        }
+      },
+      "frames": 2297,
+      "operating_points": {
+        "match_iou": 0.5,
+        "frames": 2297,
+        "by_confidence": {
+          "0.25": {
+            "overall": {
+              "true_positives": 3923,
+              "false_positives": 4776,
+              "missed": 31811,
+              "ground_truth": 35734,
+              "precision": 0.451,
+              "recall": 0.1098,
+              "f1": 0.1766,
+              "false_alarms_per_frame": 2.0792
+            },
+            "per_class": {
+              "pedestrian": {
+                "true_positives": 1906,
+                "false_positives": 1777,
+                "missed": 1041,
+                "ground_truth": 2947,
+                "precision": 0.5175,
+                "recall": 0.6468,
+                "f1": 0.575,
+                "false_alarms_per_frame": 0.7736
+              },
+              "rider": {
+                "true_positives": 35,
+                "false_positives": 92,
+                "missed": 304,
+                "ground_truth": 339,
+                "precision": 0.2756,
+                "recall": 0.1032,
+                "f1": 0.1502,
+                "false_alarms_per_frame": 0.0401
+              },
+              "animal": {
+                "true_positives": 4,
+                "false_positives": 30,
+                "missed": 141,
+                "ground_truth": 145,
+                "precision": 0.1176,
+                "recall": 0.0276,
+                "f1": 0.0447,
+                "false_alarms_per_frame": 0.0131
+              },
+              "vehicle": {
+                "true_positives": 1134,
+                "false_positives": 125,
+                "missed": 7390,
+                "ground_truth": 8524,
+                "precision": 0.9007,
+                "recall": 0.133,
+                "f1": 0.2318,
+                "false_alarms_per_frame": 0.0544
+              },
+              "obstacle": {
+                "true_positives": 24,
+                "false_positives": 33,
+                "missed": 8031,
+                "ground_truth": 8055,
+                "precision": 0.4211,
+                "recall": 0.003,
+                "f1": 0.0059,
+                "false_alarms_per_frame": 0.0144
+              },
+              "pole": {
+                "true_positives": 9,
+                "false_positives": 84,
+                "missed": 879,
+                "ground_truth": 888,
+                "precision": 0.0968,
+                "recall": 0.0101,
+                "f1": 0.0183,
+                "false_alarms_per_frame": 0.0366
+              },
+              "tree": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 3658,
+                "ground_truth": 3658,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              },
+              "traffic sign": {
+                "true_positives": 176,
+                "false_positives": 1063,
+                "missed": 738,
+                "ground_truth": 914,
+                "precision": 0.1421,
+                "recall": 0.1926,
+                "f1": 0.1635,
+                "false_alarms_per_frame": 0.4628
+              },
+              "traffic light": {
+                "true_positives": 566,
+                "false_positives": 742,
+                "missed": 1321,
+                "ground_truth": 1887,
+                "precision": 0.4327,
+                "recall": 0.2999,
+                "f1": 0.3543,
+                "false_alarms_per_frame": 0.323
+              },
+              "bike rack": {
+                "true_positives": 1,
+                "false_positives": 61,
+                "missed": 1045,
+                "ground_truth": 1046,
+                "precision": 0.0161,
+                "recall": 0.001,
+                "f1": 0.0018,
+                "false_alarms_per_frame": 0.0266
+              },
+              "stairs": {
+                "true_positives": 0,
+                "false_positives": 10,
+                "missed": 250,
+                "ground_truth": 250,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0044
+              },
+              "crosswalk": {
+                "true_positives": 20,
+                "false_positives": 4,
+                "missed": 658,
+                "ground_truth": 678,
+                "precision": 0.8333,
+                "recall": 0.0295,
+                "f1": 0.057,
+                "false_alarms_per_frame": 0.0017
+              },
+              "opening-door": {
+                "true_positives": 11,
+                "false_positives": 19,
+                "missed": 649,
+                "ground_truth": 660,
+                "precision": 0.3667,
+                "recall": 0.0167,
+                "f1": 0.0319,
+                "false_alarms_per_frame": 0.0083
+              },
+              "guard rail/road barrier": {
+                "true_positives": 0,
+                "false_positives": 709,
+                "missed": 98,
+                "ground_truth": 98,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.3087
+              },
+              "wall/fence": {
+                "true_positives": 37,
+                "false_positives": 2,
+                "missed": 5556,
+                "ground_truth": 5593,
+                "precision": 0.9487,
+                "recall": 0.0066,
+                "f1": 0.0131,
+                "false_alarms_per_frame": 0.0009
+              },
+              "water body": {
+                "true_positives": 0,
+                "false_positives": 25,
+                "missed": 52,
+                "ground_truth": 52,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0109
+              }
+            }
+          },
+          "0.35": {
+            "overall": {
+              "true_positives": 3188,
+              "false_positives": 2841,
+              "missed": 32546,
+              "ground_truth": 35734,
+              "precision": 0.5288,
+              "recall": 0.0892,
+              "f1": 0.1527,
+              "false_alarms_per_frame": 1.2368
+            },
+            "per_class": {
+              "pedestrian": {
+                "true_positives": 1834,
+                "false_positives": 1144,
+                "missed": 1113,
+                "ground_truth": 2947,
+                "precision": 0.6158,
+                "recall": 0.6223,
+                "f1": 0.6191,
+                "false_alarms_per_frame": 0.498
+              },
+              "rider": {
+                "true_positives": 28,
+                "false_positives": 48,
+                "missed": 311,
+                "ground_truth": 339,
+                "precision": 0.3684,
+                "recall": 0.0826,
+                "f1": 0.1349,
+                "false_alarms_per_frame": 0.0209
+              },
+              "animal": {
+                "true_positives": 2,
+                "false_positives": 19,
+                "missed": 143,
+                "ground_truth": 145,
+                "precision": 0.0952,
+                "recall": 0.0138,
+                "f1": 0.0241,
+                "false_alarms_per_frame": 0.0083
+              },
+              "vehicle": {
+                "true_positives": 708,
+                "false_positives": 28,
+                "missed": 7816,
+                "ground_truth": 8524,
+                "precision": 0.962,
+                "recall": 0.0831,
+                "f1": 0.1529,
+                "false_alarms_per_frame": 0.0122
+              },
+              "obstacle": {
+                "true_positives": 12,
+                "false_positives": 16,
+                "missed": 8043,
+                "ground_truth": 8055,
+                "precision": 0.4286,
+                "recall": 0.0015,
+                "f1": 0.003,
+                "false_alarms_per_frame": 0.007
+              },
+              "pole": {
+                "true_positives": 6,
+                "false_positives": 32,
+                "missed": 882,
+                "ground_truth": 888,
+                "precision": 0.1579,
+                "recall": 0.0068,
+                "f1": 0.013,
+                "false_alarms_per_frame": 0.0139
+              },
+              "tree": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 3658,
+                "ground_truth": 3658,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              },
+              "traffic sign": {
+                "true_positives": 101,
+                "false_positives": 726,
+                "missed": 813,
+                "ground_truth": 914,
+                "precision": 0.1221,
+                "recall": 0.1105,
+                "f1": 0.116,
+                "false_alarms_per_frame": 0.3161
+              },
+              "traffic light": {
+                "true_positives": 470,
+                "false_positives": 399,
+                "missed": 1417,
+                "ground_truth": 1887,
+                "precision": 0.5409,
+                "recall": 0.2491,
+                "f1": 0.3411,
+                "false_alarms_per_frame": 0.1737
+              },
+              "bike rack": {
+                "true_positives": 0,
+                "false_positives": 31,
+                "missed": 1046,
+                "ground_truth": 1046,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0135
+              },
+              "stairs": {
+                "true_positives": 0,
+                "false_positives": 2,
+                "missed": 250,
+                "ground_truth": 250,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0009
+              },
+              "crosswalk": {
+                "true_positives": 1,
+                "false_positives": 0,
+                "missed": 677,
+                "ground_truth": 678,
+                "precision": 1.0,
+                "recall": 0.0015,
+                "f1": 0.0029,
+                "false_alarms_per_frame": 0.0
+              },
+              "opening-door": {
+                "true_positives": 2,
+                "false_positives": 8,
+                "missed": 658,
+                "ground_truth": 660,
+                "precision": 0.2,
+                "recall": 0.003,
+                "f1": 0.006,
+                "false_alarms_per_frame": 0.0035
+              },
+              "guard rail/road barrier": {
+                "true_positives": 0,
+                "false_positives": 377,
+                "missed": 98,
+                "ground_truth": 98,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.1641
+              },
+              "wall/fence": {
+                "true_positives": 24,
+                "false_positives": 1,
+                "missed": 5569,
+                "ground_truth": 5593,
+                "precision": 0.96,
+                "recall": 0.0043,
+                "f1": 0.0085,
+                "false_alarms_per_frame": 0.0004
+              },
+              "water body": {
+                "true_positives": 0,
+                "false_positives": 10,
+                "missed": 52,
+                "ground_truth": 52,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0044
+              }
+            }
+          },
+          "0.5": {
+            "overall": {
+              "true_positives": 2348,
+              "false_positives": 1444,
+              "missed": 33386,
+              "ground_truth": 35734,
+              "precision": 0.6192,
+              "recall": 0.0657,
+              "f1": 0.1188,
+              "false_alarms_per_frame": 0.6286
+            },
+            "per_class": {
+              "pedestrian": {
+                "true_positives": 1686,
+                "false_positives": 621,
+                "missed": 1261,
+                "ground_truth": 2947,
+                "precision": 0.7308,
+                "recall": 0.5721,
+                "f1": 0.6418,
+                "false_alarms_per_frame": 0.2704
+              },
+              "rider": {
+                "true_positives": 17,
+                "false_positives": 13,
+                "missed": 322,
+                "ground_truth": 339,
+                "precision": 0.5667,
+                "recall": 0.0501,
+                "f1": 0.0921,
+                "false_alarms_per_frame": 0.0057
+              },
+              "animal": {
+                "true_positives": 2,
+                "false_positives": 5,
+                "missed": 143,
+                "ground_truth": 145,
+                "precision": 0.2857,
+                "recall": 0.0138,
+                "f1": 0.0263,
+                "false_alarms_per_frame": 0.0022
+              },
+              "vehicle": {
+                "true_positives": 286,
+                "false_positives": 3,
+                "missed": 8238,
+                "ground_truth": 8524,
+                "precision": 0.9896,
+                "recall": 0.0336,
+                "f1": 0.0649,
+                "false_alarms_per_frame": 0.0013
+              },
+              "obstacle": {
+                "true_positives": 4,
+                "false_positives": 6,
+                "missed": 8051,
+                "ground_truth": 8055,
+                "precision": 0.4,
+                "recall": 0.0005,
+                "f1": 0.001,
+                "false_alarms_per_frame": 0.0026
+              },
+              "pole": {
+                "true_positives": 3,
+                "false_positives": 12,
+                "missed": 885,
+                "ground_truth": 888,
+                "precision": 0.2,
+                "recall": 0.0034,
+                "f1": 0.0066,
+                "false_alarms_per_frame": 0.0052
+              },
+              "tree": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 3658,
+                "ground_truth": 3658,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              },
+              "traffic sign": {
+                "true_positives": 49,
+                "false_positives": 418,
+                "missed": 865,
+                "ground_truth": 914,
+                "precision": 0.1049,
+                "recall": 0.0536,
+                "f1": 0.071,
+                "false_alarms_per_frame": 0.182
+              },
+              "traffic light": {
+                "true_positives": 288,
+                "false_positives": 192,
+                "missed": 1599,
+                "ground_truth": 1887,
+                "precision": 0.6,
+                "recall": 0.1526,
+                "f1": 0.2433,
+                "false_alarms_per_frame": 0.0836
+              },
+              "bike rack": {
+                "true_positives": 0,
+                "false_positives": 11,
+                "missed": 1046,
+                "ground_truth": 1046,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0048
+              },
+              "stairs": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 250,
+                "ground_truth": 250,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              },
+              "crosswalk": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 678,
+                "ground_truth": 678,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              },
+              "opening-door": {
+                "true_positives": 0,
+                "false_positives": 3,
+                "missed": 660,
+                "ground_truth": 660,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0013
+              },
+              "guard rail/road barrier": {
+                "true_positives": 0,
+                "false_positives": 160,
+                "missed": 98,
+                "ground_truth": 98,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0697
+              },
+              "wall/fence": {
+                "true_positives": 13,
+                "false_positives": 0,
+                "missed": 5580,
+                "ground_truth": 5593,
+                "precision": 1.0,
+                "recall": 0.0023,
+                "f1": 0.0046,
+                "false_alarms_per_frame": 0.0
+              },
+              "water body": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 52,
+                "ground_truth": 52,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              }
+            }
+          },
+          "all_predictions": {
+            "overall": {
+              "true_positives": 10880,
+              "false_positives": 218195,
+              "missed": 24854,
+              "ground_truth": 35734,
+              "precision": 0.0475,
+              "recall": 0.3045,
+              "f1": 0.0822,
+              "false_alarms_per_frame": 94.9913
+            },
+            "per_class": {
+              "pedestrian": {
+                "true_positives": 2334,
+                "false_positives": 56565,
+                "missed": 613,
+                "ground_truth": 2947,
+                "precision": 0.0396,
+                "recall": 0.792,
+                "f1": 0.0755,
+                "false_alarms_per_frame": 24.6256
+              },
+              "rider": {
+                "true_positives": 104,
+                "false_positives": 2982,
+                "missed": 235,
+                "ground_truth": 339,
+                "precision": 0.0337,
+                "recall": 0.3068,
+                "f1": 0.0607,
+                "false_alarms_per_frame": 1.2982
+              },
+              "animal": {
+                "true_positives": 24,
+                "false_positives": 1333,
+                "missed": 121,
+                "ground_truth": 145,
+                "precision": 0.0177,
+                "recall": 0.1655,
+                "f1": 0.032,
+                "false_alarms_per_frame": 0.5803
+              },
+              "vehicle": {
+                "true_positives": 5364,
+                "false_positives": 31876,
+                "missed": 3160,
+                "ground_truth": 8524,
+                "precision": 0.144,
+                "recall": 0.6293,
+                "f1": 0.2344,
+                "false_alarms_per_frame": 13.8772
+              },
+              "obstacle": {
+                "true_positives": 425,
+                "false_positives": 602,
+                "missed": 7630,
+                "ground_truth": 8055,
+                "precision": 0.4138,
+                "recall": 0.0528,
+                "f1": 0.0936,
+                "false_alarms_per_frame": 0.2621
+              },
+              "pole": {
+                "true_positives": 102,
+                "false_positives": 4150,
+                "missed": 786,
+                "ground_truth": 888,
+                "precision": 0.024,
+                "recall": 0.1149,
+                "f1": 0.0397,
+                "false_alarms_per_frame": 1.8067
+              },
+              "tree": {
+                "true_positives": 326,
+                "false_positives": 3687,
+                "missed": 3332,
+                "ground_truth": 3658,
+                "precision": 0.0812,
+                "recall": 0.0891,
+                "f1": 0.085,
+                "false_alarms_per_frame": 1.6051
+              },
+              "traffic sign": {
+                "true_positives": 399,
+                "false_positives": 21608,
+                "missed": 515,
+                "ground_truth": 914,
+                "precision": 0.0181,
+                "recall": 0.4365,
+                "f1": 0.0348,
+                "false_alarms_per_frame": 9.4071
+              },
+              "traffic light": {
+                "true_positives": 1172,
+                "false_positives": 21303,
+                "missed": 715,
+                "ground_truth": 1887,
+                "precision": 0.0521,
+                "recall": 0.6211,
+                "f1": 0.0962,
+                "false_alarms_per_frame": 9.2743
+              },
+              "bike rack": {
+                "true_positives": 125,
+                "false_positives": 8564,
+                "missed": 921,
+                "ground_truth": 1046,
+                "precision": 0.0144,
+                "recall": 0.1195,
+                "f1": 0.0257,
+                "false_alarms_per_frame": 3.7283
+              },
+              "stairs": {
+                "true_positives": 2,
+                "false_positives": 752,
+                "missed": 248,
+                "ground_truth": 250,
+                "precision": 0.0027,
+                "recall": 0.008,
+                "f1": 0.004,
+                "false_alarms_per_frame": 0.3274
+              },
+              "crosswalk": {
+                "true_positives": 156,
+                "false_positives": 3438,
+                "missed": 522,
+                "ground_truth": 678,
+                "precision": 0.0434,
+                "recall": 0.2301,
+                "f1": 0.073,
+                "false_alarms_per_frame": 1.4967
+              },
+              "opening-door": {
+                "true_positives": 170,
+                "false_positives": 1960,
+                "missed": 490,
+                "ground_truth": 660,
+                "precision": 0.0798,
+                "recall": 0.2576,
+                "f1": 0.1219,
+                "false_alarms_per_frame": 0.8533
+              },
+              "guard rail/road barrier": {
+                "true_positives": 0,
+                "false_positives": 38743,
+                "missed": 98,
+                "ground_truth": 98,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 16.8668
+              },
+              "wall/fence": {
+                "true_positives": 177,
+                "false_positives": 615,
+                "missed": 5416,
+                "ground_truth": 5593,
+                "precision": 0.2235,
+                "recall": 0.0316,
+                "f1": 0.0554,
+                "false_alarms_per_frame": 0.2677
+              },
+              "water body": {
+                "true_positives": 0,
+                "false_positives": 20017,
+                "missed": 52,
+                "ground_truth": 52,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 8.7144
+              }
+            }
+          }
+        }
+      },
+      "speed_ms_per_frame": {
+        "preprocess": 11.03,
+        "inference": 0.77,
+        "postprocess": 2.44
+      },
+      "gpu_memory_peak_gb": 16.24
+    },
+    "test": {
+      "overall": {
+        "AP50-95": 0.0434,
+        "AP50": 0.0849,
+        "AP75": 0.0403,
+        "AP_small": 0.007,
+        "AP_medium": 0.0398,
+        "AP_large": 0.0686,
+        "AR1": 0.0551,
+        "AR10": 0.1115,
+        "AR100": 0.1184,
+        "AR_small": 0.0172,
+        "AR_medium": 0.0821,
+        "AR_large": 0.1712
+      },
+      "per_class": {
+        "pedestrian": {
+          "AP50-95": 0.3466,
+          "AP50": 0.6232,
+          "AP75": 0.3494,
+          "AR100": 0.4616,
+          "AP_small": 0.0453,
+          "AP_medium": 0.245,
+          "AP_large": 0.52,
+          "ground_truth_boxes": 8720,
+          "predictions": 145472
+        },
+        "rider": {
+          "AP50-95": 0.0113,
+          "AP50": 0.0371,
+          "AP75": 0.0043,
+          "AR100": 0.1502,
+          "AP_small": 0.0,
+          "AP_medium": 0.0207,
+          "AP_large": 0.0178,
+          "ground_truth_boxes": 209,
+          "predictions": 6481
+        },
+        "animal": {
+          "AP50-95": 0.0033,
+          "AP50": 0.0114,
+          "AP75": 0.0003,
+          "AR100": 0.144,
+          "AP_small": 0.0,
+          "AP_medium": 0.0835,
+          "AP_large": 0.0074,
+          "ground_truth_boxes": 25,
+          "predictions": 4297
+        },
+        "vehicle": {
+          "AP50-95": 0.2132,
+          "AP50": 0.3884,
+          "AP75": 0.2134,
+          "AR100": 0.349,
+          "AP_small": 0.0204,
+          "AP_medium": 0.1711,
+          "AP_large": 0.3812,
+          "ground_truth_boxes": 11023,
+          "predictions": 62695
+        },
+        "obstacle": {
+          "AP50-95": 0.0169,
+          "AP50": 0.0236,
+          "AP75": 0.0201,
+          "AR100": 0.027,
+          "AP_small": 0.0,
+          "AP_medium": 0.0089,
+          "AP_large": 0.0285,
+          "ground_truth_boxes": 19302,
+          "predictions": 2084
+        },
+        "pole": {
+          "AP50-95": 0.0207,
+          "AP50": 0.0333,
+          "AP75": 0.0199,
+          "AR100": 0.0701,
+          "AP_small": 0.005,
+          "AP_medium": 0.0222,
+          "AP_large": 0.057,
+          "ground_truth_boxes": 5324,
+          "predictions": 10365
+        },
+        "tree": {
+          "AP50-95": 0.0074,
+          "AP50": 0.0238,
+          "AP75": 0.0037,
+          "AR100": 0.0599,
+          "AP_small": 0.0,
+          "AP_medium": 0.0089,
+          "AP_large": 0.0104,
+          "ground_truth_boxes": 6439,
+          "predictions": 13516
+        },
+        "traffic sign": {
+          "AP50-95": 0.0103,
+          "AP50": 0.0258,
+          "AP75": 0.0068,
+          "AR100": 0.1694,
+          "AP_small": 0.0141,
+          "AP_medium": 0.0176,
+          "AP_large": 0.0028,
+          "ground_truth_boxes": 1009,
+          "predictions": 40444
+        },
+        "traffic light": {
+          "AP50-95": 0.01,
+          "AP50": 0.0357,
+          "AP75": 0.0038,
+          "AR100": 0.1429,
+          "AP_small": 0.0249,
+          "AP_medium": 0.0156,
+          "AP_large": 0.0005,
+          "ground_truth_boxes": 1450,
+          "predictions": 39838
+        },
+        "bike rack": {
+          "AP50-95": 0.0029,
+          "AP50": 0.0137,
+          "AP75": 0.0005,
+          "AR100": 0.0657,
+          "AP_small": 0.0,
+          "AP_medium": 0.0194,
+          "AP_large": 0.005,
+          "ground_truth_boxes": 883,
+          "predictions": 15723
+        },
+        "stairs": {
+          "AP50-95": 0.0005,
+          "AP50": 0.0013,
+          "AP75": 0.0001,
+          "AR100": 0.0167,
+          "AP_small": 0.0,
+          "AP_medium": 0.0,
+          "AP_large": 0.0006,
+          "ground_truth_boxes": 233,
+          "predictions": 1401
+        },
+        "crosswalk": {
+          "AP50-95": 0.0319,
+          "AP50": 0.1028,
+          "AP75": 0.0056,
+          "AR100": 0.1041,
+          "AP_small": 0.0,
+          "AP_medium": 0.0,
+          "AP_large": 0.0393,
+          "ground_truth_boxes": 1569,
+          "predictions": 6143
+        },
+        "opening-door": {
+          "AP50-95": 0.0043,
+          "AP50": 0.0107,
+          "AP75": 0.0033,
+          "AR100": 0.094,
+          "AP_small": 0.0,
+          "AP_medium": 0.0119,
+          "AP_large": 0.0053,
+          "ground_truth_boxes": 546,
+          "predictions": 3911
+        },
+        "guard rail/road barrier": {
+          "AP50-95": 0.0,
+          "AP50": 0.0,
+          "AP75": 0.0,
+          "AR100": 0.0157,
+          "AP_small": 0.002,
+          "AP_medium": 0.0041,
+          "AP_large": 0.0,
+          "ground_truth_boxes": 949,
+          "predictions": 101502
+        },
+        "wall/fence": {
+          "AP50-95": 0.0157,
+          "AP50": 0.027,
+          "AP75": 0.0141,
+          "AR100": 0.0233,
+          "AP_small": 0.0,
+          "AP_medium": 0.0079,
+          "AP_large": 0.0215,
+          "ground_truth_boxes": 9173,
+          "predictions": 2590
+        },
+        "water body": {
+          "AP50-95": 0.0,
+          "AP50": 0.0,
+          "AP75": 0.0,
+          "AR100": 0.0,
+          "AP_small": 0.0,
+          "AP_medium": 0.0,
+          "AP_large": 0.0,
+          "ground_truth_boxes": 378,
+          "predictions": 49350
+        }
+      },
+      "frames": 5107,
+      "operating_points": {
+        "match_iou": 0.5,
+        "frames": 5107,
+        "by_confidence": {
+          "0.25": {
+            "overall": {
+              "true_positives": 8262,
+              "false_positives": 11535,
+              "missed": 58970,
+              "ground_truth": 67232,
+              "precision": 0.4173,
+              "recall": 0.1229,
+              "f1": 0.1899,
+              "false_alarms_per_frame": 2.2587
+            },
+            "per_class": {
+              "pedestrian": {
+                "true_positives": 5949,
+                "false_positives": 5784,
+                "missed": 2771,
+                "ground_truth": 8720,
+                "precision": 0.507,
+                "recall": 0.6822,
+                "f1": 0.5817,
+                "false_alarms_per_frame": 1.1326
+              },
+              "rider": {
+                "true_positives": 33,
+                "false_positives": 219,
+                "missed": 176,
+                "ground_truth": 209,
+                "precision": 0.131,
+                "recall": 0.1579,
+                "f1": 0.1432,
+                "false_alarms_per_frame": 0.0429
+              },
+              "animal": {
+                "true_positives": 5,
+                "false_positives": 154,
+                "missed": 20,
+                "ground_truth": 25,
+                "precision": 0.0314,
+                "recall": 0.2,
+                "f1": 0.0543,
+                "false_alarms_per_frame": 0.0302
+              },
+              "vehicle": {
+                "true_positives": 1688,
+                "false_positives": 268,
+                "missed": 9335,
+                "ground_truth": 11023,
+                "precision": 0.863,
+                "recall": 0.1531,
+                "f1": 0.2601,
+                "false_alarms_per_frame": 0.0525
+              },
+              "obstacle": {
+                "true_positives": 46,
+                "false_positives": 39,
+                "missed": 19256,
+                "ground_truth": 19302,
+                "precision": 0.5412,
+                "recall": 0.0024,
+                "f1": 0.0047,
+                "false_alarms_per_frame": 0.0076
+              },
+              "pole": {
+                "true_positives": 92,
+                "false_positives": 132,
+                "missed": 5232,
+                "ground_truth": 5324,
+                "precision": 0.4107,
+                "recall": 0.0173,
+                "f1": 0.0332,
+                "false_alarms_per_frame": 0.0258
+              },
+              "tree": {
+                "true_positives": 0,
+                "false_positives": 4,
+                "missed": 6439,
+                "ground_truth": 6439,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0008
+              },
+              "traffic sign": {
+                "true_positives": 168,
+                "false_positives": 1612,
+                "missed": 841,
+                "ground_truth": 1009,
+                "precision": 0.0944,
+                "recall": 0.1665,
+                "f1": 0.1205,
+                "false_alarms_per_frame": 0.3156
+              },
+              "traffic light": {
+                "true_positives": 156,
+                "false_positives": 1061,
+                "missed": 1294,
+                "ground_truth": 1450,
+                "precision": 0.1282,
+                "recall": 0.1076,
+                "f1": 0.117,
+                "false_alarms_per_frame": 0.2078
+              },
+              "bike rack": {
+                "true_positives": 10,
+                "false_positives": 136,
+                "missed": 873,
+                "ground_truth": 883,
+                "precision": 0.0685,
+                "recall": 0.0113,
+                "f1": 0.0194,
+                "false_alarms_per_frame": 0.0266
+              },
+              "stairs": {
+                "true_positives": 0,
+                "false_positives": 3,
+                "missed": 233,
+                "ground_truth": 233,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0006
+              },
+              "crosswalk": {
+                "true_positives": 49,
+                "false_positives": 11,
+                "missed": 1520,
+                "ground_truth": 1569,
+                "precision": 0.8167,
+                "recall": 0.0312,
+                "f1": 0.0602,
+                "false_alarms_per_frame": 0.0022
+              },
+              "opening-door": {
+                "true_positives": 0,
+                "false_positives": 19,
+                "missed": 546,
+                "ground_truth": 546,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0037
+              },
+              "guard rail/road barrier": {
+                "true_positives": 0,
+                "false_positives": 2000,
+                "missed": 949,
+                "ground_truth": 949,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.3916
+              },
+              "wall/fence": {
+                "true_positives": 66,
+                "false_positives": 21,
+                "missed": 9107,
+                "ground_truth": 9173,
+                "precision": 0.7586,
+                "recall": 0.0072,
+                "f1": 0.0143,
+                "false_alarms_per_frame": 0.0041
+              },
+              "water body": {
+                "true_positives": 0,
+                "false_positives": 72,
+                "missed": 378,
+                "ground_truth": 378,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0141
+              }
+            }
+          },
+          "0.35": {
+            "overall": {
+              "true_positives": 7194,
+              "false_positives": 6981,
+              "missed": 60038,
+              "ground_truth": 67232,
+              "precision": 0.5075,
+              "recall": 0.107,
+              "f1": 0.1767,
+              "false_alarms_per_frame": 1.3669
+            },
+            "per_class": {
+              "pedestrian": {
+                "true_positives": 5773,
+                "false_positives": 3980,
+                "missed": 2947,
+                "ground_truth": 8720,
+                "precision": 0.5919,
+                "recall": 0.662,
+                "f1": 0.625,
+                "false_alarms_per_frame": 0.7793
+              },
+              "rider": {
+                "true_positives": 14,
+                "false_positives": 109,
+                "missed": 195,
+                "ground_truth": 209,
+                "precision": 0.1138,
+                "recall": 0.067,
+                "f1": 0.0843,
+                "false_alarms_per_frame": 0.0213
+              },
+              "animal": {
+                "true_positives": 3,
+                "false_positives": 110,
+                "missed": 22,
+                "ground_truth": 25,
+                "precision": 0.0265,
+                "recall": 0.12,
+                "f1": 0.0435,
+                "false_alarms_per_frame": 0.0215
+              },
+              "vehicle": {
+                "true_positives": 1019,
+                "false_positives": 105,
+                "missed": 10004,
+                "ground_truth": 11023,
+                "precision": 0.9066,
+                "recall": 0.0924,
+                "f1": 0.1678,
+                "false_alarms_per_frame": 0.0206
+              },
+              "obstacle": {
+                "true_positives": 26,
+                "false_positives": 18,
+                "missed": 19276,
+                "ground_truth": 19302,
+                "precision": 0.5909,
+                "recall": 0.0013,
+                "f1": 0.0027,
+                "false_alarms_per_frame": 0.0035
+              },
+              "pole": {
+                "true_positives": 68,
+                "false_positives": 79,
+                "missed": 5256,
+                "ground_truth": 5324,
+                "precision": 0.4626,
+                "recall": 0.0128,
+                "f1": 0.0249,
+                "false_alarms_per_frame": 0.0155
+              },
+              "tree": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 6439,
+                "ground_truth": 6439,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              },
+              "traffic sign": {
+                "true_positives": 104,
+                "false_positives": 1003,
+                "missed": 905,
+                "ground_truth": 1009,
+                "precision": 0.0939,
+                "recall": 0.1031,
+                "f1": 0.0983,
+                "false_alarms_per_frame": 0.1964
+              },
+              "traffic light": {
+                "true_positives": 98,
+                "false_positives": 598,
+                "missed": 1352,
+                "ground_truth": 1450,
+                "precision": 0.1408,
+                "recall": 0.0676,
+                "f1": 0.0913,
+                "false_alarms_per_frame": 0.1171
+              },
+              "bike rack": {
+                "true_positives": 8,
+                "false_positives": 53,
+                "missed": 875,
+                "ground_truth": 883,
+                "precision": 0.1311,
+                "recall": 0.0091,
+                "f1": 0.0169,
+                "false_alarms_per_frame": 0.0104
+              },
+              "stairs": {
+                "true_positives": 0,
+                "false_positives": 1,
+                "missed": 233,
+                "ground_truth": 233,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0002
+              },
+              "crosswalk": {
+                "true_positives": 36,
+                "false_positives": 5,
+                "missed": 1533,
+                "ground_truth": 1569,
+                "precision": 0.878,
+                "recall": 0.0229,
+                "f1": 0.0447,
+                "false_alarms_per_frame": 0.001
+              },
+              "opening-door": {
+                "true_positives": 0,
+                "false_positives": 9,
+                "missed": 546,
+                "ground_truth": 546,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0018
+              },
+              "guard rail/road barrier": {
+                "true_positives": 0,
+                "false_positives": 884,
+                "missed": 949,
+                "ground_truth": 949,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.1731
+              },
+              "wall/fence": {
+                "true_positives": 45,
+                "false_positives": 8,
+                "missed": 9128,
+                "ground_truth": 9173,
+                "precision": 0.8491,
+                "recall": 0.0049,
+                "f1": 0.0098,
+                "false_alarms_per_frame": 0.0016
+              },
+              "water body": {
+                "true_positives": 0,
+                "false_positives": 19,
+                "missed": 378,
+                "ground_truth": 378,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0037
+              }
+            }
+          },
+          "0.5": {
+            "overall": {
+              "true_positives": 5992,
+              "false_positives": 3600,
+              "missed": 61240,
+              "ground_truth": 67232,
+              "precision": 0.6247,
+              "recall": 0.0891,
+              "f1": 0.156,
+              "false_alarms_per_frame": 0.7049
+            },
+            "per_class": {
+              "pedestrian": {
+                "true_positives": 5380,
+                "false_positives": 2367,
+                "missed": 3340,
+                "ground_truth": 8720,
+                "precision": 0.6945,
+                "recall": 0.617,
+                "f1": 0.6534,
+                "false_alarms_per_frame": 0.4635
+              },
+              "rider": {
+                "true_positives": 8,
+                "false_positives": 48,
+                "missed": 201,
+                "ground_truth": 209,
+                "precision": 0.1429,
+                "recall": 0.0383,
+                "f1": 0.0604,
+                "false_alarms_per_frame": 0.0094
+              },
+              "animal": {
+                "true_positives": 0,
+                "false_positives": 68,
+                "missed": 25,
+                "ground_truth": 25,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0133
+              },
+              "vehicle": {
+                "true_positives": 397,
+                "false_positives": 23,
+                "missed": 10626,
+                "ground_truth": 11023,
+                "precision": 0.9452,
+                "recall": 0.036,
+                "f1": 0.0694,
+                "false_alarms_per_frame": 0.0045
+              },
+              "obstacle": {
+                "true_positives": 9,
+                "false_positives": 2,
+                "missed": 19293,
+                "ground_truth": 19302,
+                "precision": 0.8182,
+                "recall": 0.0005,
+                "f1": 0.0009,
+                "false_alarms_per_frame": 0.0004
+              },
+              "pole": {
+                "true_positives": 44,
+                "false_positives": 25,
+                "missed": 5280,
+                "ground_truth": 5324,
+                "precision": 0.6377,
+                "recall": 0.0083,
+                "f1": 0.0163,
+                "false_alarms_per_frame": 0.0049
+              },
+              "tree": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 6439,
+                "ground_truth": 6439,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              },
+              "traffic sign": {
+                "true_positives": 43,
+                "false_positives": 559,
+                "missed": 966,
+                "ground_truth": 1009,
+                "precision": 0.0714,
+                "recall": 0.0426,
+                "f1": 0.0534,
+                "false_alarms_per_frame": 0.1095
+              },
+              "traffic light": {
+                "true_positives": 66,
+                "false_positives": 267,
+                "missed": 1384,
+                "ground_truth": 1450,
+                "precision": 0.1982,
+                "recall": 0.0455,
+                "f1": 0.074,
+                "false_alarms_per_frame": 0.0523
+              },
+              "bike rack": {
+                "true_positives": 7,
+                "false_positives": 16,
+                "missed": 876,
+                "ground_truth": 883,
+                "precision": 0.3043,
+                "recall": 0.0079,
+                "f1": 0.0155,
+                "false_alarms_per_frame": 0.0031
+              },
+              "stairs": {
+                "true_positives": 0,
+                "false_positives": 0,
+                "missed": 233,
+                "ground_truth": 233,
+                "precision": null,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0
+              },
+              "crosswalk": {
+                "true_positives": 19,
+                "false_positives": 1,
+                "missed": 1550,
+                "ground_truth": 1569,
+                "precision": 0.95,
+                "recall": 0.0121,
+                "f1": 0.0239,
+                "false_alarms_per_frame": 0.0002
+              },
+              "opening-door": {
+                "true_positives": 0,
+                "false_positives": 2,
+                "missed": 546,
+                "ground_truth": 546,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0004
+              },
+              "guard rail/road barrier": {
+                "true_positives": 0,
+                "false_positives": 221,
+                "missed": 949,
+                "ground_truth": 949,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0433
+              },
+              "wall/fence": {
+                "true_positives": 19,
+                "false_positives": 0,
+                "missed": 9154,
+                "ground_truth": 9173,
+                "precision": 1.0,
+                "recall": 0.0021,
+                "f1": 0.0041,
+                "false_alarms_per_frame": 0.0
+              },
+              "water body": {
+                "true_positives": 0,
+                "false_positives": 1,
+                "missed": 378,
+                "ground_truth": 378,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 0.0002
+              }
+            }
+          },
+          "all_predictions": {
+            "overall": {
+              "true_positives": 18112,
+              "false_positives": 487700,
+              "missed": 49120,
+              "ground_truth": 67232,
+              "precision": 0.0358,
+              "recall": 0.2694,
+              "f1": 0.0632,
+              "false_alarms_per_frame": 95.4964
+            },
+            "per_class": {
+              "pedestrian": {
+                "true_positives": 6951,
+                "false_positives": 138521,
+                "missed": 1769,
+                "ground_truth": 8720,
+                "precision": 0.0478,
+                "recall": 0.7971,
+                "f1": 0.0902,
+                "false_alarms_per_frame": 27.1238
+              },
+              "rider": {
+                "true_positives": 74,
+                "false_positives": 6407,
+                "missed": 135,
+                "ground_truth": 209,
+                "precision": 0.0114,
+                "recall": 0.3541,
+                "f1": 0.0221,
+                "false_alarms_per_frame": 1.2546
+              },
+              "animal": {
+                "true_positives": 9,
+                "false_positives": 4288,
+                "missed": 16,
+                "ground_truth": 25,
+                "precision": 0.0021,
+                "recall": 0.36,
+                "f1": 0.0042,
+                "false_alarms_per_frame": 0.8396
+              },
+              "vehicle": {
+                "true_positives": 6741,
+                "false_positives": 55954,
+                "missed": 4282,
+                "ground_truth": 11023,
+                "precision": 0.1075,
+                "recall": 0.6115,
+                "f1": 0.1829,
+                "false_alarms_per_frame": 10.9563
+              },
+              "obstacle": {
+                "true_positives": 711,
+                "false_positives": 1373,
+                "missed": 18591,
+                "ground_truth": 19302,
+                "precision": 0.3412,
+                "recall": 0.0368,
+                "f1": 0.0665,
+                "false_alarms_per_frame": 0.2688
+              },
+              "pole": {
+                "true_positives": 681,
+                "false_positives": 9684,
+                "missed": 4643,
+                "ground_truth": 5324,
+                "precision": 0.0657,
+                "recall": 0.1279,
+                "f1": 0.0868,
+                "false_alarms_per_frame": 1.8962
+              },
+              "tree": {
+                "true_positives": 907,
+                "false_positives": 12609,
+                "missed": 5532,
+                "ground_truth": 6439,
+                "precision": 0.0671,
+                "recall": 0.1409,
+                "f1": 0.0909,
+                "false_alarms_per_frame": 2.469
+              },
+              "traffic sign": {
+                "true_positives": 345,
+                "false_positives": 40099,
+                "missed": 664,
+                "ground_truth": 1009,
+                "precision": 0.0085,
+                "recall": 0.3419,
+                "f1": 0.0166,
+                "false_alarms_per_frame": 7.8518
+              },
+              "traffic light": {
+                "true_positives": 555,
+                "false_positives": 39283,
+                "missed": 895,
+                "ground_truth": 1450,
+                "precision": 0.0139,
+                "recall": 0.3828,
+                "f1": 0.0269,
+                "false_alarms_per_frame": 7.692
+              },
+              "bike rack": {
+                "true_positives": 160,
+                "false_positives": 15563,
+                "missed": 723,
+                "ground_truth": 883,
+                "precision": 0.0102,
+                "recall": 0.1812,
+                "f1": 0.0193,
+                "false_alarms_per_frame": 3.0474
+              },
+              "stairs": {
+                "true_positives": 10,
+                "false_positives": 1391,
+                "missed": 223,
+                "ground_truth": 233,
+                "precision": 0.0071,
+                "recall": 0.0429,
+                "f1": 0.0122,
+                "false_alarms_per_frame": 0.2724
+              },
+              "crosswalk": {
+                "true_positives": 395,
+                "false_positives": 5748,
+                "missed": 1174,
+                "ground_truth": 1569,
+                "precision": 0.0643,
+                "recall": 0.2518,
+                "f1": 0.1024,
+                "false_alarms_per_frame": 1.1255
+              },
+              "opening-door": {
+                "true_positives": 104,
+                "false_positives": 3807,
+                "missed": 442,
+                "ground_truth": 546,
+                "precision": 0.0266,
+                "recall": 0.1905,
+                "f1": 0.0467,
+                "false_alarms_per_frame": 0.7454
+              },
+              "guard rail/road barrier": {
+                "true_positives": 47,
+                "false_positives": 101455,
+                "missed": 902,
+                "ground_truth": 949,
+                "precision": 0.0005,
+                "recall": 0.0495,
+                "f1": 0.0009,
+                "false_alarms_per_frame": 19.8659
+              },
+              "wall/fence": {
+                "true_positives": 422,
+                "false_positives": 2168,
+                "missed": 8751,
+                "ground_truth": 9173,
+                "precision": 0.1629,
+                "recall": 0.046,
+                "f1": 0.0718,
+                "false_alarms_per_frame": 0.4245
+              },
+              "water body": {
+                "true_positives": 0,
+                "false_positives": 49350,
+                "missed": 378,
+                "ground_truth": 378,
+                "precision": 0.0,
+                "recall": 0.0,
+                "f1": null,
+                "false_alarms_per_frame": 9.6632
+              }
+            }
+          }
+        }
+      },
+      "speed_ms_per_frame": {
+        "preprocess": 8.24,
+        "inference": 0.67,
+        "postprocess": 2.32
+      },
+      "gpu_memory_peak_gb": 16.24
+    }
+  },
+  "near_objects": {
+    "5": {
+      "val": {
+        "overall": {
+          "AP50-95": 0.0772,
+          "AP50": 0.1105,
+          "AP75": 0.092,
+          "AP_small": 0.0,
+          "AP_medium": 0.0059,
+          "AP_large": 0.0903,
+          "AR1": 0.1518,
+          "AR10": 0.217,
+          "AR100": 0.2192,
+          "AR_small": 0.0,
+          "AR_medium": 0.0671,
+          "AR_large": 0.2412
+        },
+        "per_class": {
+          "pedestrian": {
+            "AP50-95": 0.5256,
+            "AP50": 0.6866,
+            "AP75": 0.6565,
+            "AR100": 0.7675,
+            "AP_small": 0.0,
+            "AP_medium": 0.0002,
+            "AP_large": 0.5831,
+            "ground_truth_boxes": 234,
+            "predictions": 55497
+          },
+          "rider": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0,
+            "AP_small": null,
+            "AP_medium": null,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 1,
+            "predictions": 2919
+          },
+          "animal": {
+            "AP50-95": 0.0066,
+            "AP50": 0.0113,
+            "AP75": 0.0099,
+            "AR100": 0.0762,
+            "AP_small": null,
+            "AP_medium": null,
+            "AP_large": 0.0066,
+            "ground_truth_boxes": 21,
+            "predictions": 1329
+          },
+          "vehicle": {
+            "AP50-95": 0.3793,
+            "AP50": 0.5337,
+            "AP75": 0.4539,
+            "AR100": 0.5813,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.3993,
+            "ground_truth_boxes": 203,
+            "predictions": 29202
+          },
+          "obstacle": {
+            "AP50-95": 0.0183,
+            "AP50": 0.0248,
+            "AP75": 0.0202,
+            "AR100": 0.0631,
+            "AP_small": 0.0,
+            "AP_medium": 0.0178,
+            "AP_large": 0.0196,
+            "ground_truth_boxes": 1126,
+            "predictions": 674
+          },
+          "pole": {
+            "AP50-95": 0.0196,
+            "AP50": 0.0358,
+            "AP75": 0.0168,
+            "AR100": 0.2072,
+            "AP_small": 0.0,
+            "AP_medium": 0.0297,
+            "AP_large": 0.0242,
+            "ground_truth_boxes": 111,
+            "predictions": 4171
+          },
+          "tree": {
+            "AP50-95": 0.004,
+            "AP50": 0.0074,
+            "AP75": 0.0049,
+            "AR100": 0.1318,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0044,
+            "ground_truth_boxes": 176,
+            "predictions": 3644
+          },
+          "traffic sign": {
+            "AP50-95": 0.0043,
+            "AP50": 0.0065,
+            "AP75": 0.006,
+            "AR100": 0.5455,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0082,
+            "ground_truth_boxes": 11,
+            "predictions": 21517
+          },
+          "traffic light": {
+            "AP50-95": 0.0002,
+            "AP50": 0.0011,
+            "AP75": 0.0,
+            "AR100": 0.2,
+            "AP_small": null,
+            "AP_medium": 0.0003,
+            "AP_large": null,
+            "ground_truth_boxes": 1,
+            "predictions": 20537
+          },
+          "bike rack": {
+            "AP50-95": 0.0009,
+            "AP50": 0.0032,
+            "AP75": 0.0,
+            "AR100": 0.0982,
+            "AP_small": null,
+            "AP_medium": 0.0008,
+            "AP_large": 0.001,
+            "ground_truth_boxes": 55,
+            "predictions": 8549
+          },
+          "stairs": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0053,
+            "AP_small": 0.0,
+            "AP_medium": 0.0224,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 151,
+            "predictions": 753
+          },
+          "crosswalk": {
+            "AP50-95": 0.0721,
+            "AP50": 0.1407,
+            "AP75": 0.0817,
+            "AR100": 0.2038,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0733,
+            "ground_truth_boxes": 342,
+            "predictions": 3569
+          },
+          "opening-door": {
+            "AP50-95": 0.0142,
+            "AP50": 0.0184,
+            "AP75": 0.0147,
+            "AR100": 0.1379,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0152,
+            "ground_truth_boxes": 58,
+            "predictions": 1935
+          },
+          "guard rail/road barrier": {
+            "AP50-95": null,
+            "AP50": null,
+            "AP75": null,
+            "AR100": null,
+            "AP_small": null,
+            "AP_medium": null,
+            "AP_large": null,
+            "ground_truth_boxes": 0,
+            "predictions": 38743
+          },
+          "wall/fence": {
+            "AP50-95": 0.0359,
+            "AP50": 0.0771,
+            "AP75": 0.024,
+            "AR100": 0.0504,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0389,
+            "ground_truth_boxes": 808,
+            "predictions": 602
+          },
+          "water body": {
+            "AP50-95": null,
+            "AP50": null,
+            "AP75": null,
+            "AR100": null,
+            "AP_small": null,
+            "AP_medium": null,
+            "AP_large": null,
+            "ground_truth_boxes": 0,
+            "predictions": 20017
+          }
+        },
+        "operating_points": {
+          "match_iou": 0.5,
+          "frames": 2297,
+          "by_confidence": {
+            "0.25": {
+              "overall": {
+                "true_positives": 419,
+                "false_positives": 4651,
+                "missed": 2879,
+                "ground_truth": 3298,
+                "precision": 0.0826,
+                "recall": 0.127,
+                "f1": 0.1001,
+                "false_alarms_per_frame": 2.0248
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 216,
+                  "false_positives": 1705,
+                  "missed": 18,
+                  "ground_truth": 234,
+                  "precision": 0.1124,
+                  "recall": 0.9231,
+                  "f1": 0.2005,
+                  "false_alarms_per_frame": 0.7423
+                },
+                "rider": {
+                  "true_positives": 0,
+                  "false_positives": 88,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0383
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 30,
+                  "missed": 20,
+                  "ground_truth": 21,
+                  "precision": 0.0323,
+                  "recall": 0.0476,
+                  "f1": 0.0385,
+                  "false_alarms_per_frame": 0.0131
+                },
+                "vehicle": {
+                  "true_positives": 115,
+                  "false_positives": 123,
+                  "missed": 88,
+                  "ground_truth": 203,
+                  "precision": 0.4832,
+                  "recall": 0.5665,
+                  "f1": 0.5215,
+                  "false_alarms_per_frame": 0.0535
+                },
+                "obstacle": {
+                  "true_positives": 15,
+                  "false_positives": 33,
+                  "missed": 1111,
+                  "ground_truth": 1126,
+                  "precision": 0.3125,
+                  "recall": 0.0133,
+                  "f1": 0.0256,
+                  "false_alarms_per_frame": 0.0144
+                },
+                "pole": {
+                  "true_positives": 9,
+                  "false_positives": 84,
+                  "missed": 102,
+                  "ground_truth": 111,
+                  "precision": 0.0968,
+                  "recall": 0.0811,
+                  "f1": 0.0882,
+                  "false_alarms_per_frame": 0.0366
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 176,
+                  "ground_truth": 176,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 6,
+                  "false_positives": 1057,
+                  "missed": 5,
+                  "ground_truth": 11,
+                  "precision": 0.0056,
+                  "recall": 0.5455,
+                  "f1": 0.0112,
+                  "false_alarms_per_frame": 0.4602
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 701,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.3052
+                },
+                "bike rack": {
+                  "true_positives": 1,
+                  "false_positives": 61,
+                  "missed": 54,
+                  "ground_truth": 55,
+                  "precision": 0.0161,
+                  "recall": 0.0182,
+                  "f1": 0.0171,
+                  "false_alarms_per_frame": 0.0266
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 10,
+                  "missed": 151,
+                  "ground_truth": 151,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0044
+                },
+                "crosswalk": {
+                  "true_positives": 20,
+                  "false_positives": 4,
+                  "missed": 322,
+                  "ground_truth": 342,
+                  "precision": 0.8333,
+                  "recall": 0.0585,
+                  "f1": 0.1093,
+                  "false_alarms_per_frame": 0.0017
+                },
+                "opening-door": {
+                  "true_positives": 3,
+                  "false_positives": 19,
+                  "missed": 55,
+                  "ground_truth": 58,
+                  "precision": 0.1364,
+                  "recall": 0.0517,
+                  "f1": 0.075,
+                  "false_alarms_per_frame": 0.0083
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 709,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.3087
+                },
+                "wall/fence": {
+                  "true_positives": 33,
+                  "false_positives": 2,
+                  "missed": 775,
+                  "ground_truth": 808,
+                  "precision": 0.9429,
+                  "recall": 0.0408,
+                  "f1": 0.0783,
+                  "false_alarms_per_frame": 0.0009
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 25,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0109
+                }
+              }
+            },
+            "0.35": {
+              "overall": {
+                "true_positives": 346,
+                "false_positives": 2795,
+                "missed": 2952,
+                "ground_truth": 3298,
+                "precision": 0.1102,
+                "recall": 0.1049,
+                "f1": 0.1075,
+                "false_alarms_per_frame": 1.2168
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 212,
+                  "false_positives": 1117,
+                  "missed": 22,
+                  "ground_truth": 234,
+                  "precision": 0.1595,
+                  "recall": 0.906,
+                  "f1": 0.2713,
+                  "false_alarms_per_frame": 0.4863
+                },
+                "rider": {
+                  "true_positives": 0,
+                  "false_positives": 46,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.02
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 19,
+                  "missed": 20,
+                  "ground_truth": 21,
+                  "precision": 0.05,
+                  "recall": 0.0476,
+                  "f1": 0.0488,
+                  "false_alarms_per_frame": 0.0083
+                },
+                "vehicle": {
+                  "true_positives": 88,
+                  "false_positives": 28,
+                  "missed": 115,
+                  "ground_truth": 203,
+                  "precision": 0.7586,
+                  "recall": 0.4335,
+                  "f1": 0.5517,
+                  "false_alarms_per_frame": 0.0122
+                },
+                "obstacle": {
+                  "true_positives": 10,
+                  "false_positives": 16,
+                  "missed": 1116,
+                  "ground_truth": 1126,
+                  "precision": 0.3846,
+                  "recall": 0.0089,
+                  "f1": 0.0174,
+                  "false_alarms_per_frame": 0.007
+                },
+                "pole": {
+                  "true_positives": 6,
+                  "false_positives": 32,
+                  "missed": 105,
+                  "ground_truth": 111,
+                  "precision": 0.1579,
+                  "recall": 0.0541,
+                  "f1": 0.0805,
+                  "false_alarms_per_frame": 0.0139
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 176,
+                  "ground_truth": 176,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 5,
+                  "false_positives": 722,
+                  "missed": 6,
+                  "ground_truth": 11,
+                  "precision": 0.0069,
+                  "recall": 0.4545,
+                  "f1": 0.0136,
+                  "false_alarms_per_frame": 0.3143
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 386,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.168
+                },
+                "bike rack": {
+                  "true_positives": 0,
+                  "false_positives": 31,
+                  "missed": 55,
+                  "ground_truth": 55,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0135
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 2,
+                  "missed": 151,
+                  "ground_truth": 151,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0009
+                },
+                "crosswalk": {
+                  "true_positives": 1,
+                  "false_positives": 0,
+                  "missed": 341,
+                  "ground_truth": 342,
+                  "precision": 1.0,
+                  "recall": 0.0029,
+                  "f1": 0.0058,
+                  "false_alarms_per_frame": 0.0
+                },
+                "opening-door": {
+                  "true_positives": 1,
+                  "false_positives": 8,
+                  "missed": 57,
+                  "ground_truth": 58,
+                  "precision": 0.1111,
+                  "recall": 0.0172,
+                  "f1": 0.0299,
+                  "false_alarms_per_frame": 0.0035
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 377,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.1641
+                },
+                "wall/fence": {
+                  "true_positives": 22,
+                  "false_positives": 1,
+                  "missed": 786,
+                  "ground_truth": 808,
+                  "precision": 0.9565,
+                  "recall": 0.0272,
+                  "f1": 0.0529,
+                  "false_alarms_per_frame": 0.0004
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 10,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0044
+                }
+              }
+            },
+            "0.5": {
+              "overall": {
+                "true_positives": 278,
+                "false_positives": 1435,
+                "missed": 3020,
+                "ground_truth": 3298,
+                "precision": 0.1623,
+                "recall": 0.0843,
+                "f1": 0.111,
+                "false_alarms_per_frame": 0.6247
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 206,
+                  "false_positives": 618,
+                  "missed": 28,
+                  "ground_truth": 234,
+                  "precision": 0.25,
+                  "recall": 0.8803,
+                  "f1": 0.3894,
+                  "false_alarms_per_frame": 0.269
+                },
+                "rider": {
+                  "true_positives": 0,
+                  "false_positives": 12,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0052
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 5,
+                  "missed": 20,
+                  "ground_truth": 21,
+                  "precision": 0.1667,
+                  "recall": 0.0476,
+                  "f1": 0.0741,
+                  "false_alarms_per_frame": 0.0022
+                },
+                "vehicle": {
+                  "true_positives": 49,
+                  "false_positives": 3,
+                  "missed": 154,
+                  "ground_truth": 203,
+                  "precision": 0.9423,
+                  "recall": 0.2414,
+                  "f1": 0.3843,
+                  "false_alarms_per_frame": 0.0013
+                },
+                "obstacle": {
+                  "true_positives": 4,
+                  "false_positives": 6,
+                  "missed": 1122,
+                  "ground_truth": 1126,
+                  "precision": 0.4,
+                  "recall": 0.0036,
+                  "f1": 0.007,
+                  "false_alarms_per_frame": 0.0026
+                },
+                "pole": {
+                  "true_positives": 3,
+                  "false_positives": 12,
+                  "missed": 108,
+                  "ground_truth": 111,
+                  "precision": 0.2,
+                  "recall": 0.027,
+                  "f1": 0.0476,
+                  "false_alarms_per_frame": 0.0052
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 176,
+                  "ground_truth": 176,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 2,
+                  "false_positives": 417,
+                  "missed": 9,
+                  "ground_truth": 11,
+                  "precision": 0.0048,
+                  "recall": 0.1818,
+                  "f1": 0.0093,
+                  "false_alarms_per_frame": 0.1815
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 188,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0818
+                },
+                "bike rack": {
+                  "true_positives": 0,
+                  "false_positives": 11,
+                  "missed": 55,
+                  "ground_truth": 55,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0048
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 151,
+                  "ground_truth": 151,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "crosswalk": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 342,
+                  "ground_truth": 342,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "opening-door": {
+                  "true_positives": 0,
+                  "false_positives": 3,
+                  "missed": 58,
+                  "ground_truth": 58,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0013
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 160,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0697
+                },
+                "wall/fence": {
+                  "true_positives": 13,
+                  "false_positives": 0,
+                  "missed": 795,
+                  "ground_truth": 808,
+                  "precision": 1.0,
+                  "recall": 0.0161,
+                  "f1": 0.0317,
+                  "false_alarms_per_frame": 0.0
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": null,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                }
+              }
+            },
+            "all_predictions": {
+              "overall": {
+                "true_positives": 829,
+                "false_positives": 212829,
+                "missed": 2469,
+                "ground_truth": 3298,
+                "precision": 0.0039,
+                "recall": 0.2514,
+                "f1": 0.0076,
+                "false_alarms_per_frame": 92.6552
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 230,
+                  "false_positives": 55267,
+                  "missed": 4,
+                  "ground_truth": 234,
+                  "precision": 0.0041,
+                  "recall": 0.9829,
+                  "f1": 0.0083,
+                  "false_alarms_per_frame": 24.0605
+                },
+                "rider": {
+                  "true_positives": 0,
+                  "false_positives": 2919,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 1.2708
+                },
+                "animal": {
+                  "true_positives": 3,
+                  "false_positives": 1326,
+                  "missed": 18,
+                  "ground_truth": 21,
+                  "precision": 0.0023,
+                  "recall": 0.1429,
+                  "f1": 0.0044,
+                  "false_alarms_per_frame": 0.5773
+                },
+                "vehicle": {
+                  "true_positives": 163,
+                  "false_positives": 29039,
+                  "missed": 40,
+                  "ground_truth": 203,
+                  "precision": 0.0056,
+                  "recall": 0.803,
+                  "f1": 0.0111,
+                  "false_alarms_per_frame": 12.6421
+                },
+                "obstacle": {
+                  "true_positives": 92,
+                  "false_positives": 582,
+                  "missed": 1034,
+                  "ground_truth": 1126,
+                  "precision": 0.1365,
+                  "recall": 0.0817,
+                  "f1": 0.1022,
+                  "false_alarms_per_frame": 0.2534
+                },
+                "pole": {
+                  "true_positives": 42,
+                  "false_positives": 4129,
+                  "missed": 69,
+                  "ground_truth": 111,
+                  "precision": 0.0101,
+                  "recall": 0.3784,
+                  "f1": 0.0196,
+                  "false_alarms_per_frame": 1.7976
+                },
+                "tree": {
+                  "true_positives": 41,
+                  "false_positives": 3603,
+                  "missed": 135,
+                  "ground_truth": 176,
+                  "precision": 0.0113,
+                  "recall": 0.233,
+                  "f1": 0.0215,
+                  "false_alarms_per_frame": 1.5686
+                },
+                "traffic sign": {
+                  "true_positives": 9,
+                  "false_positives": 21508,
+                  "missed": 2,
+                  "ground_truth": 11,
+                  "precision": 0.0004,
+                  "recall": 0.8182,
+                  "f1": 0.0008,
+                  "false_alarms_per_frame": 9.3635
+                },
+                "traffic light": {
+                  "true_positives": 1,
+                  "false_positives": 20536,
+                  "missed": 0,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 1.0,
+                  "f1": 0.0001,
+                  "false_alarms_per_frame": 8.9404
+                },
+                "bike rack": {
+                  "true_positives": 18,
+                  "false_positives": 8531,
+                  "missed": 37,
+                  "ground_truth": 55,
+                  "precision": 0.0021,
+                  "recall": 0.3273,
+                  "f1": 0.0042,
+                  "false_alarms_per_frame": 3.714
+                },
+                "stairs": {
+                  "true_positives": 1,
+                  "false_positives": 752,
+                  "missed": 150,
+                  "ground_truth": 151,
+                  "precision": 0.0013,
+                  "recall": 0.0066,
+                  "f1": 0.0022,
+                  "false_alarms_per_frame": 0.3274
+                },
+                "crosswalk": {
+                  "true_positives": 136,
+                  "false_positives": 3433,
+                  "missed": 206,
+                  "ground_truth": 342,
+                  "precision": 0.0381,
+                  "recall": 0.3977,
+                  "f1": 0.0695,
+                  "false_alarms_per_frame": 1.4946
+                },
+                "opening-door": {
+                  "true_positives": 15,
+                  "false_positives": 1920,
+                  "missed": 43,
+                  "ground_truth": 58,
+                  "precision": 0.0078,
+                  "recall": 0.2586,
+                  "f1": 0.0151,
+                  "false_alarms_per_frame": 0.8359
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 38743,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 16.8668
+                },
+                "wall/fence": {
+                  "true_positives": 78,
+                  "false_positives": 524,
+                  "missed": 730,
+                  "ground_truth": 808,
+                  "precision": 0.1296,
+                  "recall": 0.0965,
+                  "f1": 0.1106,
+                  "false_alarms_per_frame": 0.2281
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 20017,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 8.7144
+                }
+              }
+            }
+          }
+        },
+        "ground_truth_boxes": 3298,
+        "predictions_ignored_far": 15417
+      },
+      "test": {
+        "overall": {
+          "AP50-95": 0.0686,
+          "AP50": 0.1061,
+          "AP75": 0.0739,
+          "AP_small": 0.0,
+          "AP_medium": 0.0018,
+          "AP_large": 0.0762,
+          "AR1": 0.153,
+          "AR10": 0.206,
+          "AR100": 0.2084,
+          "AR_small": 0.0,
+          "AR_medium": 0.0651,
+          "AR_large": 0.2505
+        },
+        "per_class": {
+          "pedestrian": {
+            "AP50-95": 0.4545,
+            "AP50": 0.623,
+            "AP75": 0.5482,
+            "AR100": 0.6475,
+            "AP_small": 0.0,
+            "AP_medium": 0.0002,
+            "AP_large": 0.51,
+            "ground_truth_boxes": 1506,
+            "predictions": 136236
+          },
+          "rider": {
+            "AP50-95": 0.0055,
+            "AP50": 0.0094,
+            "AP75": 0.0051,
+            "AR100": 0.3,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0107,
+            "ground_truth_boxes": 14,
+            "predictions": 6373
+          },
+          "animal": {
+            "AP50-95": 0.0007,
+            "AP50": 0.0014,
+            "AP75": 0.0,
+            "AR100": 0.25,
+            "AP_small": null,
+            "AP_medium": 0.0,
+            "AP_large": 0.0014,
+            "ground_truth_boxes": 2,
+            "predictions": 4285
+          },
+          "vehicle": {
+            "AP50-95": 0.3137,
+            "AP50": 0.4293,
+            "AP75": 0.3635,
+            "AR100": 0.5198,
+            "AP_small": 0.0,
+            "AP_medium": 0.0004,
+            "AP_large": 0.3421,
+            "ground_truth_boxes": 318,
+            "predictions": 52944
+          },
+          "obstacle": {
+            "AP50-95": 0.0216,
+            "AP50": 0.034,
+            "AP75": 0.0196,
+            "AR100": 0.0677,
+            "AP_small": 0.0,
+            "AP_medium": 0.0168,
+            "AP_large": 0.0231,
+            "ground_truth_boxes": 2762,
+            "predictions": 1580
+          },
+          "pole": {
+            "AP50-95": 0.1165,
+            "AP50": 0.1847,
+            "AP75": 0.117,
+            "AR100": 0.3485,
+            "AP_small": 0.0,
+            "AP_medium": 0.0001,
+            "AP_large": 0.1322,
+            "ground_truth_boxes": 394,
+            "predictions": 9709
+          },
+          "tree": {
+            "AP50-95": 0.0073,
+            "AP50": 0.018,
+            "AP75": 0.0056,
+            "AR100": 0.2082,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.009,
+            "ground_truth_boxes": 256,
+            "predictions": 12201
+          },
+          "traffic sign": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0308,
+            "AP_small": 0.0,
+            "AP_medium": 0.0001,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 26,
+            "predictions": 39982
+          },
+          "traffic light": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0,
+            "AP_small": 0.0,
+            "AP_medium": null,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 15,
+            "predictions": 39024
+          },
+          "bike rack": {
+            "AP50-95": 0.0025,
+            "AP50": 0.0065,
+            "AP75": 0.0015,
+            "AR100": 0.2145,
+            "AP_small": 0.0,
+            "AP_medium": 0.004,
+            "AP_large": 0.0028,
+            "ground_truth_boxes": 138,
+            "predictions": 15605
+          },
+          "stairs": {
+            "AP50-95": 0.0017,
+            "AP50": 0.0052,
+            "AP75": 0.0001,
+            "AR100": 0.0765,
+            "AP_small": null,
+            "AP_medium": null,
+            "AP_large": 0.0018,
+            "ground_truth_boxes": 51,
+            "predictions": 1401
+          },
+          "crosswalk": {
+            "AP50-95": 0.0705,
+            "AP50": 0.2164,
+            "AP75": 0.0132,
+            "AR100": 0.224,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0729,
+            "ground_truth_boxes": 505,
+            "predictions": 5892
+          },
+          "opening-door": {
+            "AP50-95": 0.0029,
+            "AP50": 0.0079,
+            "AP75": 0.0029,
+            "AR100": 0.1764,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0031,
+            "ground_truth_boxes": 55,
+            "predictions": 3805
+          },
+          "guard rail/road barrier": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0073,
+            "AP_small": 0.0,
+            "AP_medium": null,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 96,
+            "predictions": 101437
+          },
+          "wall/fence": {
+            "AP50-95": 0.0314,
+            "AP50": 0.0562,
+            "AP75": 0.031,
+            "AR100": 0.0552,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0343,
+            "ground_truth_boxes": 1905,
+            "predictions": 2131
+          },
+          "water body": {
+            "AP50-95": null,
+            "AP50": null,
+            "AP75": null,
+            "AR100": null,
+            "AP_small": null,
+            "AP_medium": null,
+            "AP_large": null,
+            "ground_truth_boxes": 0,
+            "predictions": 49350
+          }
+        },
+        "operating_points": {
+          "match_iou": 0.5,
+          "frames": 5107,
+          "by_confidence": {
+            "0.25": {
+              "overall": {
+                "true_positives": 1580,
+                "false_positives": 11341,
+                "missed": 6463,
+                "ground_truth": 8043,
+                "precision": 0.1223,
+                "recall": 0.1964,
+                "f1": 0.1507,
+                "false_alarms_per_frame": 2.2207
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 1214,
+                  "false_positives": 5621,
+                  "missed": 292,
+                  "ground_truth": 1506,
+                  "precision": 0.1776,
+                  "recall": 0.8061,
+                  "f1": 0.2911,
+                  "false_alarms_per_frame": 1.1006
+                },
+                "rider": {
+                  "true_positives": 4,
+                  "false_positives": 218,
+                  "missed": 10,
+                  "ground_truth": 14,
+                  "precision": 0.018,
+                  "recall": 0.2857,
+                  "f1": 0.0339,
+                  "false_alarms_per_frame": 0.0427
+                },
+                "animal": {
+                  "true_positives": 0,
+                  "false_positives": 154,
+                  "missed": 2,
+                  "ground_truth": 2,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0302
+                },
+                "vehicle": {
+                  "true_positives": 163,
+                  "false_positives": 249,
+                  "missed": 155,
+                  "ground_truth": 318,
+                  "precision": 0.3956,
+                  "recall": 0.5126,
+                  "f1": 0.4466,
+                  "false_alarms_per_frame": 0.0488
+                },
+                "obstacle": {
+                  "true_positives": 22,
+                  "false_positives": 39,
+                  "missed": 2740,
+                  "ground_truth": 2762,
+                  "precision": 0.3607,
+                  "recall": 0.008,
+                  "f1": 0.0156,
+                  "false_alarms_per_frame": 0.0076
+                },
+                "pole": {
+                  "true_positives": 75,
+                  "false_positives": 131,
+                  "missed": 319,
+                  "ground_truth": 394,
+                  "precision": 0.3641,
+                  "recall": 0.1904,
+                  "f1": 0.25,
+                  "false_alarms_per_frame": 0.0257
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 4,
+                  "missed": 256,
+                  "ground_truth": 256,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0008
+                },
+                "traffic sign": {
+                  "true_positives": 0,
+                  "false_positives": 1610,
+                  "missed": 26,
+                  "ground_truth": 26,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.3153
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 1055,
+                  "missed": 15,
+                  "ground_truth": 15,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.2066
+                },
+                "bike rack": {
+                  "true_positives": 2,
+                  "false_positives": 136,
+                  "missed": 136,
+                  "ground_truth": 138,
+                  "precision": 0.0145,
+                  "recall": 0.0145,
+                  "f1": 0.0145,
+                  "false_alarms_per_frame": 0.0266
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 3,
+                  "missed": 51,
+                  "ground_truth": 51,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0006
+                },
+                "crosswalk": {
+                  "true_positives": 47,
+                  "false_positives": 10,
+                  "missed": 458,
+                  "ground_truth": 505,
+                  "precision": 0.8246,
+                  "recall": 0.0931,
+                  "f1": 0.1673,
+                  "false_alarms_per_frame": 0.002
+                },
+                "opening-door": {
+                  "true_positives": 0,
+                  "false_positives": 19,
+                  "missed": 55,
+                  "ground_truth": 55,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0037
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 2000,
+                  "missed": 96,
+                  "ground_truth": 96,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.3916
+                },
+                "wall/fence": {
+                  "true_positives": 53,
+                  "false_positives": 20,
+                  "missed": 1852,
+                  "ground_truth": 1905,
+                  "precision": 0.726,
+                  "recall": 0.0278,
+                  "f1": 0.0536,
+                  "false_alarms_per_frame": 0.0039
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 72,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0141
+                }
+              }
+            },
+            "0.35": {
+              "overall": {
+                "true_positives": 1472,
+                "false_positives": 6911,
+                "missed": 6571,
+                "ground_truth": 8043,
+                "precision": 0.1756,
+                "recall": 0.183,
+                "f1": 0.1792,
+                "false_alarms_per_frame": 1.3532
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 1198,
+                  "false_positives": 3920,
+                  "missed": 308,
+                  "ground_truth": 1506,
+                  "precision": 0.2341,
+                  "recall": 0.7955,
+                  "f1": 0.3617,
+                  "false_alarms_per_frame": 0.7676
+                },
+                "rider": {
+                  "true_positives": 1,
+                  "false_positives": 108,
+                  "missed": 13,
+                  "ground_truth": 14,
+                  "precision": 0.0092,
+                  "recall": 0.0714,
+                  "f1": 0.0163,
+                  "false_alarms_per_frame": 0.0211
+                },
+                "animal": {
+                  "true_positives": 0,
+                  "false_positives": 110,
+                  "missed": 2,
+                  "ground_truth": 2,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0215
+                },
+                "vehicle": {
+                  "true_positives": 131,
+                  "false_positives": 98,
+                  "missed": 187,
+                  "ground_truth": 318,
+                  "precision": 0.5721,
+                  "recall": 0.4119,
+                  "f1": 0.479,
+                  "false_alarms_per_frame": 0.0192
+                },
+                "obstacle": {
+                  "true_positives": 10,
+                  "false_positives": 18,
+                  "missed": 2752,
+                  "ground_truth": 2762,
+                  "precision": 0.3571,
+                  "recall": 0.0036,
+                  "f1": 0.0072,
+                  "false_alarms_per_frame": 0.0035
+                },
+                "pole": {
+                  "true_positives": 61,
+                  "false_positives": 79,
+                  "missed": 333,
+                  "ground_truth": 394,
+                  "precision": 0.4357,
+                  "recall": 0.1548,
+                  "f1": 0.2285,
+                  "false_alarms_per_frame": 0.0155
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 256,
+                  "ground_truth": 256,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 0,
+                  "false_positives": 1003,
+                  "missed": 26,
+                  "ground_truth": 26,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.1964
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 596,
+                  "missed": 15,
+                  "ground_truth": 15,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.1167
+                },
+                "bike rack": {
+                  "true_positives": 1,
+                  "false_positives": 53,
+                  "missed": 137,
+                  "ground_truth": 138,
+                  "precision": 0.0185,
+                  "recall": 0.0072,
+                  "f1": 0.0104,
+                  "false_alarms_per_frame": 0.0104
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 1,
+                  "missed": 51,
+                  "ground_truth": 51,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0002
+                },
+                "crosswalk": {
+                  "true_positives": 35,
+                  "false_positives": 5,
+                  "missed": 470,
+                  "ground_truth": 505,
+                  "precision": 0.875,
+                  "recall": 0.0693,
+                  "f1": 0.1284,
+                  "false_alarms_per_frame": 0.001
+                },
+                "opening-door": {
+                  "true_positives": 0,
+                  "false_positives": 9,
+                  "missed": 55,
+                  "ground_truth": 55,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0018
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 884,
+                  "missed": 96,
+                  "ground_truth": 96,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.1731
+                },
+                "wall/fence": {
+                  "true_positives": 35,
+                  "false_positives": 8,
+                  "missed": 1870,
+                  "ground_truth": 1905,
+                  "precision": 0.814,
+                  "recall": 0.0184,
+                  "f1": 0.0359,
+                  "false_alarms_per_frame": 0.0016
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 19,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0037
+                }
+              }
+            },
+            "0.5": {
+              "overall": {
+                "true_positives": 1319,
+                "false_positives": 3591,
+                "missed": 6724,
+                "ground_truth": 8043,
+                "precision": 0.2686,
+                "recall": 0.164,
+                "f1": 0.2037,
+                "false_alarms_per_frame": 0.7032
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 1156,
+                  "false_positives": 2363,
+                  "missed": 350,
+                  "ground_truth": 1506,
+                  "precision": 0.3285,
+                  "recall": 0.7676,
+                  "f1": 0.4601,
+                  "false_alarms_per_frame": 0.4627
+                },
+                "rider": {
+                  "true_positives": 0,
+                  "false_positives": 47,
+                  "missed": 14,
+                  "ground_truth": 14,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0092
+                },
+                "animal": {
+                  "true_positives": 0,
+                  "false_positives": 68,
+                  "missed": 2,
+                  "ground_truth": 2,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0133
+                },
+                "vehicle": {
+                  "true_positives": 84,
+                  "false_positives": 19,
+                  "missed": 234,
+                  "ground_truth": 318,
+                  "precision": 0.8155,
+                  "recall": 0.2642,
+                  "f1": 0.399,
+                  "false_alarms_per_frame": 0.0037
+                },
+                "obstacle": {
+                  "true_positives": 4,
+                  "false_positives": 2,
+                  "missed": 2758,
+                  "ground_truth": 2762,
+                  "precision": 0.6667,
+                  "recall": 0.0014,
+                  "f1": 0.0029,
+                  "false_alarms_per_frame": 0.0004
+                },
+                "pole": {
+                  "true_positives": 42,
+                  "false_positives": 25,
+                  "missed": 352,
+                  "ground_truth": 394,
+                  "precision": 0.6269,
+                  "recall": 0.1066,
+                  "f1": 0.1822,
+                  "false_alarms_per_frame": 0.0049
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 256,
+                  "ground_truth": 256,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 0,
+                  "false_positives": 559,
+                  "missed": 26,
+                  "ground_truth": 26,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.1095
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 267,
+                  "missed": 15,
+                  "ground_truth": 15,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0523
+                },
+                "bike rack": {
+                  "true_positives": 0,
+                  "false_positives": 16,
+                  "missed": 138,
+                  "ground_truth": 138,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0031
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 51,
+                  "ground_truth": 51,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "crosswalk": {
+                  "true_positives": 19,
+                  "false_positives": 1,
+                  "missed": 486,
+                  "ground_truth": 505,
+                  "precision": 0.95,
+                  "recall": 0.0376,
+                  "f1": 0.0724,
+                  "false_alarms_per_frame": 0.0002
+                },
+                "opening-door": {
+                  "true_positives": 0,
+                  "false_positives": 2,
+                  "missed": 55,
+                  "ground_truth": 55,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0004
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 221,
+                  "missed": 96,
+                  "ground_truth": 96,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0433
+                },
+                "wall/fence": {
+                  "true_positives": 14,
+                  "false_positives": 0,
+                  "missed": 1891,
+                  "ground_truth": 1905,
+                  "precision": 1.0,
+                  "recall": 0.0073,
+                  "f1": 0.0146,
+                  "false_alarms_per_frame": 0.0
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 1,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0002
+                }
+              }
+            },
+            "all_predictions": {
+              "overall": {
+                "true_positives": 2687,
+                "false_positives": 479268,
+                "missed": 5356,
+                "ground_truth": 8043,
+                "precision": 0.0056,
+                "recall": 0.3341,
+                "f1": 0.011,
+                "false_alarms_per_frame": 93.8453
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 1332,
+                  "false_positives": 134904,
+                  "missed": 174,
+                  "ground_truth": 1506,
+                  "precision": 0.0098,
+                  "recall": 0.8845,
+                  "f1": 0.0193,
+                  "false_alarms_per_frame": 26.4155
+                },
+                "rider": {
+                  "true_positives": 7,
+                  "false_positives": 6366,
+                  "missed": 7,
+                  "ground_truth": 14,
+                  "precision": 0.0011,
+                  "recall": 0.5,
+                  "f1": 0.0022,
+                  "false_alarms_per_frame": 1.2465
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 4284,
+                  "missed": 1,
+                  "ground_truth": 2,
+                  "precision": 0.0002,
+                  "recall": 0.5,
+                  "f1": 0.0005,
+                  "false_alarms_per_frame": 0.8388
+                },
+                "vehicle": {
+                  "true_positives": 222,
+                  "false_positives": 52722,
+                  "missed": 96,
+                  "ground_truth": 318,
+                  "precision": 0.0042,
+                  "recall": 0.6981,
+                  "f1": 0.0083,
+                  "false_alarms_per_frame": 10.3235
+                },
+                "obstacle": {
+                  "true_positives": 246,
+                  "false_positives": 1334,
+                  "missed": 2516,
+                  "ground_truth": 2762,
+                  "precision": 0.1557,
+                  "recall": 0.0891,
+                  "f1": 0.1133,
+                  "false_alarms_per_frame": 0.2612
+                },
+                "pole": {
+                  "true_positives": 231,
+                  "false_positives": 9478,
+                  "missed": 163,
+                  "ground_truth": 394,
+                  "precision": 0.0238,
+                  "recall": 0.5863,
+                  "f1": 0.0457,
+                  "false_alarms_per_frame": 1.8559
+                },
+                "tree": {
+                  "true_positives": 95,
+                  "false_positives": 12106,
+                  "missed": 161,
+                  "ground_truth": 256,
+                  "precision": 0.0078,
+                  "recall": 0.3711,
+                  "f1": 0.0153,
+                  "false_alarms_per_frame": 2.3705
+                },
+                "traffic sign": {
+                  "true_positives": 2,
+                  "false_positives": 39980,
+                  "missed": 24,
+                  "ground_truth": 26,
+                  "precision": 0.0001,
+                  "recall": 0.0769,
+                  "f1": 0.0001,
+                  "false_alarms_per_frame": 7.8285
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 39024,
+                  "missed": 15,
+                  "ground_truth": 15,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 7.6413
+                },
+                "bike rack": {
+                  "true_positives": 67,
+                  "false_positives": 15538,
+                  "missed": 71,
+                  "ground_truth": 138,
+                  "precision": 0.0043,
+                  "recall": 0.4855,
+                  "f1": 0.0085,
+                  "false_alarms_per_frame": 3.0425
+                },
+                "stairs": {
+                  "true_positives": 10,
+                  "false_positives": 1391,
+                  "missed": 41,
+                  "ground_truth": 51,
+                  "precision": 0.0071,
+                  "recall": 0.1961,
+                  "f1": 0.0138,
+                  "false_alarms_per_frame": 0.2724
+                },
+                "crosswalk": {
+                  "true_positives": 256,
+                  "false_positives": 5636,
+                  "missed": 249,
+                  "ground_truth": 505,
+                  "precision": 0.0434,
+                  "recall": 0.5069,
+                  "f1": 0.08,
+                  "false_alarms_per_frame": 1.1036
+                },
+                "opening-door": {
+                  "true_positives": 21,
+                  "false_positives": 3784,
+                  "missed": 34,
+                  "ground_truth": 55,
+                  "precision": 0.0055,
+                  "recall": 0.3818,
+                  "f1": 0.0109,
+                  "false_alarms_per_frame": 0.7409
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 4,
+                  "false_positives": 101433,
+                  "missed": 92,
+                  "ground_truth": 96,
+                  "precision": 0.0,
+                  "recall": 0.0417,
+                  "f1": 0.0001,
+                  "false_alarms_per_frame": 19.8616
+                },
+                "wall/fence": {
+                  "true_positives": 193,
+                  "false_positives": 1938,
+                  "missed": 1712,
+                  "ground_truth": 1905,
+                  "precision": 0.0906,
+                  "recall": 0.1013,
+                  "f1": 0.0956,
+                  "false_alarms_per_frame": 0.3795
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 49350,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 9.6632
+                }
+              }
+            }
+          }
+        },
+        "ground_truth_boxes": 8043,
+        "predictions_ignored_far": 23857
+      }
+    },
+    "10": {
+      "val": {
+        "overall": {
+          "AP50-95": 0.0854,
+          "AP50": 0.1387,
+          "AP75": 0.0942,
+          "AP_small": 0.0,
+          "AP_medium": 0.0524,
+          "AP_large": 0.0977,
+          "AR1": 0.1276,
+          "AR10": 0.2016,
+          "AR100": 0.2052,
+          "AR_small": 0.0039,
+          "AR_medium": 0.1476,
+          "AR_large": 0.2336
+        },
+        "per_class": {
+          "pedestrian": {
+            "AP50-95": 0.553,
+            "AP50": 0.8303,
+            "AP75": 0.6653,
+            "AR100": 0.6858,
+            "AP_small": 0.0002,
+            "AP_medium": 0.1128,
+            "AP_large": 0.6056,
+            "ground_truth_boxes": 1079,
+            "predictions": 56825
+          },
+          "rider": {
+            "AP50-95": 0.0191,
+            "AP50": 0.0607,
+            "AP75": 0.0114,
+            "AR100": 0.2386,
+            "AP_small": 0.0,
+            "AP_medium": 0.2012,
+            "AP_large": 0.0083,
+            "ground_truth_boxes": 44,
+            "predictions": 2958
+          },
+          "animal": {
+            "AP50-95": 0.008,
+            "AP50": 0.0182,
+            "AP75": 0.0051,
+            "AR100": 0.0865,
+            "AP_small": 0.0,
+            "AP_medium": 0.0912,
+            "AP_large": 0.0051,
+            "ground_truth_boxes": 96,
+            "predictions": 1349
+          },
+          "vehicle": {
+            "AP50-95": 0.3951,
+            "AP50": 0.6008,
+            "AP75": 0.4456,
+            "AR100": 0.5288,
+            "AP_small": 0.0,
+            "AP_medium": 0.0354,
+            "AP_large": 0.4532,
+            "ground_truth_boxes": 1140,
+            "predictions": 30314
+          },
+          "obstacle": {
+            "AP50-95": 0.0283,
+            "AP50": 0.0379,
+            "AP75": 0.0309,
+            "AR100": 0.0701,
+            "AP_small": 0.0,
+            "AP_medium": 0.0168,
+            "AP_large": 0.0339,
+            "ground_truth_boxes": 3685,
+            "predictions": 928
+          },
+          "pole": {
+            "AP50-95": 0.0099,
+            "AP50": 0.0191,
+            "AP75": 0.0086,
+            "AR100": 0.1437,
+            "AP_small": 0.0,
+            "AP_medium": 0.0296,
+            "AP_large": 0.0153,
+            "ground_truth_boxes": 309,
+            "predictions": 4229
+          },
+          "tree": {
+            "AP50-95": 0.0132,
+            "AP50": 0.0264,
+            "AP75": 0.0125,
+            "AR100": 0.0966,
+            "AP_small": 0.0,
+            "AP_medium": 0.0317,
+            "AP_large": 0.0143,
+            "ground_truth_boxes": 974,
+            "predictions": 3839
+          },
+          "traffic sign": {
+            "AP50-95": 0.0689,
+            "AP50": 0.1054,
+            "AP75": 0.0821,
+            "AR100": 0.4593,
+            "AP_small": 0.0,
+            "AP_medium": 0.0416,
+            "AP_large": 0.1026,
+            "ground_truth_boxes": 113,
+            "predictions": 21643
+          },
+          "traffic light": {
+            "AP50-95": 0.0816,
+            "AP50": 0.1791,
+            "AP75": 0.0484,
+            "AR100": 0.3799,
+            "AP_small": 0.0,
+            "AP_medium": 0.1525,
+            "AP_large": 0.0161,
+            "ground_truth_boxes": 139,
+            "predictions": 20699
+          },
+          "bike rack": {
+            "AP50-95": 0.0008,
+            "AP50": 0.0038,
+            "AP75": 0.0,
+            "AR100": 0.0563,
+            "AP_small": 0.0,
+            "AP_medium": 0.0154,
+            "AP_large": 0.001,
+            "ground_truth_boxes": 378,
+            "predictions": 8613
+          },
+          "stairs": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0041,
+            "AP_small": 0.0,
+            "AP_medium": 0.0053,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 197,
+            "predictions": 753
+          },
+          "crosswalk": {
+            "AP50-95": 0.052,
+            "AP50": 0.1035,
+            "AP75": 0.0593,
+            "AR100": 0.1491,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0536,
+            "ground_truth_boxes": 489,
+            "predictions": 3592
+          },
+          "opening-door": {
+            "AP50-95": 0.0269,
+            "AP50": 0.0432,
+            "AP75": 0.0262,
+            "AR100": 0.1432,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0304,
+            "ground_truth_boxes": 424,
+            "predictions": 2059
+          },
+          "guard rail/road barrier": {
+            "AP50-95": null,
+            "AP50": null,
+            "AP75": null,
+            "AR100": null,
+            "AP_small": null,
+            "AP_medium": null,
+            "AP_large": null,
+            "ground_truth_boxes": 0,
+            "predictions": 38743
+          },
+          "wall/fence": {
+            "AP50-95": 0.0247,
+            "AP50": 0.0528,
+            "AP75": 0.0175,
+            "AR100": 0.0362,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0288,
+            "ground_truth_boxes": 2335,
+            "predictions": 769
+          },
+          "water body": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0,
+            "AP_small": 0.0,
+            "AP_medium": null,
+            "AP_large": null,
+            "ground_truth_boxes": 1,
+            "predictions": 20017
+          }
+        },
+        "operating_points": {
+          "match_iou": 0.5,
+          "frames": 2297,
+          "by_confidence": {
+            "0.25": {
+              "overall": {
+                "true_positives": 1816,
+                "false_positives": 4694,
+                "missed": 9587,
+                "ground_truth": 11403,
+                "precision": 0.279,
+                "recall": 0.1593,
+                "f1": 0.2028,
+                "false_alarms_per_frame": 2.0435
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 994,
+                  "false_positives": 1740,
+                  "missed": 85,
+                  "ground_truth": 1079,
+                  "precision": 0.3636,
+                  "recall": 0.9212,
+                  "f1": 0.5214,
+                  "false_alarms_per_frame": 0.7575
+                },
+                "rider": {
+                  "true_positives": 11,
+                  "false_positives": 89,
+                  "missed": 33,
+                  "ground_truth": 44,
+                  "precision": 0.11,
+                  "recall": 0.25,
+                  "f1": 0.1528,
+                  "false_alarms_per_frame": 0.0387
+                },
+                "animal": {
+                  "true_positives": 3,
+                  "false_positives": 30,
+                  "missed": 93,
+                  "ground_truth": 96,
+                  "precision": 0.0909,
+                  "recall": 0.0312,
+                  "f1": 0.0465,
+                  "false_alarms_per_frame": 0.0131
+                },
+                "vehicle": {
+                  "true_positives": 574,
+                  "false_positives": 125,
+                  "missed": 566,
+                  "ground_truth": 1140,
+                  "precision": 0.8212,
+                  "recall": 0.5035,
+                  "f1": 0.6243,
+                  "false_alarms_per_frame": 0.0544
+                },
+                "obstacle": {
+                  "true_positives": 24,
+                  "false_positives": 33,
+                  "missed": 3661,
+                  "ground_truth": 3685,
+                  "precision": 0.4211,
+                  "recall": 0.0065,
+                  "f1": 0.0128,
+                  "false_alarms_per_frame": 0.0144
+                },
+                "pole": {
+                  "true_positives": 9,
+                  "false_positives": 84,
+                  "missed": 300,
+                  "ground_truth": 309,
+                  "precision": 0.0968,
+                  "recall": 0.0291,
+                  "f1": 0.0448,
+                  "false_alarms_per_frame": 0.0366
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 974,
+                  "ground_truth": 974,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 56,
+                  "false_positives": 1061,
+                  "missed": 57,
+                  "ground_truth": 113,
+                  "precision": 0.0501,
+                  "recall": 0.4956,
+                  "f1": 0.0911,
+                  "false_alarms_per_frame": 0.4619
+                },
+                "traffic light": {
+                  "true_positives": 77,
+                  "false_positives": 702,
+                  "missed": 62,
+                  "ground_truth": 139,
+                  "precision": 0.0988,
+                  "recall": 0.554,
+                  "f1": 0.1678,
+                  "false_alarms_per_frame": 0.3056
+                },
+                "bike rack": {
+                  "true_positives": 1,
+                  "false_positives": 61,
+                  "missed": 377,
+                  "ground_truth": 378,
+                  "precision": 0.0161,
+                  "recall": 0.0026,
+                  "f1": 0.0045,
+                  "false_alarms_per_frame": 0.0266
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 10,
+                  "missed": 197,
+                  "ground_truth": 197,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0044
+                },
+                "crosswalk": {
+                  "true_positives": 20,
+                  "false_positives": 4,
+                  "missed": 469,
+                  "ground_truth": 489,
+                  "precision": 0.8333,
+                  "recall": 0.0409,
+                  "f1": 0.078,
+                  "false_alarms_per_frame": 0.0017
+                },
+                "opening-door": {
+                  "true_positives": 10,
+                  "false_positives": 19,
+                  "missed": 414,
+                  "ground_truth": 424,
+                  "precision": 0.3448,
+                  "recall": 0.0236,
+                  "f1": 0.0442,
+                  "false_alarms_per_frame": 0.0083
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 709,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.3087
+                },
+                "wall/fence": {
+                  "true_positives": 37,
+                  "false_positives": 2,
+                  "missed": 2298,
+                  "ground_truth": 2335,
+                  "precision": 0.9487,
+                  "recall": 0.0158,
+                  "f1": 0.0312,
+                  "false_alarms_per_frame": 0.0009
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 25,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0109
+                }
+              }
+            },
+            "0.35": {
+              "overall": {
+                "true_positives": 1592,
+                "false_positives": 2810,
+                "missed": 9811,
+                "ground_truth": 11403,
+                "precision": 0.3617,
+                "recall": 0.1396,
+                "f1": 0.2015,
+                "false_alarms_per_frame": 1.2233
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 982,
+                  "false_positives": 1130,
+                  "missed": 97,
+                  "ground_truth": 1079,
+                  "precision": 0.465,
+                  "recall": 0.9101,
+                  "f1": 0.6155,
+                  "false_alarms_per_frame": 0.4919
+                },
+                "rider": {
+                  "true_positives": 6,
+                  "false_positives": 46,
+                  "missed": 38,
+                  "ground_truth": 44,
+                  "precision": 0.1154,
+                  "recall": 0.1364,
+                  "f1": 0.125,
+                  "false_alarms_per_frame": 0.02
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 19,
+                  "missed": 95,
+                  "ground_truth": 96,
+                  "precision": 0.05,
+                  "recall": 0.0104,
+                  "f1": 0.0172,
+                  "false_alarms_per_frame": 0.0083
+                },
+                "vehicle": {
+                  "true_positives": 444,
+                  "false_positives": 28,
+                  "missed": 696,
+                  "ground_truth": 1140,
+                  "precision": 0.9407,
+                  "recall": 0.3895,
+                  "f1": 0.5509,
+                  "false_alarms_per_frame": 0.0122
+                },
+                "obstacle": {
+                  "true_positives": 12,
+                  "false_positives": 16,
+                  "missed": 3673,
+                  "ground_truth": 3685,
+                  "precision": 0.4286,
+                  "recall": 0.0033,
+                  "f1": 0.0065,
+                  "false_alarms_per_frame": 0.007
+                },
+                "pole": {
+                  "true_positives": 6,
+                  "false_positives": 32,
+                  "missed": 303,
+                  "ground_truth": 309,
+                  "precision": 0.1579,
+                  "recall": 0.0194,
+                  "f1": 0.0346,
+                  "false_alarms_per_frame": 0.0139
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 974,
+                  "ground_truth": 974,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 41,
+                  "false_positives": 724,
+                  "missed": 72,
+                  "ground_truth": 113,
+                  "precision": 0.0536,
+                  "recall": 0.3628,
+                  "f1": 0.0934,
+                  "false_alarms_per_frame": 0.3152
+                },
+                "traffic light": {
+                  "true_positives": 73,
+                  "false_positives": 386,
+                  "missed": 66,
+                  "ground_truth": 139,
+                  "precision": 0.159,
+                  "recall": 0.5252,
+                  "f1": 0.2441,
+                  "false_alarms_per_frame": 0.168
+                },
+                "bike rack": {
+                  "true_positives": 0,
+                  "false_positives": 31,
+                  "missed": 378,
+                  "ground_truth": 378,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0135
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 2,
+                  "missed": 197,
+                  "ground_truth": 197,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0009
+                },
+                "crosswalk": {
+                  "true_positives": 1,
+                  "false_positives": 0,
+                  "missed": 488,
+                  "ground_truth": 489,
+                  "precision": 1.0,
+                  "recall": 0.002,
+                  "f1": 0.0041,
+                  "false_alarms_per_frame": 0.0
+                },
+                "opening-door": {
+                  "true_positives": 2,
+                  "false_positives": 8,
+                  "missed": 422,
+                  "ground_truth": 424,
+                  "precision": 0.2,
+                  "recall": 0.0047,
+                  "f1": 0.0092,
+                  "false_alarms_per_frame": 0.0035
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 377,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.1641
+                },
+                "wall/fence": {
+                  "true_positives": 24,
+                  "false_positives": 1,
+                  "missed": 2311,
+                  "ground_truth": 2335,
+                  "precision": 0.96,
+                  "recall": 0.0103,
+                  "f1": 0.0203,
+                  "false_alarms_per_frame": 0.0004
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 10,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0044
+                }
+              }
+            },
+            "0.5": {
+              "overall": {
+                "true_positives": 1280,
+                "false_positives": 1438,
+                "missed": 10123,
+                "ground_truth": 11403,
+                "precision": 0.4709,
+                "recall": 0.1123,
+                "f1": 0.1813,
+                "false_alarms_per_frame": 0.626
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 954,
+                  "false_positives": 620,
+                  "missed": 125,
+                  "ground_truth": 1079,
+                  "precision": 0.6061,
+                  "recall": 0.8842,
+                  "f1": 0.7192,
+                  "false_alarms_per_frame": 0.2699
+                },
+                "rider": {
+                  "true_positives": 3,
+                  "false_positives": 12,
+                  "missed": 41,
+                  "ground_truth": 44,
+                  "precision": 0.2,
+                  "recall": 0.0682,
+                  "f1": 0.1017,
+                  "false_alarms_per_frame": 0.0052
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 5,
+                  "missed": 95,
+                  "ground_truth": 96,
+                  "precision": 0.1667,
+                  "recall": 0.0104,
+                  "f1": 0.0196,
+                  "false_alarms_per_frame": 0.0022
+                },
+                "vehicle": {
+                  "true_positives": 217,
+                  "false_positives": 3,
+                  "missed": 923,
+                  "ground_truth": 1140,
+                  "precision": 0.9864,
+                  "recall": 0.1904,
+                  "f1": 0.3191,
+                  "false_alarms_per_frame": 0.0013
+                },
+                "obstacle": {
+                  "true_positives": 4,
+                  "false_positives": 6,
+                  "missed": 3681,
+                  "ground_truth": 3685,
+                  "precision": 0.4,
+                  "recall": 0.0011,
+                  "f1": 0.0022,
+                  "false_alarms_per_frame": 0.0026
+                },
+                "pole": {
+                  "true_positives": 3,
+                  "false_positives": 12,
+                  "missed": 306,
+                  "ground_truth": 309,
+                  "precision": 0.2,
+                  "recall": 0.0097,
+                  "f1": 0.0185,
+                  "false_alarms_per_frame": 0.0052
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 974,
+                  "ground_truth": 974,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 24,
+                  "false_positives": 418,
+                  "missed": 89,
+                  "ground_truth": 113,
+                  "precision": 0.0543,
+                  "recall": 0.2124,
+                  "f1": 0.0865,
+                  "false_alarms_per_frame": 0.182
+                },
+                "traffic light": {
+                  "true_positives": 61,
+                  "false_positives": 188,
+                  "missed": 78,
+                  "ground_truth": 139,
+                  "precision": 0.245,
+                  "recall": 0.4388,
+                  "f1": 0.3144,
+                  "false_alarms_per_frame": 0.0818
+                },
+                "bike rack": {
+                  "true_positives": 0,
+                  "false_positives": 11,
+                  "missed": 378,
+                  "ground_truth": 378,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0048
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 197,
+                  "ground_truth": 197,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "crosswalk": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 489,
+                  "ground_truth": 489,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "opening-door": {
+                  "true_positives": 0,
+                  "false_positives": 3,
+                  "missed": 424,
+                  "ground_truth": 424,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0013
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 160,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0697
+                },
+                "wall/fence": {
+                  "true_positives": 13,
+                  "false_positives": 0,
+                  "missed": 2322,
+                  "ground_truth": 2335,
+                  "precision": 1.0,
+                  "recall": 0.0056,
+                  "f1": 0.0111,
+                  "false_alarms_per_frame": 0.0
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                }
+              }
+            },
+            "all_predictions": {
+              "overall": {
+                "true_positives": 3266,
+                "false_positives": 214064,
+                "missed": 8137,
+                "ground_truth": 11403,
+                "precision": 0.015,
+                "recall": 0.2864,
+                "f1": 0.0286,
+                "false_alarms_per_frame": 93.1929
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 1052,
+                  "false_positives": 55773,
+                  "missed": 27,
+                  "ground_truth": 1079,
+                  "precision": 0.0185,
+                  "recall": 0.975,
+                  "f1": 0.0363,
+                  "false_alarms_per_frame": 24.2808
+                },
+                "rider": {
+                  "true_positives": 26,
+                  "false_positives": 2932,
+                  "missed": 18,
+                  "ground_truth": 44,
+                  "precision": 0.0088,
+                  "recall": 0.5909,
+                  "f1": 0.0173,
+                  "false_alarms_per_frame": 1.2764
+                },
+                "animal": {
+                  "true_positives": 18,
+                  "false_positives": 1331,
+                  "missed": 78,
+                  "ground_truth": 96,
+                  "precision": 0.0133,
+                  "recall": 0.1875,
+                  "f1": 0.0249,
+                  "false_alarms_per_frame": 0.5795
+                },
+                "vehicle": {
+                  "true_positives": 886,
+                  "false_positives": 29428,
+                  "missed": 254,
+                  "ground_truth": 1140,
+                  "precision": 0.0292,
+                  "recall": 0.7772,
+                  "f1": 0.0563,
+                  "false_alarms_per_frame": 12.8115
+                },
+                "obstacle": {
+                  "true_positives": 329,
+                  "false_positives": 599,
+                  "missed": 3356,
+                  "ground_truth": 3685,
+                  "precision": 0.3545,
+                  "recall": 0.0893,
+                  "f1": 0.1426,
+                  "false_alarms_per_frame": 0.2608
+                },
+                "pole": {
+                  "true_positives": 85,
+                  "false_positives": 4144,
+                  "missed": 224,
+                  "ground_truth": 309,
+                  "precision": 0.0201,
+                  "recall": 0.2751,
+                  "f1": 0.0375,
+                  "false_alarms_per_frame": 1.8041
+                },
+                "tree": {
+                  "true_positives": 180,
+                  "false_positives": 3659,
+                  "missed": 794,
+                  "ground_truth": 974,
+                  "precision": 0.0469,
+                  "recall": 0.1848,
+                  "f1": 0.0748,
+                  "false_alarms_per_frame": 1.5929
+                },
+                "traffic sign": {
+                  "true_positives": 85,
+                  "false_positives": 21558,
+                  "missed": 28,
+                  "ground_truth": 113,
+                  "precision": 0.0039,
+                  "recall": 0.7522,
+                  "f1": 0.0078,
+                  "false_alarms_per_frame": 9.3853
+                },
+                "traffic light": {
+                  "true_positives": 109,
+                  "false_positives": 20590,
+                  "missed": 30,
+                  "ground_truth": 139,
+                  "precision": 0.0053,
+                  "recall": 0.7842,
+                  "f1": 0.0105,
+                  "false_alarms_per_frame": 8.9639
+                },
+                "bike rack": {
+                  "true_positives": 69,
+                  "false_positives": 8544,
+                  "missed": 309,
+                  "ground_truth": 378,
+                  "precision": 0.008,
+                  "recall": 0.1825,
+                  "f1": 0.0153,
+                  "false_alarms_per_frame": 3.7196
+                },
+                "stairs": {
+                  "true_positives": 1,
+                  "false_positives": 752,
+                  "missed": 196,
+                  "ground_truth": 197,
+                  "precision": 0.0013,
+                  "recall": 0.0051,
+                  "f1": 0.0021,
+                  "false_alarms_per_frame": 0.3274
+                },
+                "crosswalk": {
+                  "true_positives": 154,
+                  "false_positives": 3438,
+                  "missed": 335,
+                  "ground_truth": 489,
+                  "precision": 0.0429,
+                  "recall": 0.3149,
+                  "f1": 0.0755,
+                  "false_alarms_per_frame": 1.4967
+                },
+                "opening-door": {
+                  "true_positives": 110,
+                  "false_positives": 1949,
+                  "missed": 314,
+                  "ground_truth": 424,
+                  "precision": 0.0534,
+                  "recall": 0.2594,
+                  "f1": 0.0886,
+                  "false_alarms_per_frame": 0.8485
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 38743,
+                  "missed": 0,
+                  "ground_truth": 0,
+                  "precision": 0.0,
+                  "recall": null,
+                  "f1": null,
+                  "false_alarms_per_frame": 16.8668
+                },
+                "wall/fence": {
+                  "true_positives": 162,
+                  "false_positives": 607,
+                  "missed": 2173,
+                  "ground_truth": 2335,
+                  "precision": 0.2107,
+                  "recall": 0.0694,
+                  "f1": 0.1044,
+                  "false_alarms_per_frame": 0.2643
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 20017,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 8.7144
+                }
+              }
+            }
+          }
+        },
+        "ground_truth_boxes": 11403,
+        "predictions_ignored_far": 11745
+      },
+      "test": {
+        "overall": {
+          "AP50-95": 0.0639,
+          "AP50": 0.1073,
+          "AP75": 0.0677,
+          "AP_small": 0.0,
+          "AP_medium": 0.0223,
+          "AP_large": 0.075,
+          "AR1": 0.1067,
+          "AR10": 0.1721,
+          "AR100": 0.1763,
+          "AR_small": 0.0037,
+          "AR_medium": 0.0946,
+          "AR_large": 0.1917
+        },
+        "per_class": {
+          "pedestrian": {
+            "AP50-95": 0.4487,
+            "AP50": 0.6667,
+            "AP75": 0.5331,
+            "AR100": 0.5839,
+            "AP_small": 0.0,
+            "AP_medium": 0.0519,
+            "AP_large": 0.5356,
+            "ground_truth_boxes": 3968,
+            "predictions": 139639
+          },
+          "rider": {
+            "AP50-95": 0.0104,
+            "AP50": 0.0336,
+            "AP75": 0.0031,
+            "AR100": 0.1898,
+            "AP_small": 0.0,
+            "AP_medium": 0.0019,
+            "AP_large": 0.0144,
+            "ground_truth_boxes": 98,
+            "predictions": 6428
+          },
+          "animal": {
+            "AP50-95": 0.0057,
+            "AP50": 0.02,
+            "AP75": 0.0004,
+            "AR100": 0.2571,
+            "AP_small": null,
+            "AP_medium": 0.1728,
+            "AP_large": 0.0074,
+            "ground_truth_boxes": 14,
+            "predictions": 4297
+          },
+          "vehicle": {
+            "AP50-95": 0.3622,
+            "AP50": 0.5558,
+            "AP75": 0.4071,
+            "AR100": 0.5042,
+            "AP_small": 0.0,
+            "AP_medium": 0.0012,
+            "AP_large": 0.4153,
+            "ground_truth_boxes": 1760,
+            "predictions": 54696
+          },
+          "obstacle": {
+            "AP50-95": 0.0291,
+            "AP50": 0.045,
+            "AP75": 0.0312,
+            "AR100": 0.0621,
+            "AP_small": 0.0,
+            "AP_medium": 0.015,
+            "AP_large": 0.0337,
+            "ground_truth_boxes": 7238,
+            "predictions": 1982
+          },
+          "pole": {
+            "AP50-95": 0.0611,
+            "AP50": 0.1037,
+            "AP75": 0.0584,
+            "AR100": 0.234,
+            "AP_small": 0.0,
+            "AP_medium": 0.0702,
+            "AP_large": 0.0808,
+            "ground_truth_boxes": 1346,
+            "predictions": 10202
+          },
+          "tree": {
+            "AP50-95": 0.0159,
+            "AP50": 0.0408,
+            "AP75": 0.0118,
+            "AR100": 0.1695,
+            "AP_small": 0.0,
+            "AP_medium": 0.0119,
+            "AP_large": 0.0189,
+            "ground_truth_boxes": 1437,
+            "predictions": 12880
+          },
+          "traffic sign": {
+            "AP50-95": 0.0058,
+            "AP50": 0.0114,
+            "AP75": 0.0056,
+            "AR100": 0.2015,
+            "AP_small": 0.0,
+            "AP_medium": 0.0104,
+            "AP_large": 0.003,
+            "ground_truth_boxes": 270,
+            "predictions": 40122
+          },
+          "traffic light": {
+            "AP50-95": 0.0009,
+            "AP50": 0.0016,
+            "AP75": 0.0011,
+            "AR100": 0.165,
+            "AP_small": 0.0,
+            "AP_medium": 0.0024,
+            "AP_large": 0.0003,
+            "ground_truth_boxes": 60,
+            "predictions": 39058
+          },
+          "bike rack": {
+            "AP50-95": 0.0036,
+            "AP50": 0.0178,
+            "AP75": 0.0007,
+            "AR100": 0.101,
+            "AP_small": 0.0,
+            "AP_medium": 0.0191,
+            "AP_large": 0.0053,
+            "ground_truth_boxes": 491,
+            "predictions": 15690
+          },
+          "stairs": {
+            "AP50-95": 0.0009,
+            "AP50": 0.0026,
+            "AP75": 0.0001,
+            "AR100": 0.0358,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.001,
+            "ground_truth_boxes": 109,
+            "predictions": 1401
+          },
+          "crosswalk": {
+            "AP50-95": 0.0516,
+            "AP50": 0.167,
+            "AP75": 0.0087,
+            "AR100": 0.16,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0542,
+            "ground_truth_boxes": 885,
+            "predictions": 6084
+          },
+          "opening-door": {
+            "AP50-95": 0.0022,
+            "AP50": 0.0066,
+            "AP75": 0.0015,
+            "AR100": 0.0922,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0025,
+            "ground_truth_boxes": 308,
+            "predictions": 3864
+          },
+          "guard rail/road barrier": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.023,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 135,
+            "predictions": 101446
+          },
+          "wall/fence": {
+            "AP50-95": 0.0236,
+            "AP50": 0.0447,
+            "AP75": 0.0208,
+            "AR100": 0.0425,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0271,
+            "ground_truth_boxes": 4340,
+            "predictions": 2454
+          },
+          "water body": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 11,
+            "predictions": 49350
+          }
+        },
+        "operating_points": {
+          "match_iou": 0.5,
+          "frames": 5107,
+          "by_confidence": {
+            "0.25": {
+              "overall": {
+                "true_positives": 4212,
+                "false_positives": 11421,
+                "missed": 18258,
+                "ground_truth": 22470,
+                "precision": 0.2694,
+                "recall": 0.1874,
+                "f1": 0.2211,
+                "false_alarms_per_frame": 2.2363
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 2992,
+                  "false_positives": 5678,
+                  "missed": 976,
+                  "ground_truth": 3968,
+                  "precision": 0.3451,
+                  "recall": 0.754,
+                  "f1": 0.4735,
+                  "false_alarms_per_frame": 1.1118
+                },
+                "rider": {
+                  "true_positives": 20,
+                  "false_positives": 218,
+                  "missed": 78,
+                  "ground_truth": 98,
+                  "precision": 0.084,
+                  "recall": 0.2041,
+                  "f1": 0.119,
+                  "false_alarms_per_frame": 0.0427
+                },
+                "animal": {
+                  "true_positives": 5,
+                  "false_positives": 154,
+                  "missed": 9,
+                  "ground_truth": 14,
+                  "precision": 0.0314,
+                  "recall": 0.3571,
+                  "f1": 0.0578,
+                  "false_alarms_per_frame": 0.0302
+                },
+                "vehicle": {
+                  "true_positives": 866,
+                  "false_positives": 265,
+                  "missed": 894,
+                  "ground_truth": 1760,
+                  "precision": 0.7657,
+                  "recall": 0.492,
+                  "f1": 0.5991,
+                  "false_alarms_per_frame": 0.0519
+                },
+                "obstacle": {
+                  "true_positives": 46,
+                  "false_positives": 39,
+                  "missed": 7192,
+                  "ground_truth": 7238,
+                  "precision": 0.5412,
+                  "recall": 0.0064,
+                  "f1": 0.0126,
+                  "false_alarms_per_frame": 0.0076
+                },
+                "pole": {
+                  "true_positives": 92,
+                  "false_positives": 132,
+                  "missed": 1254,
+                  "ground_truth": 1346,
+                  "precision": 0.4107,
+                  "recall": 0.0684,
+                  "f1": 0.1172,
+                  "false_alarms_per_frame": 0.0258
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 4,
+                  "missed": 1437,
+                  "ground_truth": 1437,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0008
+                },
+                "traffic sign": {
+                  "true_positives": 59,
+                  "false_positives": 1612,
+                  "missed": 211,
+                  "ground_truth": 270,
+                  "precision": 0.0353,
+                  "recall": 0.2185,
+                  "f1": 0.0608,
+                  "false_alarms_per_frame": 0.3156
+                },
+                "traffic light": {
+                  "true_positives": 7,
+                  "false_positives": 1057,
+                  "missed": 53,
+                  "ground_truth": 60,
+                  "precision": 0.0066,
+                  "recall": 0.1167,
+                  "f1": 0.0125,
+                  "false_alarms_per_frame": 0.207
+                },
+                "bike rack": {
+                  "true_positives": 10,
+                  "false_positives": 136,
+                  "missed": 481,
+                  "ground_truth": 491,
+                  "precision": 0.0685,
+                  "recall": 0.0204,
+                  "f1": 0.0314,
+                  "false_alarms_per_frame": 0.0266
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 3,
+                  "missed": 109,
+                  "ground_truth": 109,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0006
+                },
+                "crosswalk": {
+                  "true_positives": 49,
+                  "false_positives": 11,
+                  "missed": 836,
+                  "ground_truth": 885,
+                  "precision": 0.8167,
+                  "recall": 0.0554,
+                  "f1": 0.1037,
+                  "false_alarms_per_frame": 0.0022
+                },
+                "opening-door": {
+                  "true_positives": 0,
+                  "false_positives": 19,
+                  "missed": 308,
+                  "ground_truth": 308,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0037
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 2000,
+                  "missed": 135,
+                  "ground_truth": 135,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.3916
+                },
+                "wall/fence": {
+                  "true_positives": 66,
+                  "false_positives": 21,
+                  "missed": 4274,
+                  "ground_truth": 4340,
+                  "precision": 0.7586,
+                  "recall": 0.0152,
+                  "f1": 0.0298,
+                  "false_alarms_per_frame": 0.0041
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 72,
+                  "missed": 11,
+                  "ground_truth": 11,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0141
+                }
+              }
+            },
+            "0.35": {
+              "overall": {
+                "true_positives": 3836,
+                "false_positives": 6941,
+                "missed": 18634,
+                "ground_truth": 22470,
+                "precision": 0.3559,
+                "recall": 0.1707,
+                "f1": 0.2308,
+                "false_alarms_per_frame": 1.3591
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 2949,
+                  "false_positives": 3942,
+                  "missed": 1019,
+                  "ground_truth": 3968,
+                  "precision": 0.4279,
+                  "recall": 0.7432,
+                  "f1": 0.5431,
+                  "false_alarms_per_frame": 0.7719
+                },
+                "rider": {
+                  "true_positives": 6,
+                  "false_positives": 108,
+                  "missed": 92,
+                  "ground_truth": 98,
+                  "precision": 0.0526,
+                  "recall": 0.0612,
+                  "f1": 0.0566,
+                  "false_alarms_per_frame": 0.0211
+                },
+                "animal": {
+                  "true_positives": 3,
+                  "false_positives": 110,
+                  "missed": 11,
+                  "ground_truth": 14,
+                  "precision": 0.0265,
+                  "recall": 0.2143,
+                  "f1": 0.0472,
+                  "false_alarms_per_frame": 0.0215
+                },
+                "vehicle": {
+                  "true_positives": 646,
+                  "false_positives": 105,
+                  "missed": 1114,
+                  "ground_truth": 1760,
+                  "precision": 0.8602,
+                  "recall": 0.367,
+                  "f1": 0.5145,
+                  "false_alarms_per_frame": 0.0206
+                },
+                "obstacle": {
+                  "true_positives": 26,
+                  "false_positives": 18,
+                  "missed": 7212,
+                  "ground_truth": 7238,
+                  "precision": 0.5909,
+                  "recall": 0.0036,
+                  "f1": 0.0071,
+                  "false_alarms_per_frame": 0.0035
+                },
+                "pole": {
+                  "true_positives": 68,
+                  "false_positives": 79,
+                  "missed": 1278,
+                  "ground_truth": 1346,
+                  "precision": 0.4626,
+                  "recall": 0.0505,
+                  "f1": 0.0911,
+                  "false_alarms_per_frame": 0.0155
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 1437,
+                  "ground_truth": 1437,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 44,
+                  "false_positives": 1003,
+                  "missed": 226,
+                  "ground_truth": 270,
+                  "precision": 0.042,
+                  "recall": 0.163,
+                  "f1": 0.0668,
+                  "false_alarms_per_frame": 0.1964
+                },
+                "traffic light": {
+                  "true_positives": 5,
+                  "false_positives": 597,
+                  "missed": 55,
+                  "ground_truth": 60,
+                  "precision": 0.0083,
+                  "recall": 0.0833,
+                  "f1": 0.0151,
+                  "false_alarms_per_frame": 0.1169
+                },
+                "bike rack": {
+                  "true_positives": 8,
+                  "false_positives": 53,
+                  "missed": 483,
+                  "ground_truth": 491,
+                  "precision": 0.1311,
+                  "recall": 0.0163,
+                  "f1": 0.029,
+                  "false_alarms_per_frame": 0.0104
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 1,
+                  "missed": 109,
+                  "ground_truth": 109,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0002
+                },
+                "crosswalk": {
+                  "true_positives": 36,
+                  "false_positives": 5,
+                  "missed": 849,
+                  "ground_truth": 885,
+                  "precision": 0.878,
+                  "recall": 0.0407,
+                  "f1": 0.0778,
+                  "false_alarms_per_frame": 0.001
+                },
+                "opening-door": {
+                  "true_positives": 0,
+                  "false_positives": 9,
+                  "missed": 308,
+                  "ground_truth": 308,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0018
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 884,
+                  "missed": 135,
+                  "ground_truth": 135,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.1731
+                },
+                "wall/fence": {
+                  "true_positives": 45,
+                  "false_positives": 8,
+                  "missed": 4295,
+                  "ground_truth": 4340,
+                  "precision": 0.8491,
+                  "recall": 0.0104,
+                  "f1": 0.0205,
+                  "false_alarms_per_frame": 0.0016
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 19,
+                  "missed": 11,
+                  "ground_truth": 11,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0037
+                }
+              }
+            },
+            "0.5": {
+              "overall": {
+                "true_positives": 3275,
+                "false_positives": 3596,
+                "missed": 19195,
+                "ground_truth": 22470,
+                "precision": 0.4766,
+                "recall": 0.1457,
+                "f1": 0.2232,
+                "false_alarms_per_frame": 0.7041
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 2826,
+                  "false_positives": 2364,
+                  "missed": 1142,
+                  "ground_truth": 3968,
+                  "precision": 0.5445,
+                  "recall": 0.7122,
+                  "f1": 0.6172,
+                  "false_alarms_per_frame": 0.4629
+                },
+                "rider": {
+                  "true_positives": 2,
+                  "false_positives": 47,
+                  "missed": 96,
+                  "ground_truth": 98,
+                  "precision": 0.0408,
+                  "recall": 0.0204,
+                  "f1": 0.0272,
+                  "false_alarms_per_frame": 0.0092
+                },
+                "animal": {
+                  "true_positives": 0,
+                  "false_positives": 68,
+                  "missed": 14,
+                  "ground_truth": 14,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0133
+                },
+                "vehicle": {
+                  "true_positives": 328,
+                  "false_positives": 23,
+                  "missed": 1432,
+                  "ground_truth": 1760,
+                  "precision": 0.9345,
+                  "recall": 0.1864,
+                  "f1": 0.3108,
+                  "false_alarms_per_frame": 0.0045
+                },
+                "obstacle": {
+                  "true_positives": 9,
+                  "false_positives": 2,
+                  "missed": 7229,
+                  "ground_truth": 7238,
+                  "precision": 0.8182,
+                  "recall": 0.0012,
+                  "f1": 0.0025,
+                  "false_alarms_per_frame": 0.0004
+                },
+                "pole": {
+                  "true_positives": 44,
+                  "false_positives": 25,
+                  "missed": 1302,
+                  "ground_truth": 1346,
+                  "precision": 0.6377,
+                  "recall": 0.0327,
+                  "f1": 0.0622,
+                  "false_alarms_per_frame": 0.0049
+                },
+                "tree": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 1437,
+                  "ground_truth": 1437,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "traffic sign": {
+                  "true_positives": 19,
+                  "false_positives": 559,
+                  "missed": 251,
+                  "ground_truth": 270,
+                  "precision": 0.0329,
+                  "recall": 0.0704,
+                  "f1": 0.0448,
+                  "false_alarms_per_frame": 0.1095
+                },
+                "traffic light": {
+                  "true_positives": 2,
+                  "false_positives": 267,
+                  "missed": 58,
+                  "ground_truth": 60,
+                  "precision": 0.0074,
+                  "recall": 0.0333,
+                  "f1": 0.0122,
+                  "false_alarms_per_frame": 0.0523
+                },
+                "bike rack": {
+                  "true_positives": 7,
+                  "false_positives": 16,
+                  "missed": 484,
+                  "ground_truth": 491,
+                  "precision": 0.3043,
+                  "recall": 0.0143,
+                  "f1": 0.0272,
+                  "false_alarms_per_frame": 0.0031
+                },
+                "stairs": {
+                  "true_positives": 0,
+                  "false_positives": 0,
+                  "missed": 109,
+                  "ground_truth": 109,
+                  "precision": null,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0
+                },
+                "crosswalk": {
+                  "true_positives": 19,
+                  "false_positives": 1,
+                  "missed": 866,
+                  "ground_truth": 885,
+                  "precision": 0.95,
+                  "recall": 0.0215,
+                  "f1": 0.042,
+                  "false_alarms_per_frame": 0.0002
+                },
+                "opening-door": {
+                  "true_positives": 0,
+                  "false_positives": 2,
+                  "missed": 308,
+                  "ground_truth": 308,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0004
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 0,
+                  "false_positives": 221,
+                  "missed": 135,
+                  "ground_truth": 135,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0433
+                },
+                "wall/fence": {
+                  "true_positives": 19,
+                  "false_positives": 0,
+                  "missed": 4321,
+                  "ground_truth": 4340,
+                  "precision": 1.0,
+                  "recall": 0.0044,
+                  "f1": 0.0087,
+                  "false_alarms_per_frame": 0.0
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 1,
+                  "missed": 11,
+                  "ground_truth": 11,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0002
+                }
+              }
+            },
+            "all_predictions": {
+              "overall": {
+                "true_positives": 7398,
+                "false_positives": 482195,
+                "missed": 15072,
+                "ground_truth": 22470,
+                "precision": 0.0151,
+                "recall": 0.3292,
+                "f1": 0.0289,
+                "false_alarms_per_frame": 94.4184
+              },
+              "per_class": {
+                "pedestrian": {
+                  "true_positives": 3384,
+                  "false_positives": 136255,
+                  "missed": 584,
+                  "ground_truth": 3968,
+                  "precision": 0.0242,
+                  "recall": 0.8528,
+                  "f1": 0.0471,
+                  "false_alarms_per_frame": 26.68
+                },
+                "rider": {
+                  "true_positives": 44,
+                  "false_positives": 6384,
+                  "missed": 54,
+                  "ground_truth": 98,
+                  "precision": 0.0068,
+                  "recall": 0.449,
+                  "f1": 0.0135,
+                  "false_alarms_per_frame": 1.25
+                },
+                "animal": {
+                  "true_positives": 9,
+                  "false_positives": 4288,
+                  "missed": 5,
+                  "ground_truth": 14,
+                  "precision": 0.0021,
+                  "recall": 0.6429,
+                  "f1": 0.0042,
+                  "false_alarms_per_frame": 0.8396
+                },
+                "vehicle": {
+                  "true_positives": 1303,
+                  "false_positives": 53393,
+                  "missed": 457,
+                  "ground_truth": 1760,
+                  "precision": 0.0238,
+                  "recall": 0.7403,
+                  "f1": 0.0462,
+                  "false_alarms_per_frame": 10.4549
+                },
+                "obstacle": {
+                  "true_positives": 611,
+                  "false_positives": 1371,
+                  "missed": 6627,
+                  "ground_truth": 7238,
+                  "precision": 0.3083,
+                  "recall": 0.0844,
+                  "f1": 0.1325,
+                  "false_alarms_per_frame": 0.2685
+                },
+                "pole": {
+                  "true_positives": 542,
+                  "false_positives": 9660,
+                  "missed": 804,
+                  "ground_truth": 1346,
+                  "precision": 0.0531,
+                  "recall": 0.4027,
+                  "f1": 0.0939,
+                  "false_alarms_per_frame": 1.8915
+                },
+                "tree": {
+                  "true_positives": 475,
+                  "false_positives": 12405,
+                  "missed": 962,
+                  "ground_truth": 1437,
+                  "precision": 0.0369,
+                  "recall": 0.3305,
+                  "f1": 0.0664,
+                  "false_alarms_per_frame": 2.429
+                },
+                "traffic sign": {
+                  "true_positives": 90,
+                  "false_positives": 40032,
+                  "missed": 180,
+                  "ground_truth": 270,
+                  "precision": 0.0022,
+                  "recall": 0.3333,
+                  "f1": 0.0045,
+                  "false_alarms_per_frame": 7.8387
+                },
+                "traffic light": {
+                  "true_positives": 17,
+                  "false_positives": 39041,
+                  "missed": 43,
+                  "ground_truth": 60,
+                  "precision": 0.0004,
+                  "recall": 0.2833,
+                  "f1": 0.0009,
+                  "false_alarms_per_frame": 7.6446
+                },
+                "bike rack": {
+                  "true_positives": 135,
+                  "false_positives": 15555,
+                  "missed": 356,
+                  "ground_truth": 491,
+                  "precision": 0.0086,
+                  "recall": 0.2749,
+                  "f1": 0.0167,
+                  "false_alarms_per_frame": 3.0458
+                },
+                "stairs": {
+                  "true_positives": 10,
+                  "false_positives": 1391,
+                  "missed": 99,
+                  "ground_truth": 109,
+                  "precision": 0.0071,
+                  "recall": 0.0917,
+                  "f1": 0.0132,
+                  "false_alarms_per_frame": 0.2724
+                },
+                "crosswalk": {
+                  "true_positives": 346,
+                  "false_positives": 5738,
+                  "missed": 539,
+                  "ground_truth": 885,
+                  "precision": 0.0569,
+                  "recall": 0.391,
+                  "f1": 0.0993,
+                  "false_alarms_per_frame": 1.1236
+                },
+                "opening-door": {
+                  "true_positives": 64,
+                  "false_positives": 3800,
+                  "missed": 244,
+                  "ground_truth": 308,
+                  "precision": 0.0166,
+                  "recall": 0.2078,
+                  "f1": 0.0307,
+                  "false_alarms_per_frame": 0.7441
+                },
+                "guard rail/road barrier": {
+                  "true_positives": 11,
+                  "false_positives": 101435,
+                  "missed": 124,
+                  "ground_truth": 135,
+                  "precision": 0.0001,
+                  "recall": 0.0815,
+                  "f1": 0.0002,
+                  "false_alarms_per_frame": 19.862
+                },
+                "wall/fence": {
+                  "true_positives": 357,
+                  "false_positives": 2097,
+                  "missed": 3983,
+                  "ground_truth": 4340,
+                  "precision": 0.1455,
+                  "recall": 0.0823,
+                  "f1": 0.1051,
+                  "false_alarms_per_frame": 0.4106
+                },
+                "water body": {
+                  "true_positives": 0,
+                  "false_positives": 49350,
+                  "missed": 11,
+                  "ground_truth": 11,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 9.6632
+                }
+              }
+            }
+          }
+        },
+        "ground_truth_boxes": 22470,
+        "predictions_ignored_far": 16219
+      }
+    }
+  },
+  "finished_at": "2026-11-10T17:19:12"
+}

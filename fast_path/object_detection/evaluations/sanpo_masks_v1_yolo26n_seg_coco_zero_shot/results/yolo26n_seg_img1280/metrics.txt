@@ -1,0 +1,181 @@
+====================================================================================================
+SUMMARY
+====================================================================================================
+
+0. RUN
+┌──────────────────────────────┬───────────────────────────────────────────┐
+│ item                         │ value                                     │
+├──────────────────────────────┼───────────────────────────────────────────┤
+│ model run                    │ yolo26n_seg_img1280                       │
+│ evaluation                   │ sanpo_masks_v1_yolo26n_seg_coco_zero_shot │
+│ GPU                          │ NVIDIA H100 80GB HBM3                     │
+│ task                         │ segment                                   │
+│ classes evaluated            │ 4                                         │
+│ model input size (long side) │ 1280                                      │
+│ splits                       │ val (2,297 frames), test (5,107 frames)   │
+└──────────────────────────────┴───────────────────────────────────────────┘
+
+1. MAIN SCORES (COCO, over all confidence thresholds; AP50 = main score)
+┌───────┬───────┬─────────┬───────┬────────────────┐
+│ split │  AP50 │ AP50-95 │  AP75 │ recall (AR100) │
+├───────┼───────┼─────────┼───────┼────────────────┤
+│ val   │ 0.411 │   0.200 │ 0.168 │          0.328 │
+│ test  │ 0.363 │   0.180 │ 0.155 │          0.311 │
+└───────┴───────┴─────────┴───────┴────────────────┘
+
+2. AT A FIXED CONFIDENCE (what the user would get; correct if IoU >= 0.5)
+┌───────┬──────────────────┬───────────┬────────┬───────┬────────────────────┐
+│ split │ confidence       │ precision │ recall │    F1 │ false alarms/frame │
+├───────┼──────────────────┼───────────┼────────┼───────┼────────────────────┤
+│ val   │ 0.25             │     0.628 │  0.487 │ 0.549 │               1.74 │
+│ val   │ 0.35             │     0.728 │  0.429 │ 0.539 │               0.97 │
+│ val   │ 0.5              │     0.843 │  0.344 │ 0.489 │               0.39 │
+│ val   │ all (max recall) │     0.059 │  0.755 │ 0.110 │              72.28 │
+├───────┼──────────────────┼───────────┼────────┼───────┼────────────────────┤
+│ test  │ 0.25             │     0.530 │  0.556 │ 0.543 │               2.07 │
+│ test  │ 0.35             │     0.629 │  0.510 │ 0.564 │               1.26 │
+│ test  │ 0.5              │     0.759 │  0.434 │ 0.553 │               0.58 │
+│ test  │ all (max recall) │     0.047 │  0.752 │ 0.089 │              63.45 │
+└───────┴──────────────────┴───────────┴────────┴───────┴────────────────────┘
+
+3. PER CLASS (sorted by test AP50)
+┌───────────────┬──────────┬───────────┬─────────────────┬──────────────────┐
+│ class         │ val AP50 │ test AP50 │ val recall@0.25 │ test recall@0.25 │
+├───────────────┼──────────┼───────────┼─────────────────┼──────────────────┤
+│ person        │    0.622 │     0.638 │           0.624 │            0.678 │
+│ vehicle       │    0.542 │     0.518 │           0.493 │            0.510 │
+│ animal        │    0.238 │     0.231 │           0.186 │            0.440 │
+│ traffic light │    0.242 │     0.065 │           0.245 │            0.154 │
+└───────────────┴──────────┴───────────┴─────────────────┴──────────────────┘
+
+4. SPEED AND GPU (milliseconds per frame, model in a batch)
+┌───────┬───────┬────────────┬─────────────┬──────────────────────┐
+│ split │ model │ preprocess │ postprocess │ GPU memory peak (GB) │
+├───────┼───────┼────────────┼─────────────┼──────────────────────┤
+│ val   │  0.62 │      12.66 │        2.04 │                16.06 │
+│ test  │  0.60 │      12.73 │        1.91 │                16.06 │
+└───────┴───────┴────────────┴─────────────┴──────────────────────┘
+
+5. NEAR OBJECTS (only ground truth within N meters counts; predictions of farther objects are ignored)
+┌───────┬────────┬────────────┬───────┬─────────┬────────────────┬────────────────┬─────────────┐
+│ split │ within │ GT objects │  AP50 │ AP50-95 │ recall (AR100) │ precision@0.25 │ recall@0.25 │
+├───────┼────────┼────────────┼───────┼─────────┼────────────────┼────────────────┼─────────────┤
+│ val   │    5 m │        460 │ 0.370 │   0.277 │          0.426 │          0.090 │       0.791 │
+│ val   │   10 m │      2,498 │ 0.491 │   0.307 │          0.481 │          0.339 │       0.763 │
+├───────┼────────┼────────────┼───────┼─────────┼────────────────┼────────────────┼─────────────┤
+│ test  │    5 m │      1,855 │ 0.326 │   0.238 │          0.401 │          0.128 │       0.792 │
+│ test  │   10 m │      5,900 │ 0.424 │   0.250 │          0.418 │          0.300 │       0.735 │
+└───────┴────────┴────────────┴───────┴─────────┴────────────────┴────────────────┴─────────────┘
+
+6. HOW TO READ
+┌────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────┐
+│ score              │ meaning                                                                                 │
+├────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────┤
+│ AP50               │ main score: how well objects are found (overlap >= 0.5), over all confidence thresholds │
+│ AP50-95            │ standard COCO score: also rewards tight boxes / masks (overlap 0.50 to 0.95)            │
+│ recall             │ share of real objects that were found                                                   │
+│ precision          │ share of predictions that were correct                                                  │
+│ false alarms/frame │ wrong predictions per frame at that confidence                                          │
+│ all (max recall)   │ every prediction kept: the highest recall the model can reach                           │
+└────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────┘
+
+====================================================================================================
+DETAILS
+====================================================================================================
+
+Evaluation: sanpo_masks_v1_yolo26n_seg_coco_zero_shot  |  run: yolo26n_seg_img1280  |  GPU: NVIDIA H100 80GB HBM3
+Finished: 2026-11-10T17:06:23
+Settings: weights=yolo26n-seg.pt, image_size=1280, confidence_threshold=0.001, nms_iou_threshold=0.7, max_detections=100, half_precision=True, batch_size=64, cpu_cores=16, loader_threads=32, dataset=sanpo_real_chest_5fps, view=masks_v1, task=segment, operating_confidences=[0.25, 0.35, 0.5], match_iou=0.5
+Evaluation classes (ground truth <- what the model predicts):
+  person                   sanpo_ground_truth: pedestrian, rider | coco: person
+  vehicle                  sanpo_ground_truth: vehicle | coco: bicycle, car, motorcycle, bus, train, truck
+  animal                   sanpo_ground_truth: animal | coco: bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe
+  traffic light            sanpo_ground_truth: traffic light | coco: traffic light
+
+=== val: 2,297 frames ===
+Overall: AP50-95 0.200 | AP50 0.411 | AP75 0.168 | AR100 0.328 | AP small/medium/large 0.050/0.185/0.287
+Speed (ms/frame, NVIDIA H100 80GB HBM3): preprocess 12.66 | inference 0.62 | postprocess 2.04 | GPU memory peak 16.06 GB
+class                     GT boxes    preds  AP50-95    AP50    AP75   AR100   AP_s   AP_m   AP_l
+person                       3,286   41,796    0.329   0.622   0.307   0.417  0.074  0.237  0.565
+vehicle                      8,524  113,021    0.295   0.542   0.288   0.440  0.064  0.209  0.492
+animal                         145    1,334    0.097   0.238   0.047   0.191  0.000  0.173  0.078
+traffic light                1,887   20,330    0.081   0.242   0.027   0.262  0.060  0.121  0.011
+
+=== test: 5,107 frames ===
+Overall: AP50-95 0.180 | AP50 0.363 | AP75 0.155 | AR100 0.311 | AP small/medium/large 0.036/0.156/0.281
+Speed (ms/frame, NVIDIA H100 80GB HBM3): preprocess 12.73 | inference 0.6 | postprocess 1.91 | GPU memory peak 16.06 GB
+class                     GT boxes    preds  AP50-95    AP50    AP75   AR100   AP_s   AP_m   AP_l
+person                       8,929  115,864    0.344   0.638   0.319   0.451  0.062  0.259  0.512
+vehicle                     11,023  190,844    0.288   0.518   0.291   0.435  0.040  0.196  0.467
+animal                          25    5,188    0.069   0.231   0.007   0.204  0.000  0.140  0.146
+traffic light                1,450   28,229    0.018   0.065   0.004   0.152  0.041  0.028  0.000
+
+=== val: operating points (prediction correct if IoU >= 0.5) ===
+all_predictions = every prediction kept: the highest recall the model can reach
+
+confidence 0.25
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+person                     3,286   2,050   1,256   1,236  0.620   0.624  0.622     0.547
+vehicle                    8,524   4,202   2,139   4,322  0.663   0.493  0.565     0.931
+animal                       145      27      14     118  0.658   0.186  0.290     0.006
+traffic light              1,887     463     587   1,424  0.441   0.245  0.315     0.256
+OVERALL                   13,842   6,742   3,996   7,100  0.628   0.487  0.549     1.740
+
+confidence 0.35
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+person                     3,286   1,935     787   1,351  0.711   0.589  0.644     0.343
+vehicle                    8,524   3,657   1,104   4,867  0.768   0.429  0.550     0.481
+animal                       145      18      10     127  0.643   0.124  0.208     0.004
+traffic light              1,887     322     320   1,565  0.502   0.171  0.255     0.139
+OVERALL                   13,842   5,932   2,221   7,910  0.728   0.429  0.539     0.967
+
+confidence 0.5
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+person                     3,286   1,720     370   1,566  0.823   0.523  0.640     0.161
+vehicle                    8,524   2,869     410   5,655  0.875   0.337  0.486     0.178
+animal                       145      10       5     135  0.667   0.069  0.125     0.002
+traffic light              1,887     163     105   1,724  0.608   0.086  0.151     0.046
+OVERALL                   13,842   4,762     890   9,080  0.843   0.344  0.489     0.388
+
+confidence all_predictions
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+person                     3,286   2,514  39,282     772  0.060   0.765  0.112    17.101
+vehicle                    8,524   6,711 106,310   1,813  0.059   0.787  0.110    46.282
+animal                       145      58   1,276      87  0.043   0.400  0.078     0.555
+traffic light              1,887   1,166  19,164     721  0.057   0.618  0.105     8.343
+OVERALL                   13,842  10,449 166,032   3,393  0.059   0.755  0.110    72.282
+
+=== test: operating points (prediction correct if IoU >= 0.5) ===
+all_predictions = every prediction kept: the highest recall the model can reach
+
+confidence 0.25
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+person                     8,929   6,057   5,874   2,872  0.508   0.678  0.581     1.150
+vehicle                   11,023   5,617   3,774   5,406  0.598   0.510  0.550     0.739
+animal                        25      11      64      14  0.147   0.440  0.220     0.013
+traffic light              1,450     224     840   1,226  0.210   0.154  0.178     0.165
+OVERALL                   21,427  11,909  10,552   9,518  0.530   0.556  0.543     2.066
+
+confidence 0.35
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+person                     8,929   5,806   3,912   3,123  0.597   0.650  0.623     0.766
+vehicle                   11,023   4,940   2,003   6,083  0.712   0.448  0.550     0.392
+animal                        25      11      33      14  0.250   0.440  0.319     0.006
+traffic light              1,450     177     492   1,273  0.265   0.122  0.167     0.096
+OVERALL                   21,427  10,934   6,440  10,493  0.629   0.510  0.564     1.261
+
+confidence 0.5
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+person                     8,929   5,303   1,946   3,626  0.732   0.594  0.656     0.381
+vehicle                   11,023   3,925     773   7,098  0.836   0.356  0.499     0.151
+animal                        25       6      10      19  0.375   0.240  0.293     0.002
+traffic light              1,450      74     221   1,376  0.251   0.051  0.085     0.043
+OVERALL                   21,427   9,308   2,950  12,119  0.759   0.434  0.553     0.578
+
+confidence all_predictions
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+person                     8,929   7,088 108,776   1,841  0.061   0.794  0.114    21.299
+vehicle                   11,023   8,448 182,396   2,575  0.044   0.766  0.084    35.715
+animal                        25      14   5,174      11  0.003   0.560  0.005     1.013
+traffic light              1,450     554  27,675     896  0.020   0.382  0.037     5.419
+OVERALL                   21,427  16,104 324,021   5,323  0.047   0.752  0.089    63.446
