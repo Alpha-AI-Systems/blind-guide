@@ -9,7 +9,7 @@ class mapping (steps 1 to 3). Everything else lives here:
     operating_point_metrics()  precision / recall / F1 / false alarms at fixed confidences
     print_setup()              prints the full setup before anything is evaluated
     evaluate_splits()          step 4: ground truth, predictions (resumable), scoring, for every split
-    write_results()            saves results/<run>/metrics.json + summary.txt
+    write_results()            saves results/<run>/metrics.json, metrics.txt, summary.md, example_images/
 
 How the scripts import it: they add this folder to sys.path (local run), and their Modal image
 adds this file with Image.add_local_python_source("evaluate_shared_code") (container run).
@@ -237,8 +237,51 @@ def print_setup(results: dict, category_ids_by_name: dict[str, int], volume_name
           f"and with all predictions (IoU >= {match_iou})", flush=True)
     print("Metrics: COCO (pycocotools): AP50-95, AP50, AP75, AR100, AP small/medium/large, overall and per class; "
           "speed in ms/frame", flush=True)
-    print(f"Results will be saved to: results/{results['run']}/ (metrics.json + summary.txt)", flush=True)
+    print(f"Results will be saved to: results/{results['run']}/ (metrics.json, metrics.txt, summary.md, example_images/)", flush=True)
     print("=" * 80, flush=True)
+
+
+def load_and_resize_frame(frame_path: str, image_size: int):
+    """Read one frame and resize it so its long side = image_size (what Ultralytics would do anyway).
+
+    Runs in a loader thread (OpenCV releases the Python lock, so threads really run in parallel).
+    Returns (resized BGR image, x scale, y scale); multiplying a box in the resized image by the
+    scales gives the box in the original frame.
+    """
+    import cv2
+
+    image = cv2.imread(frame_path)
+    height, width = image.shape[:2]
+    ratio = image_size / max(height, width)
+    new_width, new_height = round(width * ratio), round(height * ratio)
+    resized = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LINEAR)  # same as Ultralytics
+    return resized, width / new_width, height / new_height
+
+
+def gpu_usage() -> str:
+    """Current GPU memory (used by this process / total) and GPU utilization, for progress lines."""
+    try:
+        import torch
+
+        used_gb = torch.cuda.memory_reserved() / 1e9
+        total_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+        try:
+            utilization = f"{torch.cuda.utilization()}%"  # needs nvidia-ml-py
+        except Exception:
+            utilization = "n/a"
+        return f"GPU mem {used_gb:.1f}/{total_gb:.0f} GB, util {utilization}"
+    except Exception:
+        return "GPU n/a"
+
+
+def gpu_memory_peak_gb() -> float | None:
+    """Highest GPU memory reserved by this process so far, in GB."""
+    try:
+        import torch
+
+        return round(torch.cuda.max_memory_reserved() / 1e9, 2)
+    except Exception:
+        return None
 
 
 # ----------------------------------------------------------------------------- step 4 (run on Modal)
@@ -248,7 +291,7 @@ def evaluate_splits(*, model, volume, results: dict, dataset_root: Path, work_di
                     model_class_to_category_id: dict[int, int], sanpo_class_to_category_id: dict[str, int],
                     image_size: int, confidence_threshold: float, nms_iou_threshold: float, max_detections: int,
                     half_precision: bool, batch_size: int, save_every_batches: int,
-                    operating_confidences: list[float], match_iou: float) -> dict:
+                    operating_confidences: list[float], match_iou: float, loader_threads: int = 32) -> dict:
     """Step 4 of every evaluation: for each split, ground truth -> predictions -> scores.
 
     Steps (per split):
@@ -261,6 +304,7 @@ def evaluate_splits(*, model, volume, results: dict, dataset_root: Path, work_di
     import json
     import os
     import time
+    from concurrent.futures import ThreadPoolExecutor
 
     evaluation_class_names = list(evaluation_classes)
 
@@ -328,37 +372,56 @@ def evaluate_splits(*, model, volume, results: dict, dataset_root: Path, work_di
             # 4c.4: full path of every frame of the split, and timers for progress / ETA
             frame_paths = [str(dataset_root / frame_path) for frame_path in frames["frame"]]
             start_time, batches_done, frames_done_at_start = time.time(), 0, saved["frames_done"]
+            batch_starts = list(range(saved["frames_done"], len(frame_paths), batch_size))
+
+            # Speed: reading + resizing the 2208x1242 JPGs on the CPU is the slow part, not the GPU.
+            # So frames are read and resized in loader_threads parallel threads, and the NEXT batch is
+            # prepared while the GPU works on the current one (prefetch).
+            loader = ThreadPoolExecutor(loader_threads)
+
+            def submit_batch(batch_index):
+                batch_paths = frame_paths[batch_starts[batch_index]:batch_starts[batch_index] + batch_size]
+                return batch_paths, [loader.submit(load_and_resize_frame, path, image_size) for path in batch_paths]
+
+            next_batch = submit_batch(0) if batch_starts else None
 
             # 4c.5: loop over the frames in batches of batch_size, starting after the frames already done
-            for batch_start in range(saved["frames_done"], len(frame_paths), batch_size):
-                batch_paths = frame_paths[batch_start:batch_start + batch_size]
-                # 4c.6: run the model on the whole batch (one GPU call); one result per frame
-                batch_results = model.predict(batch_paths, imgsz=image_size, conf=confidence_threshold,
-                                              iou=nms_iou_threshold, max_det=max_detections, half=half_precision,
-                                              verbose=False)
+            for batch_index, batch_start in enumerate(batch_starts):
+                batch_paths, loading = next_batch
+                loaded = [future.result() for future in loading]  # (resized image, x scale, y scale) per frame
+                if batch_index + 1 < len(batch_starts):
+                    next_batch = submit_batch(batch_index + 1)  # start reading the next batch now
+                # 4c.6: run the model on the whole batch (one GPU call); one result per frame.
+                # Frames are already resized to the model size, so Ultralytics only pads them.
+                batch_results = model.predict([image for image, _, _ in loaded], imgsz=image_size,
+                                              conf=confidence_threshold, iou=nms_iou_threshold,
+                                              max_det=max_detections, half=half_precision, verbose=False)
                 # 4c.7: for each frame of the batch: store its timings, then its predicted boxes
-                for frame_path, result in zip(batch_paths, batch_results):
+                for frame_path, (_, x_scale, y_scale), result in zip(batch_paths, loaded, batch_results):
                     image_id = image_ids[Path(frame_path).stem]
                     saved["speed"].append([result.speed["preprocess"], result.speed["inference"],
                                            result.speed["postprocess"]])
-                    # Each predicted box: corners (pixels), confidence score, model class id
+                    # Each predicted box: corners (pixels of the resized frame), confidence score, model class id
                     for (x1, y1, x2, y2), score, model_class in zip(result.boxes.xyxy.tolist(),
                                                                     result.boxes.conf.tolist(),
                                                                     result.boxes.cls.tolist()):
-                        # Keep it only if its class maps to an evaluation class; store it in COCO format
-                        # (bbox = [x, y, width, height], same as the ground truth)
+                        # Keep it only if its class maps to an evaluation class; scale the box back to the
+                        # original frame size and store it in COCO format (bbox = [x, y, width, height])
                         if int(model_class) in model_class_to_category_id:
+                            x1, x2 = x1 * x_scale, x2 * x_scale
+                            y1, y2 = y1 * y_scale, y2 * y_scale
                             saved["detections"].append({
                                 "image_id": image_id, "category_id": model_class_to_category_id[int(model_class)],
                                 "bbox": [x1, y1, x2 - x1, y2 - y1], "score": score})
-                # 4c.8: update progress and print speed, elapsed time and ETA
+                # 4c.8: update progress and print speed, GPU use, elapsed time and ETA
                 saved["frames_done"] = min(batch_start + batch_size, len(frame_paths))
                 batches_done += 1
                 elapsed = time.time() - start_time
                 frames_per_second = (saved["frames_done"] - frames_done_at_start) / elapsed if elapsed else 0
                 remaining_seconds = (len(frame_paths) - saved["frames_done"]) / frames_per_second if frames_per_second else 0
                 print(f"[{split}] {saved['frames_done']:,}/{len(frame_paths):,} frames | {frames_per_second:.1f} frames/s | "
-                      f"elapsed {format_duration(elapsed)} | ETA {format_duration(remaining_seconds)}", flush=True)
+                      f"{gpu_usage()} | elapsed {format_duration(elapsed)} | ETA {format_duration(remaining_seconds)}",
+                      flush=True)
                 # 4c.9: every save_every_batches batches, save progress to the partial file (for resuming).
                 # Written to a .tmp file first, then renamed, so a crash never leaves a broken file.
                 if batches_done % save_every_batches == 0:
@@ -366,6 +429,7 @@ def evaluate_splits(*, model, volume, results: dict, dataset_root: Path, work_di
                     temporary_path.write_text(json.dumps(saved))
                     os.replace(temporary_path, partial_path)
                     volume.commit()
+            loader.shutdown()
             # 4c.10: all frames done: save the final file and delete the partial one
             temporary_path = final_path.with_suffix(".tmp")
             temporary_path.write_text(json.dumps(saved))
@@ -393,8 +457,136 @@ def evaluate_splits(*, model, volume, results: dict, dataset_root: Path, work_di
             "inference": round(sum(speed[1] for speed in speeds) / len(speeds), 2),
             "postprocess": round(sum(speed[2] for speed in speeds) / len(speeds), 2),
         } if speeds else None
+        metrics["gpu_memory_peak_gb"] = gpu_memory_peak_gb()
+        print(f"GPU memory peak so far: {metrics['gpu_memory_peak_gb']} GB", flush=True)
         results["splits"][split] = metrics
+
+        # Step 4e: example images (ground truth left, prediction right) for the last split (usually test),
+        # drawn from the saved predictions (no extra model run). Saved locally by write_results().
+        if split == splits[-1]:
+            print(f"Drawing example images from {split} ...", flush=True)
+            sanpo_to_evaluation_name = {sanpo_name: evaluation_name
+                                        for evaluation_name, (sanpo_names, _) in evaluation_classes.items()
+                                        for sanpo_name in sanpo_names}
+            results["example_images_jpeg"] = make_example_images(
+                frames=frames, dataset_root=dataset_root, ground_truth=ground_truth,
+                sanpo_to_evaluation_name=sanpo_to_evaluation_name, detections=saved["detections"],
+                image_ids=image_ids, category_names_by_id=category_names_by_id,
+                evaluation_class_names=evaluation_class_names, title=f"{results['run']} | {split}")
+            print(f"Example images: {len(results['example_images_jpeg'])} files", flush=True)
     return results
+
+
+def make_example_images(*, frames, dataset_root: Path, ground_truth, sanpo_to_evaluation_name: dict[str, str],
+                        detections: list[dict], image_ids: dict[str, int], category_names_by_id: dict[int, str],
+                        evaluation_class_names: list[str], title: str, files: int = 5, rows_per_file: int = 5,
+                        confidence: float = 0.25, panel_width: int = 1100, seed: int = 7) -> dict[str, bytes]:
+    """Draw example images: each file has rows_per_file rows, ground truth on the left, prediction on the right.
+
+    Steps:
+        1. Pick files x rows_per_file different frames, cycling through the evaluation classes
+           from rarest to most common, so rare classes are shown too.
+        2. Per frame: ground-truth boxes (left) and predictions with confidence >= confidence (right),
+           colored by class, with the class name (and score for predictions).
+        3. Stack the rows under a legend; encode each file as JPEG.
+    Returns {file name: JPEG bytes}, e.g. {"examples_01.jpg": b"..."}.
+    """
+    import cv2
+    import numpy as np
+
+    # One distinct color per evaluation class (BGR)
+    palette = [(60, 220, 60), (255, 160, 30), (230, 60, 230), (40, 210, 255), (0, 0, 255), (0, 200, 255),
+               (34, 139, 34), (255, 255, 0), (0, 140, 0), (180, 105, 255), (0, 69, 255), (255, 255, 255),
+               (203, 192, 255), (128, 0, 128), (0, 128, 255), (255, 0, 0)]
+    colors = {name: palette[index % len(palette)] for index, name in enumerate(evaluation_class_names)}
+
+    # Step 1: frames that contain each class; cycle classes from rarest to most common
+    ground_truth = ground_truth.assign(evaluation_class=ground_truth["class"].map(sanpo_to_evaluation_name))
+    frames_by_class = {name: list(ground_truth.loc[ground_truth["evaluation_class"] == name, "image"].unique())
+                       for name in evaluation_class_names}
+    classes_by_rarity = sorted((name for name in evaluation_class_names if frames_by_class[name]),
+                               key=lambda name: len(frames_by_class[name]))
+    random_generator = np.random.default_rng(seed)
+    chosen = []  # (image name, class it was chosen for)
+    total = files * rows_per_file
+    while len(chosen) < total and classes_by_rarity:
+        added = False
+        for class_name in classes_by_rarity:
+            candidates = [image for image in frames_by_class[class_name] if image not in {c[0] for c in chosen}]
+            if candidates and len(chosen) < total:
+                chosen.append((candidates[random_generator.integers(len(candidates))], class_name))
+                added = True
+        if not added:
+            break
+
+    # Predictions per frame (confidence >= confidence), boxes back to x1, y1, x2, y2
+    image_names = {image_id: frame_name for frame_name, image_id in image_ids.items()}
+    predictions_by_image = {}
+    for detection in detections:
+        if detection["score"] >= confidence:
+            x, y, width, height = detection["bbox"]
+            predictions_by_image.setdefault(image_names[detection["image_id"]], []).append(
+                (x, y, x + width, y + height, category_names_by_id[detection["category_id"]], detection["score"]))
+    frame_path_by_name = {Path(path).stem: path for path in frames["frame"]}
+
+    def draw(image, items, scale):
+        canvas = image.copy()
+        for x1, y1, x2, y2, name, score in items:
+            color = colors.get(name, (200, 200, 200))
+            point1, point2 = (int(x1 * scale), int(y1 * scale)), (int(x2 * scale), int(y2 * scale))
+            cv2.rectangle(canvas, point1, point2, color, 2)
+            label = name if score is None else f"{name} {score:.2f}"
+            (text_width, text_height), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)
+            cv2.rectangle(canvas, (point1[0], max(0, point1[1] - text_height - 6)),
+                          (point1[0] + text_width + 4, point1[1]), color, -1)
+            cv2.putText(canvas, label, (point1[0] + 2, point1[1] - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                        (0, 0, 0), 1, cv2.LINE_AA)
+        return canvas
+
+    def title_bar(text, width):
+        bar = np.full((34, width, 3), 30, np.uint8)
+        cv2.putText(bar, text, (10, 23), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1, cv2.LINE_AA)
+        return bar
+
+    # Step 2: one row per chosen frame
+    rows = []
+    for image_name, class_name in chosen:
+        frame_name = Path(image_name).stem
+        frame = cv2.imread(str(dataset_root / frame_path_by_name[frame_name]))
+        scale = panel_width / frame.shape[1]
+        small = cv2.resize(frame, (panel_width, round(frame.shape[0] * scale)), interpolation=cv2.INTER_AREA)
+        truth = ground_truth[ground_truth["image"] == image_name]
+        truth_items = [(box["x1"], box["y1"], box["x2"], box["y2"], box["evaluation_class"], None)
+                       for box in truth.to_dict("records")]
+        predicted_items = predictions_by_image.get(frame_name, [])
+        left = np.vstack([title_bar(f"GROUND TRUTH ({len(truth_items)} boxes) | chosen for: {class_name} | "
+                                    f"{frame_name[:32]}", panel_width), draw(small, truth_items, scale)])
+        right = np.vstack([title_bar(f"PREDICTION ({len(predicted_items)} boxes, confidence >= {confidence})",
+                                     panel_width), draw(small, predicted_items, scale)])
+        rows.append(np.hstack([left, np.full((left.shape[0], 8, 3), 255, np.uint8), right]))
+    if not rows:
+        return {}
+
+    # Step 3: legend + rows, one JPEG per group of rows_per_file rows
+    width = rows[0].shape[1]
+    legend_lines = (len(evaluation_class_names) + 7) // 8
+    legend = np.full((40 + 30 * legend_lines, width, 3), 255, np.uint8)
+    cv2.putText(legend, title, (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1, cv2.LINE_AA)
+    for index, name in enumerate(evaluation_class_names):
+        x, y = 10 + (index % 8) * (width // 8), 36 + (index // 8) * 30
+        cv2.rectangle(legend, (x, y), (x + 20, y + 18), colors[name], -1)
+        cv2.rectangle(legend, (x, y), (x + 20, y + 18), (0, 0, 0), 1)
+        cv2.putText(legend, name[:26], (x + 26, y + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 0), 1, cv2.LINE_AA)
+    separator = np.full((8, width, 3), 255, np.uint8)
+    images = {}
+    for file_index in range(0, len(rows), rows_per_file):
+        parts = [legend]
+        for row in rows[file_index:file_index + rows_per_file]:
+            parts += [row, separator]
+        ok, encoded = cv2.imencode(".jpg", np.vstack(parts), [cv2.IMWRITE_JPEG_QUALITY, 88])
+        if ok:
+            images[f"examples_{file_index // rows_per_file + 1:02d}.jpg"] = encoded.tobytes()
+    return images
 
 
 # ----------------------------------------------------------------------------- local: save results
@@ -403,21 +595,217 @@ def write_results(results: dict, output_directory: Path) -> Path:
     """Save the results next to the evaluation script (runs on the local computer).
 
     Steps:
+        0. <output_directory>/example_images/examples_XX.jpg: example images (if the run made them).
         1. <output_directory>/metrics.json: everything, machine-readable.
-        2. <output_directory>/summary.txt: settings, class mapping, and per split an overall
-           line, a speed line, a per-class table and the operating points, human-readable.
+        2. <output_directory>/metrics.txt: all numbers, human-readable (overview sections, then
+           settings, per-class tables and operating points).
+        3. <output_directory>/summary.md: the short summary (a few tables, the main numbers only).
     """
     import json
     from datetime import datetime
 
     output_directory.mkdir(parents=True, exist_ok=True)
+    # Step 0: example images (bytes, not stored in metrics.json)
+    example_images = results.pop("example_images_jpeg", None) or {}
+    if example_images:
+        images_directory = output_directory / "example_images"
+        images_directory.mkdir(parents=True, exist_ok=True)
+        for file_name, jpeg_bytes in example_images.items():
+            (images_directory / file_name).write_bytes(jpeg_bytes)
+        print(f"Saved {len(example_images)} example images to {images_directory}", flush=True)
     results["finished_at"] = datetime.now().isoformat(timespec="seconds")
     # Step 1: machine-readable
     (output_directory / "metrics.json").write_text(json.dumps(results, indent=2))
+    # Step 2: all numbers, readable
+    (output_directory / "metrics.txt").write_text(build_summary_text(results))
+    # Step 3: short summary
+    (output_directory / "summary.md").write_text(build_summary_markdown(results), encoding="utf-8")
+    return output_directory
 
-    # Step 2: readable summary
+
+def build_summary_markdown(results: dict) -> str:
+    """summary.md: the short summary, as a few markdown tables (all numbers are in metrics.txt).
+
+    Sections:
+        1. Run (model, GPU, classes, image size)
+        2. Main scores per split: AP50 (main score), AP50-95, recall, and at confidence 0.25
+        3. Near objects (if computed): AP50 and recall at 0.25 within 5 m / 10 m
+        4. Per class AP50 on the last split (usually test)
+    """
+    def show(value, digits=3):
+        return f"{value:.{digits}f}" if isinstance(value, (int, float)) else "n/a"
+
     settings = results["settings"]
-    lines = [f"Evaluation: {results['evaluation']}  |  run: {results['run']}  |  GPU: {results['gpu']}",
+    splits = [split for split, metrics in results["splits"].items() if metrics.get("overall")]
+    lines = [f"# Summary: {results['run']}", "",
+             f"- **Evaluation:** {results['evaluation']}",
+             f"- **GPU:** {results['gpu']}",
+             f"- **Classes evaluated:** {len(settings['evaluation_classes'])}",
+             f"- **Model input size (long side):** {settings.get('image_size')}",
+             "- **Main score:** AP50 (higher is better, 0 to 1). All numbers: `metrics.txt`. "
+             "Examples: `example_images/`.", ""]
+
+    # 2. Main scores
+    lines += ["## Main scores", "",
+              "| Split | Frames | AP50 | AP50-95 | Recall (AR100) | Precision @0.25 | Recall @0.25 | False alarms/frame @0.25 |",
+              "|---|---|---|---|---|---|---|---|"]
+    for split in splits:
+        metrics = results["splits"][split]
+        overall = metrics["overall"]
+        point = metrics.get("operating_points", {}).get("by_confidence", {}).get("0.25", {}).get("overall", {})
+        lines.append(f"| {split} | {metrics['frames']:,} | **{show(overall['AP50'])}** | {show(overall['AP50-95'])} | "
+                     f"{show(overall['AR100'])} | {show(point.get('precision'))} | {show(point.get('recall'))} | "
+                     f"{show(point.get('false_alarms_per_frame'), 2)} |")
+    lines.append("")
+
+    # 3. Near objects
+    near_objects = results.get("near_objects") or {}
+    if near_objects:
+        lines += ["## Near objects (farther objects ignored)", "",
+                  "| Split | Within | GT boxes | AP50 | Recall @0.25 |", "|---|---|---|---|---|"]
+        for distance_label, by_split in near_objects.items():
+            for split, metrics in by_split.items():
+                overall = metrics.get("overall") or {}
+                point = (metrics.get("operating_points", {}).get("by_confidence", {}).get("0.25", {})
+                         .get("overall", {}))
+                lines.append(f"| {split} | {distance_label} m | {metrics.get('ground_truth_boxes', 0):,} | "
+                             f"**{show(overall.get('AP50'))}** | {show(point.get('recall'))} |")
+        lines.append("")
+
+    # 4. Per class AP50 on the last split
+    if splits:
+        last_split = splits[-1]
+        per_class = results["splits"][last_split]["per_class"]
+        ranked = sorted(per_class.items(), key=lambda item: item[1].get("AP50") or 0, reverse=True)
+        lines += [f"## Per class ({last_split}, sorted by AP50)", "", "| Class | GT boxes | AP50 |", "|---|---|---|"]
+        for class_name, class_metrics in ranked:
+            lines.append(f"| {class_name} | {class_metrics['ground_truth_boxes']:,} | {show(class_metrics.get('AP50'))} |")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def build_summary_lines(results: dict) -> list[str]:
+    """The overview at the top of metrics.txt, as numbered sections with tables.
+
+    Sections:
+        0. Run information (model run, evaluation, GPU, classes, image size)
+        1. Main scores per split (COCO, over all confidence thresholds): AP50, AP50-95, AP75, recall
+        2. Fixed confidence (what the user would get): precision, recall, F1, false alarms per frame
+        3. AP50 and recall per class, for every split (sorted by AP50 of the last split)
+        4. Speed and GPU memory per split
+        5. How to read the numbers
+    """
+    def show(value, digits=3):
+        return f"{value:.{digits}f}" if isinstance(value, (int, float)) else "n/a"
+
+    settings = results["settings"]
+    splits = [split for split, metrics in results["splits"].items() if metrics.get("overall")]
+    line_width = 96
+    lines = ["=" * line_width, "SUMMARY", "=" * line_width]
+
+    # 0. Run information
+    lines += ["",
+              "0. RUN",
+              f"   {'model run':<20}{results['run']}",
+              f"   {'evaluation':<20}{results['evaluation']}",
+              f"   {'GPU':<20}{results['gpu']}",
+              f"   {'classes evaluated':<20}{len(settings['evaluation_classes'])}",
+              f"   {'image size':<20}{settings.get('image_size')}",
+              f"   {'splits':<20}" + ", ".join(f"{split} ({results['splits'][split]['frames']:,} frames)"
+                                             for split in results["splits"])]
+
+    # 1. Main scores (COCO)
+    lines += ["",
+              "1. MAIN SCORES (COCO, over all confidence thresholds)",
+              f"   {'split':<8}{'AP50':>8}{'AP50-95':>9}{'AP75':>8}{'recall (AR100)':>16}"]
+    for split in splits:
+        overall = results["splits"][split]["overall"]
+        lines.append(f"   {split:<8}{show(overall['AP50']):>8}{show(overall['AP50-95']):>9}"
+                     f"{show(overall['AP75']):>8}{show(overall['AR100']):>16}")
+
+    # 2. Fixed confidence (operating points)
+    lines += ["",
+              f"2. AT A FIXED CONFIDENCE (what the user would get; correct if IoU >= {settings.get('match_iou', 0.5)})",
+              f"   {'split':<8}{'confidence':<18}{'precision':>10}{'recall':>8}{'F1':>8}{'false alarms/frame':>20}"]
+    for split in splits:
+        by_confidence = results["splits"][split].get("operating_points", {}).get("by_confidence", {})
+        for label, operating_point in by_confidence.items():
+            point = operating_point["overall"]
+            shown_label = "all (max recall)" if label == "all_predictions" else label
+            lines.append(f"   {split:<8}{shown_label:<18}{show(point['precision']):>10}{show(point['recall']):>8}"
+                         f"{show(point['f1']):>8}{show(point['false_alarms_per_frame'], 2):>20}")
+
+    # 3. Per class: AP50 for every split, and recall at the first fixed confidence
+    first_label = None
+    if splits:
+        labels = list(results["splits"][splits[-1]].get("operating_points", {}).get("by_confidence", {}))
+        first_label = next((label for label in labels if label != "all_predictions"), None)
+    header = f"   {'class':<26}" + "".join(f"{split + ' AP50':>12}" for split in splits)
+    if first_label:
+        header += "".join(f"{split + ' recall@' + first_label:>18}" for split in splits)
+    lines += ["", f"3. PER CLASS (sorted by {splits[-1] if splits else ''} AP50)", header]
+    class_names = list(results["splits"][splits[-1]]["per_class"]) if splits else []
+    class_names.sort(key=lambda name: results["splits"][splits[-1]]["per_class"][name].get("AP50") or 0, reverse=True)
+    for class_name in class_names:
+        row = f"   {class_name:<26}"
+        row += "".join(f"{show(results['splits'][split]['per_class'].get(class_name, {}).get('AP50')):>12}"
+                       for split in splits)
+        if first_label:
+            for split in splits:
+                point = (results["splits"][split].get("operating_points", {}).get("by_confidence", {})
+                         .get(first_label, {}).get("per_class", {}).get(class_name, {}))
+                row += f"{show(point.get('recall')):>18}"
+        lines.append(row)
+
+    # 4. Speed and GPU memory
+    lines += ["",
+              "4. SPEED AND GPU (milliseconds per frame)",
+              f"   {'split':<8}{'model':>8}{'preprocess':>12}{'postprocess':>13}{'GPU memory peak (GB)':>22}"]
+    for split in splits:
+        metrics = results["splits"][split]
+        speed = metrics.get("speed_ms_per_frame") or {}
+        lines.append(f"   {split:<8}{show(speed.get('inference'), 2):>8}{show(speed.get('preprocess'), 2):>12}"
+                     f"{show(speed.get('postprocess'), 2):>13}{show(metrics.get('gpu_memory_peak_gb'), 2):>22}")
+
+    # 5. Near objects (only if distance-aware scores exist): ground truth farther than N meters is ignored
+    near_objects = results.get("near_objects") or {}
+    if near_objects:
+        lines += ["",
+                  "5. NEAR OBJECTS (only ground truth within N meters counts; predictions of farther objects are ignored)",
+                  f"   {'split':<8}{'within':>8}{'GT boxes':>10}{'AP50':>8}{'AP50-95':>9}{'recall (AR100)':>16}"
+                  f"{'precision@0.25':>16}{'recall@0.25':>13}"]
+        for distance_label, by_split in near_objects.items():
+            for split, metrics in by_split.items():
+                overall = metrics.get("overall") or {}
+                point = (metrics.get("operating_points", {}).get("by_confidence", {}).get("0.25", {})
+                         .get("overall", {}))
+                lines.append(f"   {split:<8}{distance_label + ' m':>8}{metrics.get('ground_truth_boxes', 0):>10,}"
+                             f"{show(overall.get('AP50')):>8}{show(overall.get('AP50-95')):>9}"
+                             f"{show(overall.get('AR100')):>16}{show(point.get('precision')):>16}"
+                             f"{show(point.get('recall')):>13}")
+
+    # 6. How to read
+    lines += ["",
+              "6. HOW TO READ",
+              "   AP50                 main score here: how well objects are found (box overlap >= 0.5), over all thresholds",
+              "   AP50-95              standard COCO score: also rewards tight boxes (overlap 0.50 to 0.95)",
+              "   recall               share of real objects that were found",
+              "   precision            share of predicted boxes that were correct",
+              "   false alarms/frame   wrong boxes per frame at that confidence",
+              "   all (max recall)     every prediction kept: the highest recall the model can reach",
+              "",
+              "=" * line_width,
+              "DETAILS",
+              "=" * line_width,
+              ""]
+    return lines
+
+
+def build_summary_text(results: dict) -> str:
+    """Full metrics.txt: the overview sections first, then all details (settings, per-class tables, operating points)."""
+    settings = results["settings"]
+    lines = build_summary_lines(results)
+    lines += [f"Evaluation: {results['evaluation']}  |  run: {results['run']}  |  GPU: {results['gpu']}",
              f"Finished: {results['finished_at']}",
              "Settings: " + ", ".join(f"{name}={value}" for name, value in settings.items()
                                       if name != "evaluation_classes"),
@@ -441,7 +829,8 @@ def write_results(results: dict, output_directory: Path) -> Path:
         if metrics.get("speed_ms_per_frame"):
             speed = metrics["speed_ms_per_frame"]
             lines.append(f"Speed (ms/frame, {results['gpu']}): preprocess {speed['preprocess']} | "
-                         f"inference {speed['inference']} | postprocess {speed['postprocess']}")
+                         f"inference {speed['inference']} | postprocess {speed['postprocess']} | "
+                         f"GPU memory peak {metrics.get('gpu_memory_peak_gb')} GB")
         lines.append(f"{'class':<24}{'GT boxes':>10}{'preds':>9}{'AP50-95':>9}{'AP50':>8}{'AP75':>8}{'AR100':>8}"
                      f"{'AP_s':>7}{'AP_m':>7}{'AP_l':>7}")
         for class_name, class_metrics in metrics["per_class"].items():
@@ -467,5 +856,4 @@ def write_results(results: dict, output_directory: Path) -> Path:
                              f"{point['false_positives']:>8,}{point['missed']:>8,}{format_metric(point['precision']):>7}"
                              f"{format_metric(point['recall']):>8}{format_metric(point['f1']):>7}"
                              f"{format_metric(point['false_alarms_per_frame']):>10}")
-    (output_directory / "summary.txt").write_text("\n".join(lines) + "\n")
-    return output_directory
+    return "\n".join(lines) + "\n"
