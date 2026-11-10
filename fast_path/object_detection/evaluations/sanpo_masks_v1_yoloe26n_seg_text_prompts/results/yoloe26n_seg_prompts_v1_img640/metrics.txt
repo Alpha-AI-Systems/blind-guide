@@ -1,0 +1,325 @@
+====================================================================================================
+SUMMARY
+====================================================================================================
+
+0. RUN
+┌──────────────────────────────┬──────────────────────────────────────────┐
+│ item                         │ value                                    │
+├──────────────────────────────┼──────────────────────────────────────────┤
+│ model run                    │ yoloe26n_seg_prompts_v1_img640           │
+│ evaluation                   │ sanpo_masks_v1_yoloe26n_seg_text_prompts │
+│ GPU                          │ NVIDIA H100 80GB HBM3                    │
+│ task                         │ segment                                  │
+│ classes evaluated            │ 16                                       │
+│ model input size (long side) │ 640                                      │
+│ splits                       │ val (2,297 frames), test (5,107 frames)  │
+└──────────────────────────────┴──────────────────────────────────────────┘
+
+1. MAIN SCORES (COCO, over all confidence thresholds; AP50 = main score)
+┌───────┬───────┬─────────┬───────┬────────────────┐
+│ split │  AP50 │ AP50-95 │  AP75 │ recall (AR100) │
+├───────┼───────┼─────────┼───────┼────────────────┤
+│ val   │ 0.082 │   0.043 │ 0.041 │          0.098 │
+│ test  │ 0.079 │   0.043 │ 0.042 │          0.105 │
+└───────┴───────┴─────────┴───────┴────────────────┘
+
+2. AT A FIXED CONFIDENCE (what the user would get; correct if IoU >= 0.5)
+┌───────┬──────────────────┬───────────┬────────┬───────┬────────────────────┐
+│ split │ confidence       │ precision │ recall │    F1 │ false alarms/frame │
+├───────┼──────────────────┼───────────┼────────┼───────┼────────────────────┤
+│ val   │ 0.25             │     0.503 │  0.072 │ 0.126 │               1.11 │
+│ val   │ 0.35             │     0.599 │  0.058 │ 0.105 │               0.60 │
+│ val   │ 0.5              │     0.702 │  0.040 │ 0.076 │               0.27 │
+│ val   │ all (max recall) │     0.040 │  0.254 │ 0.069 │              94.65 │
+├───────┼──────────────────┼───────────┼────────┼───────┼────────────────────┤
+│ test  │ 0.25             │     0.514 │  0.094 │ 0.159 │               1.17 │
+│ test  │ 0.35             │     0.607 │  0.079 │ 0.140 │               0.67 │
+│ test  │ 0.5              │     0.734 │  0.061 │ 0.112 │               0.29 │
+│ test  │ all (max recall) │     0.033 │  0.245 │ 0.059 │              93.60 │
+└───────┴──────────────────┴───────────┴────────┴───────┴────────────────────┘
+
+3. PER CLASS (sorted by test AP50)
+┌─────────────────────────┬──────────┬───────────┬─────────────────┬──────────────────┐
+│ class                   │ val AP50 │ test AP50 │ val recall@0.25 │ test recall@0.25 │
+├─────────────────────────┼──────────┼───────────┼─────────────────┼──────────────────┤
+│ pedestrian              │    0.537 │     0.546 │           0.531 │            0.567 │
+│ vehicle                 │    0.319 │     0.314 │           0.073 │            0.081 │
+│ crosswalk               │    0.160 │     0.171 │           0.049 │            0.092 │
+│ tree                    │    0.021 │     0.046 │           0.001 │            0.001 │
+│ rider                   │    0.046 │     0.045 │           0.068 │            0.129 │
+│ wall/fence              │    0.042 │     0.040 │           0.016 │            0.014 │
+│ obstacle                │    0.020 │     0.023 │           0.002 │            0.002 │
+│ pole                    │    0.006 │     0.019 │           0.002 │            0.006 │
+│ traffic sign            │    0.028 │     0.018 │           0.055 │            0.066 │
+│ traffic light           │    0.112 │     0.016 │           0.089 │            0.024 │
+│ stairs                  │    0.001 │     0.016 │           0.000 │            0.009 │
+│ opening-door            │    0.020 │     0.012 │           0.003 │            0.000 │
+│ bike rack               │    0.004 │     0.005 │           0.003 │            0.006 │
+│ guard rail/road barrier │    0.000 │     0.000 │           0.000 │            0.000 │
+│ animal                  │    0.003 │     0.000 │           0.000 │            0.000 │
+│ water body              │    0.000 │     0.000 │           0.000 │            0.000 │
+└─────────────────────────┴──────────┴───────────┴─────────────────┴──────────────────┘
+
+4. SPEED AND GPU (milliseconds per frame, model in a batch)
+┌───────┬───────┬────────────┬─────────────┬──────────────────────┐
+│ split │ model │ preprocess │ postprocess │ GPU memory peak (GB) │
+├───────┼───────┼────────────┼─────────────┼──────────────────────┤
+│ val   │  0.30 │       3.86 │        1.31 │                 4.20 │
+│ test  │  0.29 │       4.54 │        1.16 │                 4.45 │
+└───────┴───────┴────────────┴─────────────┴──────────────────────┘
+
+5. NEAR OBJECTS (only ground truth within N meters counts; predictions of farther objects are ignored)
+┌───────┬────────┬────────────┬───────┬─────────┬────────────────┬────────────────┬─────────────┐
+│ split │ within │ GT objects │  AP50 │ AP50-95 │ recall (AR100) │ precision@0.25 │ recall@0.25 │
+├───────┼────────┼────────────┼───────┼─────────┼────────────────┼────────────────┼─────────────┤
+│ val   │    5 m │      3,298 │ 0.142 │   0.101 │          0.254 │          0.159 │       0.141 │
+│ val   │   10 m │     11,403 │ 0.145 │   0.089 │          0.207 │          0.398 │       0.146 │
+├───────┼────────┼────────────┼───────┼─────────┼────────────────┼────────────────┼─────────────┤
+│ test  │    5 m │      8,043 │ 0.125 │   0.088 │          0.221 │          0.226 │       0.212 │
+│ test  │   10 m │     22,470 │ 0.114 │   0.073 │          0.175 │          0.402 │       0.177 │
+└───────┴────────┴────────────┴───────┴─────────┴────────────────┴────────────────┴─────────────┘
+
+6. HOW TO READ
+┌────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────┐
+│ score              │ meaning                                                                                 │
+├────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────┤
+│ AP50               │ main score: how well objects are found (overlap >= 0.5), over all confidence thresholds │
+│ AP50-95            │ standard COCO score: also rewards tight boxes / masks (overlap 0.50 to 0.95)            │
+│ recall             │ share of real objects that were found                                                   │
+│ precision          │ share of predictions that were correct                                                  │
+│ false alarms/frame │ wrong predictions per frame at that confidence                                          │
+│ all (max recall)   │ every prediction kept: the highest recall the model can reach                           │
+└────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────┘
+
+====================================================================================================
+DETAILS
+====================================================================================================
+
+Evaluation: sanpo_masks_v1_yoloe26n_seg_text_prompts  |  run: yoloe26n_seg_prompts_v1_img640  |  GPU: NVIDIA H100 80GB HBM3
+Finished: 2026-11-10T16:53:41
+Settings: weights=yoloe-26n-seg.pt, image_size=640, confidence_threshold=0.001, nms_iou_threshold=0.7, max_detections=100, half_precision=True, batch_size=64, cpu_cores=16, loader_threads=32, dataset=sanpo_real_chest_5fps, view=masks_v1, task=segment, operating_confidences=[0.25, 0.35, 0.5], match_iou=0.5
+Evaluation classes (ground truth <- what the model predicts):
+  pedestrian               sanpo_ground_truth: pedestrian | prompt: person
+  rider                    sanpo_ground_truth: rider | prompt: person riding a bicycle
+  animal                   sanpo_ground_truth: animal | prompt: animal
+  vehicle                  sanpo_ground_truth: vehicle | prompt: vehicle
+  obstacle                 sanpo_ground_truth: obstacle | prompt: obstacle
+  pole                     sanpo_ground_truth: pole | prompt: pole
+  tree                     sanpo_ground_truth: tree | prompt: tree
+  traffic sign             sanpo_ground_truth: traffic sign | prompt: traffic sign
+  traffic light            sanpo_ground_truth: traffic light | prompt: traffic light
+  bike rack                sanpo_ground_truth: bike rack | prompt: bike rack
+  stairs                   sanpo_ground_truth: stairs | prompt: stairs
+  crosswalk                sanpo_ground_truth: crosswalk | prompt: crosswalk
+  opening-door             sanpo_ground_truth: opening-door | prompt: door
+  guard rail/road barrier  sanpo_ground_truth: guard rail/road barrier | prompt: guard rail
+  wall/fence               sanpo_ground_truth: wall/fence | prompt: fence
+  water body               sanpo_ground_truth: water body | prompt: puddle
+
+=== val: 2,297 frames ===
+Overall: AP50-95 0.043 | AP50 0.082 | AP75 0.041 | AR100 0.098 | AP small/medium/large 0.005/0.045/0.083
+Speed (ms/frame, NVIDIA H100 80GB HBM3): preprocess 3.86 | inference 0.3 | postprocess 1.31 | GPU memory peak 4.2 GB
+class                     GT boxes    preds  AP50-95    AP50    AP75   AR100   AP_s   AP_m   AP_l
+pedestrian                   2,947   66,848    0.293   0.537   0.287   0.390  0.027  0.235  0.538
+rider                          339    3,875    0.015   0.046   0.009   0.085  0.000  0.059  0.041
+animal                         145      619    0.001   0.003   0.001   0.010  0.000  0.005  0.004
+vehicle                      8,524   35,411    0.173   0.319   0.168   0.280  0.007  0.134  0.363
+obstacle                     8,055      975    0.012   0.020   0.014   0.030  0.000  0.007  0.025
+pole                           888    3,002    0.004   0.006   0.005   0.025  0.000  0.011  0.007
+tree                         3,658    3,906    0.013   0.021   0.011   0.034  0.000  0.002  0.014
+traffic sign                   914   23,509    0.016   0.028   0.014   0.119  0.008  0.095  0.062
+traffic light                1,887   20,020    0.033   0.112   0.010   0.166  0.045  0.153  0.007
+bike rack                    1,046    8,961    0.001   0.004   0.001   0.031  0.000  0.021  0.003
+stairs                         250    1,074    0.000   0.001   0.000   0.018  0.000  0.000  0.001
+crosswalk                      678    5,389    0.101   0.160   0.110   0.231  0.000  0.000  0.125
+opening-door                   660    1,943    0.012   0.020   0.012   0.121  0.000  0.000  0.016
+guard rail/road barrier         98   32,758    0.000   0.000   0.000   0.000  0.000  0.000    n/a
+wall/fence                   5,593    1,766    0.020   0.042   0.014   0.030  0.000  0.000  0.033
+water body                      52   16,413    0.000   0.000   0.000   0.000  0.000  0.000  0.000
+
+=== test: 5,107 frames ===
+Overall: AP50-95 0.043 | AP50 0.079 | AP75 0.042 | AR100 0.105 | AP small/medium/large 0.005/0.045/0.070
+Speed (ms/frame, NVIDIA H100 80GB HBM3): preprocess 4.54 | inference 0.29 | postprocess 1.16 | GPU memory peak 4.45 GB
+class                     GT boxes    preds  AP50-95    AP50    AP75   AR100   AP_s   AP_m   AP_l
+pedestrian                   8,720  150,822    0.293   0.546   0.279   0.410  0.029  0.248  0.476
+rider                          209    8,741    0.018   0.045   0.013   0.128  0.000  0.067  0.012
+animal                          25    2,334    0.000   0.000   0.000   0.012  0.000  0.000  0.000
+vehicle                     11,023   64,450    0.177   0.314   0.180   0.291  0.005  0.143  0.346
+obstacle                    19,302    2,202    0.015   0.023   0.017   0.025  0.000  0.009  0.026
+pole                         5,324    9,251    0.014   0.019   0.013   0.041  0.000  0.013  0.030
+tree                         6,439   17,079    0.023   0.046   0.019   0.076  0.000  0.006  0.030
+traffic sign                 1,009   36,063    0.008   0.018   0.006   0.122  0.000  0.127  0.003
+traffic light                1,450   36,840    0.004   0.016   0.001   0.092  0.051  0.035  0.000
+bike rack                      883   16,846    0.001   0.005   0.000   0.048  0.000  0.034  0.003
+stairs                         233    1,801    0.011   0.016   0.012   0.046  0.000  0.000  0.016
+crosswalk                    1,569   12,440    0.104   0.171   0.098   0.190  0.000  0.005  0.128
+opening-door                   546    4,678    0.005   0.012   0.004   0.125  0.000  0.007  0.006
+guard rail/road barrier        949   84,303    0.000   0.000   0.000   0.035  0.000  0.014  0.000
+wall/fence                   9,173    5,263    0.024   0.040   0.022   0.035  0.000  0.006  0.035
+water body                     378   41,407    0.000   0.000   0.000   0.000  0.000  0.000  0.000
+
+=== val: operating points (prediction correct if IoU >= 0.5) ===
+all_predictions = every prediction kept: the highest recall the model can reach
+
+confidence 0.25
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+pedestrian                 2,947   1,564     899   1,383  0.635   0.531  0.578     0.391
+rider                        339      23      78     316  0.228   0.068  0.104     0.034
+animal                       145       0       8     145  0.000   0.000    n/a     0.004
+vehicle                    8,524     625      54   7,899  0.920   0.073  0.136     0.024
+obstacle                   8,055      16      36   8,039  0.308   0.002  0.004     0.016
+pole                         888       2      24     886  0.077   0.002  0.004     0.010
+tree                       3,658       2       0   3,656  1.000   0.001  0.001     0.000
+traffic sign                 914      50     505     864  0.090   0.055  0.068     0.220
+traffic light              1,887     168     268   1,719  0.385   0.089  0.145     0.117
+bike rack                  1,046       3      27   1,043  0.100   0.003  0.006     0.012
+stairs                       250       0       7     250  0.000   0.000    n/a     0.003
+crosswalk                    678      33       8     645  0.805   0.049  0.092     0.004
+opening-door                 660       2      25     658  0.074   0.003  0.006     0.011
+guard rail/road barrier       98       0     533      98  0.000   0.000    n/a     0.232
+wall/fence                 5,593      90       9   5,503  0.909   0.016  0.032     0.004
+water body                    52       0      65      52  0.000   0.000    n/a     0.028
+OVERALL                   35,734   2,578   2,546  33,156  0.503   0.072  0.126     1.108
+
+confidence 0.35
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+pedestrian                 2,947   1,454     462   1,493  0.759   0.493  0.598     0.201
+rider                        339      15      46     324  0.246   0.044  0.075     0.020
+animal                       145       0       4     145  0.000   0.000    n/a     0.002
+vehicle                    8,524     360      12   8,164  0.968   0.042  0.081     0.005
+obstacle                   8,055       4      20   8,051  0.167   0.001  0.001     0.009
+pole                         888       1       8     887  0.111   0.001  0.002     0.004
+tree                       3,658       0       0   3,658    n/a   0.000    n/a     0.000
+traffic sign                 914      35     321     879  0.098   0.038  0.055     0.140
+traffic light              1,887     100     127   1,787  0.441   0.053  0.095     0.055
+bike rack                  1,046       1      10   1,045  0.091   0.001  0.002     0.004
+stairs                       250       0       4     250  0.000   0.000    n/a     0.002
+crosswalk                    678      25       3     653  0.893   0.037  0.071     0.001
+opening-door                 660       0      10     660  0.000   0.000    n/a     0.004
+guard rail/road barrier       98       0     317      98  0.000   0.000    n/a     0.138
+wall/fence                 5,593      63       3   5,530  0.955   0.011  0.022     0.001
+water body                    52       0      31      52  0.000   0.000    n/a     0.013
+OVERALL                   35,734   2,058   1,378  33,676  0.599   0.058  0.105     0.600
+
+confidence 0.5
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+pedestrian                 2,947   1,211     182   1,736  0.869   0.411  0.558     0.079
+rider                        339      10      18     329  0.357   0.029  0.054     0.008
+animal                       145       0       0     145    n/a   0.000    n/a     0.000
+vehicle                    8,524     111       1   8,413  0.991   0.013  0.026     0.000
+obstacle                   8,055       1       3   8,054  0.250   0.000  0.000     0.001
+pole                         888       1       2     887  0.333   0.001  0.002     0.001
+tree                       3,658       0       0   3,658    n/a   0.000    n/a     0.000
+traffic sign                 914      25     162     889  0.134   0.027  0.045     0.070
+traffic light              1,887      46      53   1,841  0.465   0.024  0.046     0.023
+bike rack                  1,046       0       1   1,046  0.000   0.000    n/a     0.000
+stairs                       250       0       2     250  0.000   0.000    n/a     0.001
+crosswalk                    678       9       0     669  1.000   0.013  0.026     0.000
+opening-door                 660       0       3     660  0.000   0.000    n/a     0.001
+guard rail/road barrier       98       0     180      98  0.000   0.000    n/a     0.078
+wall/fence                 5,593      31       1   5,562  0.969   0.005  0.011     0.000
+water body                    52       0       7      52  0.000   0.000    n/a     0.003
+OVERALL                   35,734   1,445     615  34,289  0.702   0.040  0.076     0.268
+
+confidence all_predictions
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+pedestrian                 2,947   2,131  64,717     816  0.032   0.723  0.061    28.175
+rider                        339      73   3,802     266  0.019   0.215  0.035     1.655
+animal                       145       5     614     140  0.008   0.035  0.013     0.267
+vehicle                    8,524   4,340  31,071   4,184  0.123   0.509  0.198    13.527
+obstacle                   8,055     324     651   7,731  0.332   0.040  0.072     0.283
+pole                         888      50   2,952     838  0.017   0.056  0.026     1.285
+tree                       3,658     267   3,639   3,391  0.068   0.073  0.071     1.584
+traffic sign                 914     226  23,283     688  0.010   0.247  0.018    10.136
+traffic light              1,887     837  19,183   1,050  0.042   0.444  0.076     8.351
+bike rack                  1,046      97   8,864     949  0.011   0.093  0.019     3.859
+stairs                       250       7   1,067     243  0.006   0.028  0.011     0.465
+crosswalk                    678     260   5,129     418  0.048   0.384  0.086     2.233
+opening-door                 660     128   1,815     532  0.066   0.194  0.098     0.790
+guard rail/road barrier       98       0  32,758      98  0.000   0.000    n/a    14.261
+wall/fence                 5,593     313   1,453   5,280  0.177   0.056  0.085     0.633
+water body                    52       0  16,413      52  0.000   0.000    n/a     7.145
+OVERALL                   35,734   9,058 217,411  26,676  0.040   0.254  0.069    94.650
+
+=== test: operating points (prediction correct if IoU >= 0.5) ===
+all_predictions = every prediction kept: the highest recall the model can reach
+
+confidence 0.25
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+pedestrian                 8,720   4,943   2,809   3,777  0.638   0.567  0.600     0.550
+rider                        209      27     268     182  0.091   0.129  0.107     0.052
+animal                        25       0      74      25  0.000   0.000    n/a     0.015
+vehicle                   11,023     895     124  10,128  0.878   0.081  0.149     0.024
+obstacle                  19,302      44      21  19,258  0.677   0.002  0.004     0.004
+pole                       5,324      34      61   5,290  0.358   0.006  0.013     0.012
+tree                       6,439       4       0   6,435  1.000   0.001  0.001     0.000
+traffic sign               1,009      67     644     942  0.094   0.066  0.078     0.126
+traffic light              1,450      35     374   1,415  0.086   0.024  0.038     0.073
+bike rack                    883       5      80     878  0.059   0.006  0.010     0.016
+stairs                       233       2       3     231  0.400   0.009  0.017     0.001
+crosswalk                  1,569     145      17   1,424  0.895   0.092  0.168     0.003
+opening-door                 546       0      34     546  0.000   0.000    n/a     0.007
+guard rail/road barrier      949       0   1,413     949  0.000   0.000    n/a     0.277
+wall/fence                 9,173     128      25   9,045  0.837   0.014  0.028     0.005
+water body                   378       0      46     378  0.000   0.000    n/a     0.009
+OVERALL                   67,232   6,329   5,993  60,903  0.514   0.094  0.159     1.173
+
+confidence 0.35
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+pedestrian                 8,720   4,542   1,704   4,178  0.727   0.521  0.607     0.334
+rider                        209      22     160     187  0.121   0.105  0.113     0.031
+animal                        25       0      45      25  0.000   0.000    n/a     0.009
+vehicle                   11,023     441      45  10,582  0.907   0.040  0.077     0.009
+obstacle                  19,302      26      11  19,276  0.703   0.001  0.003     0.002
+pole                       5,324      20      29   5,304  0.408   0.004  0.007     0.006
+tree                       6,439       1       0   6,438  1.000   0.000  0.000     0.000
+traffic sign               1,009      32     377     977  0.078   0.032  0.045     0.074
+traffic light              1,450      19     178   1,431  0.096   0.013  0.023     0.035
+bike rack                    883       1      41     882  0.024   0.001  0.002     0.008
+stairs                       233       1       1     232  0.500   0.004  0.009     0.000
+crosswalk                  1,569     114       3   1,455  0.974   0.073  0.135     0.001
+opening-door                 546       0      17     546  0.000   0.000    n/a     0.003
+guard rail/road barrier      949       0     812     949  0.000   0.000    n/a     0.159
+wall/fence                 9,173      94       8   9,079  0.922   0.010  0.020     0.002
+water body                   378       0      10     378  0.000   0.000    n/a     0.002
+OVERALL                   67,232   5,313   3,441  61,919  0.607   0.079  0.140     0.674
+
+confidence 0.5
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+pedestrian                 8,720   3,809     822   4,911  0.823   0.437  0.571     0.161
+rider                        209      14      61     195  0.187   0.067  0.099     0.012
+animal                        25       0      20      25  0.000   0.000    n/a     0.004
+vehicle                   11,023      96       6  10,927  0.941   0.009  0.017     0.001
+obstacle                  19,302      16       5  19,286  0.762   0.001  0.002     0.001
+pole                       5,324      11      15   5,313  0.423   0.002  0.004     0.003
+tree                       6,439       0       0   6,439    n/a   0.000    n/a     0.000
+traffic sign               1,009       4     154   1,005  0.025   0.004  0.007     0.030
+traffic light              1,450       4      47   1,446  0.078   0.003  0.005     0.009
+bike rack                    883       0       5     883  0.000   0.000    n/a     0.001
+stairs                       233       0       0     233    n/a   0.000    n/a     0.000
+crosswalk                  1,569      71       0   1,498  1.000   0.045  0.087     0.000
+opening-door                 546       0       8     546  0.000   0.000    n/a     0.002
+guard rail/road barrier      949       0     331     949  0.000   0.000    n/a     0.065
+wall/fence                 9,173      53       1   9,120  0.982   0.006  0.011     0.000
+water body                   378       0       0     378    n/a   0.000    n/a     0.000
+OVERALL                   67,232   4,078   1,475  63,154  0.734   0.061  0.112     0.289
+
+confidence all_predictions
+class                         GT      TP      FP  missed   prec  recall     F1  FA/frame
+pedestrian                 8,720   6,496 144,326   2,224  0.043   0.745  0.081    28.260
+rider                        209      64   8,677     145  0.007   0.306  0.014     1.699
+animal                        25       1   2,333      24  0.000   0.040  0.001     0.457
+vehicle                   11,023   5,672  58,778   5,351  0.088   0.515  0.150    11.509
+obstacle                  19,302     654   1,548  18,648  0.297   0.034  0.061     0.303
+pole                       5,324     417   8,834   4,907  0.045   0.078  0.057     1.730
+tree                       6,439   1,063  16,016   5,376  0.062   0.165  0.090     3.136
+traffic sign               1,009     259  35,804     750  0.007   0.257  0.014     7.011
+traffic light              1,450     399  36,441   1,051  0.011   0.275  0.021     7.136
+bike rack                    883     131  16,715     752  0.008   0.148  0.015     3.273
+stairs                       233      14   1,787     219  0.008   0.060  0.014     0.350
+crosswalk                  1,569     508  11,932   1,061  0.041   0.324  0.072     2.336
+opening-door                 546     133   4,545     413  0.028   0.244  0.051     0.890
+guard rail/road barrier      949      83  84,220     866  0.001   0.087  0.002    16.491
+wall/fence                 9,173     598   4,665   8,575  0.114   0.065  0.083     0.913
+water body                   378       0  41,407     378  0.000   0.000    n/a     8.108
+OVERALL                   67,232  16,492 478,028  50,740  0.033   0.245  0.059    93.603

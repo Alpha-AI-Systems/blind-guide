@@ -1,61 +1,87 @@
-================================================================================================
+====================================================================================================
 SUMMARY
-================================================================================================
+====================================================================================================
 
 0. RUN
-   model run           yolo26n_img2208
-   evaluation          sanpo_boxes_v1_yolo26n_coco_zero_shot
-   GPU                 NVIDIA H100 80GB HBM3
-   classes evaluated   4
-   image size          2208
-   splits              val (2,297 frames), test (5,107 frames)
+┌──────────────────────────────┬─────────────────────────────────────────┐
+│ item                         │ value                                   │
+├──────────────────────────────┼─────────────────────────────────────────┤
+│ model run                    │ yolo26n_img2208                         │
+│ evaluation                   │ sanpo_boxes_v1_yolo26n_coco_zero_shot   │
+│ GPU                          │ NVIDIA H100 80GB HBM3                   │
+│ task                         │ box                                     │
+│ classes evaluated            │ 4                                       │
+│ model input size (long side) │ 2208                                    │
+│ splits                       │ val (2,297 frames), test (5,107 frames) │
+└──────────────────────────────┴─────────────────────────────────────────┘
 
-1. MAIN SCORES (COCO, over all confidence thresholds)
-   split       AP50  AP50-95    AP75  recall (AR100)
-   val        0.410    0.211   0.196           0.429
-   test       0.335    0.179   0.173           0.363
+1. MAIN SCORES (COCO, over all confidence thresholds; AP50 = main score)
+┌───────┬───────┬─────────┬───────┬────────────────┐
+│ split │  AP50 │ AP50-95 │  AP75 │ recall (AR100) │
+├───────┼───────┼─────────┼───────┼────────────────┤
+│ val   │ 0.410 │   0.211 │ 0.196 │          0.429 │
+│ test  │ 0.335 │   0.179 │ 0.173 │          0.363 │
+└───────┴───────┴─────────┴───────┴────────────────┘
 
 2. AT A FIXED CONFIDENCE (what the user would get; correct if IoU >= 0.5)
-   split   confidence         precision  recall      F1  false alarms/frame
-   val     0.25                   0.611   0.459   0.524                1.77
-   val     0.35                   0.691   0.401   0.508                1.08
-   val     0.5                    0.776   0.317   0.450                0.55
-   val     all (max recall)       0.024   0.828   0.046              204.72
-   test    0.25                   0.489   0.512   0.500                2.24
-   test    0.35                   0.562   0.464   0.508                1.52
-   test    0.5                    0.644   0.392   0.487                0.91
-   test    all (max recall)       0.019   0.806   0.037              173.25
+┌───────┬──────────────────┬───────────┬────────┬───────┬────────────────────┐
+│ split │ confidence       │ precision │ recall │    F1 │ false alarms/frame │
+├───────┼──────────────────┼───────────┼────────┼───────┼────────────────────┤
+│ val   │ 0.25             │     0.611 │  0.459 │ 0.524 │               1.77 │
+│ val   │ 0.35             │     0.691 │  0.401 │ 0.508 │               1.08 │
+│ val   │ 0.5              │     0.776 │  0.317 │ 0.450 │               0.55 │
+│ val   │ all (max recall) │     0.024 │  0.828 │ 0.046 │             204.72 │
+├───────┼──────────────────┼───────────┼────────┼───────┼────────────────────┤
+│ test  │ 0.25             │     0.489 │  0.512 │ 0.500 │               2.24 │
+│ test  │ 0.35             │     0.562 │  0.464 │ 0.508 │               1.52 │
+│ test  │ 0.5              │     0.644 │  0.392 │ 0.487 │               0.91 │
+│ test  │ all (max recall) │     0.019 │  0.806 │ 0.037 │             173.25 │
+└───────┴──────────────────┴───────────┴────────┴───────┴────────────────────┘
 
 3. PER CLASS (sorted by test AP50)
-   class                         val AP50   test AP50   val recall@0.25  test recall@0.25
-   person                           0.596       0.540             0.626             0.641
-   vehicle                          0.512       0.476             0.453             0.457
-   animal                           0.337       0.282             0.255             0.440
-   traffic light                    0.194       0.041             0.216             0.133
+┌───────────────┬──────────┬───────────┬─────────────────┬──────────────────┐
+│ class         │ val AP50 │ test AP50 │ val recall@0.25 │ test recall@0.25 │
+├───────────────┼──────────┼───────────┼─────────────────┼──────────────────┤
+│ person        │    0.596 │     0.540 │           0.626 │            0.641 │
+│ vehicle       │    0.512 │     0.476 │           0.453 │            0.457 │
+│ animal        │    0.337 │     0.282 │           0.255 │            0.440 │
+│ traffic light │    0.194 │     0.041 │           0.216 │            0.133 │
+└───────────────┴──────────┴───────────┴─────────────────┴──────────────────┘
 
-4. SPEED AND GPU (milliseconds per frame)
-   split      model  preprocess  postprocess  GPU memory peak (GB)
-   val         1.61       12.95         0.13                 42.09
-   test        1.60       12.76         0.13                 42.09
+4. SPEED AND GPU (milliseconds per frame, model in a batch)
+┌───────┬───────┬────────────┬─────────────┬──────────────────────┐
+│ split │ model │ preprocess │ postprocess │ GPU memory peak (GB) │
+├───────┼───────┼────────────┼─────────────┼──────────────────────┤
+│ val   │  1.61 │      12.95 │        0.13 │                42.09 │
+│ test  │  1.60 │      12.76 │        0.13 │                42.09 │
+└───────┴───────┴────────────┴─────────────┴──────────────────────┘
 
 5. NEAR OBJECTS (only ground truth within N meters counts; predictions of farther objects are ignored)
-   split     within  GT boxes    AP50  AP50-95  recall (AR100)  precision@0.25  recall@0.25
-   val          5 m       460   0.107    0.061           0.362           0.063        0.537
-   test         5 m     1,855   0.075    0.040           0.277           0.099        0.647
-   val         10 m     2,498   0.329    0.205           0.510           0.296        0.634
-   test        10 m     5,900   0.295    0.178           0.435           0.249        0.618
+┌───────┬────────┬────────────┬───────┬─────────┬────────────────┬────────────────┬─────────────┐
+│ split │ within │ GT objects │  AP50 │ AP50-95 │ recall (AR100) │ precision@0.25 │ recall@0.25 │
+├───────┼────────┼────────────┼───────┼─────────┼────────────────┼────────────────┼─────────────┤
+│ val   │    5 m │        460 │ 0.107 │   0.061 │          0.362 │          0.063 │       0.537 │
+│ val   │   10 m │      2,498 │ 0.329 │   0.205 │          0.510 │          0.296 │       0.634 │
+├───────┼────────┼────────────┼───────┼─────────┼────────────────┼────────────────┼─────────────┤
+│ test  │    5 m │      1,855 │ 0.075 │   0.040 │          0.277 │          0.099 │       0.647 │
+│ test  │   10 m │      5,900 │ 0.295 │   0.178 │          0.435 │          0.249 │       0.618 │
+└───────┴────────┴────────────┴───────┴─────────┴────────────────┴────────────────┴─────────────┘
 
 6. HOW TO READ
-   AP50                 main score here: how well objects are found (box overlap >= 0.5), over all thresholds
-   AP50-95              standard COCO score: also rewards tight boxes (overlap 0.50 to 0.95)
-   recall               share of real objects that were found
-   precision            share of predicted boxes that were correct
-   false alarms/frame   wrong boxes per frame at that confidence
-   all (max recall)     every prediction kept: the highest recall the model can reach
+┌────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────┐
+│ score              │ meaning                                                                                 │
+├────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────┤
+│ AP50               │ main score: how well objects are found (overlap >= 0.5), over all confidence thresholds │
+│ AP50-95            │ standard COCO score: also rewards tight boxes / masks (overlap 0.50 to 0.95)            │
+│ recall             │ share of real objects that were found                                                   │
+│ precision          │ share of predictions that were correct                                                  │
+│ false alarms/frame │ wrong predictions per frame at that confidence                                          │
+│ all (max recall)   │ every prediction kept: the highest recall the model can reach                           │
+└────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────┘
 
-================================================================================================
+====================================================================================================
 DETAILS
-================================================================================================
+====================================================================================================
 
 Evaluation: sanpo_boxes_v1_yolo26n_coco_zero_shot  |  run: yolo26n_img2208  |  GPU: NVIDIA H100 80GB HBM3
 Finished: 2026-11-10T00:11:33

@@ -1,0 +1,1809 @@
+{
+  "evaluation": "sanpo_masks_v1_yolo26n_seg_coco_zero_shot",
+  "run": "yolo26n_seg_img1280",
+  "gpu": "NVIDIA H100 80GB HBM3",
+  "settings": {
+    "weights": "yolo26n-seg.pt",
+    "image_size": 1280,
+    "confidence_threshold": 0.001,
+    "nms_iou_threshold": 0.7,
+    "max_detections": 100,
+    "half_precision": true,
+    "batch_size": 64,
+    "cpu_cores": 16,
+    "loader_threads": 32,
+    "dataset": "sanpo_real_chest_5fps",
+    "view": "masks_v1",
+    "task": "segment",
+    "operating_confidences": [
+      0.25,
+      0.35,
+      0.5
+    ],
+    "match_iou": 0.5,
+    "evaluation_classes": {
+      "person": {
+        "sanpo_ground_truth": [
+          "pedestrian",
+          "rider"
+        ],
+        "coco": [
+          "person"
+        ]
+      },
+      "vehicle": {
+        "sanpo_ground_truth": [
+          "vehicle"
+        ],
+        "coco": [
+          "bicycle",
+          "car",
+          "motorcycle",
+          "bus",
+          "train",
+          "truck"
+        ]
+      },
+      "animal": {
+        "sanpo_ground_truth": [
+          "animal"
+        ],
+        "coco": [
+          "bird",
+          "cat",
+          "dog",
+          "horse",
+          "sheep",
+          "cow",
+          "elephant",
+          "bear",
+          "zebra",
+          "giraffe"
+        ]
+      },
+      "traffic light": {
+        "sanpo_ground_truth": [
+          "traffic light"
+        ],
+        "coco": [
+          "traffic light"
+        ]
+      }
+    }
+  },
+  "splits": {
+    "val": {
+      "overall": {
+        "AP50-95": 0.2003,
+        "AP50": 0.4111,
+        "AP75": 0.1675,
+        "AP_small": 0.0497,
+        "AP_medium": 0.1853,
+        "AP_large": 0.2867,
+        "AR1": 0.1304,
+        "AR10": 0.2906,
+        "AR100": 0.3275,
+        "AR_small": 0.0639,
+        "AR_medium": 0.3059,
+        "AR_large": 0.4106
+      },
+      "per_class": {
+        "person": {
+          "AP50-95": 0.3291,
+          "AP50": 0.6222,
+          "AP75": 0.3074,
+          "AR100": 0.4173,
+          "AP_small": 0.0742,
+          "AP_medium": 0.2375,
+          "AP_large": 0.5651,
+          "ground_truth_boxes": 3286,
+          "predictions": 41796
+        },
+        "vehicle": {
+          "AP50-95": 0.295,
+          "AP50": 0.5419,
+          "AP75": 0.2883,
+          "AR100": 0.4399,
+          "AP_small": 0.0644,
+          "AP_medium": 0.209,
+          "AP_large": 0.4925,
+          "ground_truth_boxes": 8524,
+          "predictions": 113021
+        },
+        "animal": {
+          "AP50-95": 0.0966,
+          "AP50": 0.2378,
+          "AP75": 0.0472,
+          "AR100": 0.191,
+          "AP_small": 0.0,
+          "AP_medium": 0.1733,
+          "AP_large": 0.0784,
+          "ground_truth_boxes": 145,
+          "predictions": 1334
+        },
+        "traffic light": {
+          "AP50-95": 0.0807,
+          "AP50": 0.2424,
+          "AP75": 0.0273,
+          "AR100": 0.2618,
+          "AP_small": 0.0602,
+          "AP_medium": 0.1214,
+          "AP_large": 0.0109,
+          "ground_truth_boxes": 1887,
+          "predictions": 20330
+        }
+      },
+      "frames": 2297,
+      "operating_points": {
+        "match_iou": 0.5,
+        "frames": 2297,
+        "by_confidence": {
+          "0.25": {
+            "overall": {
+              "true_positives": 6742,
+              "false_positives": 3996,
+              "missed": 7100,
+              "ground_truth": 13842,
+              "precision": 0.6279,
+              "recall": 0.4871,
+              "f1": 0.5486,
+              "false_alarms_per_frame": 1.7397
+            },
+            "per_class": {
+              "person": {
+                "true_positives": 2050,
+                "false_positives": 1256,
+                "missed": 1236,
+                "ground_truth": 3286,
+                "precision": 0.6201,
+                "recall": 0.6239,
+                "f1": 0.622,
+                "false_alarms_per_frame": 0.5468
+              },
+              "vehicle": {
+                "true_positives": 4202,
+                "false_positives": 2139,
+                "missed": 4322,
+                "ground_truth": 8524,
+                "precision": 0.6627,
+                "recall": 0.493,
+                "f1": 0.5654,
+                "false_alarms_per_frame": 0.9312
+              },
+              "animal": {
+                "true_positives": 27,
+                "false_positives": 14,
+                "missed": 118,
+                "ground_truth": 145,
+                "precision": 0.6585,
+                "recall": 0.1862,
+                "f1": 0.2903,
+                "false_alarms_per_frame": 0.0061
+              },
+              "traffic light": {
+                "true_positives": 463,
+                "false_positives": 587,
+                "missed": 1424,
+                "ground_truth": 1887,
+                "precision": 0.441,
+                "recall": 0.2454,
+                "f1": 0.3153,
+                "false_alarms_per_frame": 0.2556
+              }
+            }
+          },
+          "0.35": {
+            "overall": {
+              "true_positives": 5932,
+              "false_positives": 2221,
+              "missed": 7910,
+              "ground_truth": 13842,
+              "precision": 0.7276,
+              "recall": 0.4286,
+              "f1": 0.5394,
+              "false_alarms_per_frame": 0.9669
+            },
+            "per_class": {
+              "person": {
+                "true_positives": 1935,
+                "false_positives": 787,
+                "missed": 1351,
+                "ground_truth": 3286,
+                "precision": 0.7109,
+                "recall": 0.5889,
+                "f1": 0.6441,
+                "false_alarms_per_frame": 0.3426
+              },
+              "vehicle": {
+                "true_positives": 3657,
+                "false_positives": 1104,
+                "missed": 4867,
+                "ground_truth": 8524,
+                "precision": 0.7681,
+                "recall": 0.429,
+                "f1": 0.5505,
+                "false_alarms_per_frame": 0.4806
+              },
+              "animal": {
+                "true_positives": 18,
+                "false_positives": 10,
+                "missed": 127,
+                "ground_truth": 145,
+                "precision": 0.6429,
+                "recall": 0.1241,
+                "f1": 0.2081,
+                "false_alarms_per_frame": 0.0044
+              },
+              "traffic light": {
+                "true_positives": 322,
+                "false_positives": 320,
+                "missed": 1565,
+                "ground_truth": 1887,
+                "precision": 0.5016,
+                "recall": 0.1706,
+                "f1": 0.2546,
+                "false_alarms_per_frame": 0.1393
+              }
+            }
+          },
+          "0.5": {
+            "overall": {
+              "true_positives": 4762,
+              "false_positives": 890,
+              "missed": 9080,
+              "ground_truth": 13842,
+              "precision": 0.8425,
+              "recall": 0.344,
+              "f1": 0.4886,
+              "false_alarms_per_frame": 0.3875
+            },
+            "per_class": {
+              "person": {
+                "true_positives": 1720,
+                "false_positives": 370,
+                "missed": 1566,
+                "ground_truth": 3286,
+                "precision": 0.823,
+                "recall": 0.5234,
+                "f1": 0.6399,
+                "false_alarms_per_frame": 0.1611
+              },
+              "vehicle": {
+                "true_positives": 2869,
+                "false_positives": 410,
+                "missed": 5655,
+                "ground_truth": 8524,
+                "precision": 0.875,
+                "recall": 0.3366,
+                "f1": 0.4861,
+                "false_alarms_per_frame": 0.1785
+              },
+              "animal": {
+                "true_positives": 10,
+                "false_positives": 5,
+                "missed": 135,
+                "ground_truth": 145,
+                "precision": 0.6667,
+                "recall": 0.069,
+                "f1": 0.125,
+                "false_alarms_per_frame": 0.0022
+              },
+              "traffic light": {
+                "true_positives": 163,
+                "false_positives": 105,
+                "missed": 1724,
+                "ground_truth": 1887,
+                "precision": 0.6082,
+                "recall": 0.0864,
+                "f1": 0.1513,
+                "false_alarms_per_frame": 0.0457
+              }
+            }
+          },
+          "all_predictions": {
+            "overall": {
+              "true_positives": 10449,
+              "false_positives": 166032,
+              "missed": 3393,
+              "ground_truth": 13842,
+              "precision": 0.0592,
+              "recall": 0.7549,
+              "f1": 0.1098,
+              "false_alarms_per_frame": 72.2821
+            },
+            "per_class": {
+              "person": {
+                "true_positives": 2514,
+                "false_positives": 39282,
+                "missed": 772,
+                "ground_truth": 3286,
+                "precision": 0.0601,
+                "recall": 0.7651,
+                "f1": 0.1115,
+                "false_alarms_per_frame": 17.1014
+              },
+              "vehicle": {
+                "true_positives": 6711,
+                "false_positives": 106310,
+                "missed": 1813,
+                "ground_truth": 8524,
+                "precision": 0.0594,
+                "recall": 0.7873,
+                "f1": 0.1104,
+                "false_alarms_per_frame": 46.2821
+              },
+              "animal": {
+                "true_positives": 58,
+                "false_positives": 1276,
+                "missed": 87,
+                "ground_truth": 145,
+                "precision": 0.0435,
+                "recall": 0.4,
+                "f1": 0.0784,
+                "false_alarms_per_frame": 0.5555
+              },
+              "traffic light": {
+                "true_positives": 1166,
+                "false_positives": 19164,
+                "missed": 721,
+                "ground_truth": 1887,
+                "precision": 0.0574,
+                "recall": 0.6179,
+                "f1": 0.105,
+                "false_alarms_per_frame": 8.3431
+              }
+            }
+          }
+        }
+      },
+      "speed_ms_per_frame": {
+        "preprocess": 12.66,
+        "inference": 0.62,
+        "postprocess": 2.04
+      },
+      "gpu_memory_peak_gb": 16.06
+    },
+    "test": {
+      "overall": {
+        "AP50-95": 0.1798,
+        "AP50": 0.3632,
+        "AP75": 0.1554,
+        "AP_small": 0.0358,
+        "AP_medium": 0.1556,
+        "AP_large": 0.2811,
+        "AR1": 0.135,
+        "AR10": 0.2823,
+        "AR100": 0.3106,
+        "AR_small": 0.063,
+        "AR_medium": 0.2709,
+        "AR_large": 0.414
+      },
+      "per_class": {
+        "person": {
+          "AP50-95": 0.3441,
+          "AP50": 0.6379,
+          "AP75": 0.3185,
+          "AR100": 0.4508,
+          "AP_small": 0.0623,
+          "AP_medium": 0.2594,
+          "AP_large": 0.5116,
+          "ground_truth_boxes": 8929,
+          "predictions": 115864
+        },
+        "vehicle": {
+          "AP50-95": 0.2879,
+          "AP50": 0.5181,
+          "AP75": 0.2915,
+          "AR100": 0.4353,
+          "AP_small": 0.0403,
+          "AP_medium": 0.1956,
+          "AP_large": 0.4666,
+          "ground_truth_boxes": 11023,
+          "predictions": 190844
+        },
+        "animal": {
+          "AP50-95": 0.0685,
+          "AP50": 0.2313,
+          "AP75": 0.0071,
+          "AR100": 0.204,
+          "AP_small": 0.0,
+          "AP_medium": 0.1397,
+          "AP_large": 0.146,
+          "ground_truth_boxes": 25,
+          "predictions": 5188
+        },
+        "traffic light": {
+          "AP50-95": 0.0185,
+          "AP50": 0.0654,
+          "AP75": 0.0043,
+          "AR100": 0.1523,
+          "AP_small": 0.0408,
+          "AP_medium": 0.0278,
+          "AP_large": 0.0002,
+          "ground_truth_boxes": 1450,
+          "predictions": 28229
+        }
+      },
+      "frames": 5107,
+      "operating_points": {
+        "match_iou": 0.5,
+        "frames": 5107,
+        "by_confidence": {
+          "0.25": {
+            "overall": {
+              "true_positives": 11909,
+              "false_positives": 10552,
+              "missed": 9518,
+              "ground_truth": 21427,
+              "precision": 0.5302,
+              "recall": 0.5558,
+              "f1": 0.5427,
+              "false_alarms_per_frame": 2.0662
+            },
+            "per_class": {
+              "person": {
+                "true_positives": 6057,
+                "false_positives": 5874,
+                "missed": 2872,
+                "ground_truth": 8929,
+                "precision": 0.5077,
+                "recall": 0.6784,
+                "f1": 0.5807,
+                "false_alarms_per_frame": 1.1502
+              },
+              "vehicle": {
+                "true_positives": 5617,
+                "false_positives": 3774,
+                "missed": 5406,
+                "ground_truth": 11023,
+                "precision": 0.5981,
+                "recall": 0.5096,
+                "f1": 0.5503,
+                "false_alarms_per_frame": 0.739
+              },
+              "animal": {
+                "true_positives": 11,
+                "false_positives": 64,
+                "missed": 14,
+                "ground_truth": 25,
+                "precision": 0.1467,
+                "recall": 0.44,
+                "f1": 0.22,
+                "false_alarms_per_frame": 0.0125
+              },
+              "traffic light": {
+                "true_positives": 224,
+                "false_positives": 840,
+                "missed": 1226,
+                "ground_truth": 1450,
+                "precision": 0.2105,
+                "recall": 0.1545,
+                "f1": 0.1782,
+                "false_alarms_per_frame": 0.1645
+              }
+            }
+          },
+          "0.35": {
+            "overall": {
+              "true_positives": 10934,
+              "false_positives": 6440,
+              "missed": 10493,
+              "ground_truth": 21427,
+              "precision": 0.6293,
+              "recall": 0.5103,
+              "f1": 0.5636,
+              "false_alarms_per_frame": 1.261
+            },
+            "per_class": {
+              "person": {
+                "true_positives": 5806,
+                "false_positives": 3912,
+                "missed": 3123,
+                "ground_truth": 8929,
+                "precision": 0.5974,
+                "recall": 0.6502,
+                "f1": 0.6227,
+                "false_alarms_per_frame": 0.766
+              },
+              "vehicle": {
+                "true_positives": 4940,
+                "false_positives": 2003,
+                "missed": 6083,
+                "ground_truth": 11023,
+                "precision": 0.7115,
+                "recall": 0.4482,
+                "f1": 0.5499,
+                "false_alarms_per_frame": 0.3922
+              },
+              "animal": {
+                "true_positives": 11,
+                "false_positives": 33,
+                "missed": 14,
+                "ground_truth": 25,
+                "precision": 0.25,
+                "recall": 0.44,
+                "f1": 0.3188,
+                "false_alarms_per_frame": 0.0065
+              },
+              "traffic light": {
+                "true_positives": 177,
+                "false_positives": 492,
+                "missed": 1273,
+                "ground_truth": 1450,
+                "precision": 0.2646,
+                "recall": 0.1221,
+                "f1": 0.1671,
+                "false_alarms_per_frame": 0.0963
+              }
+            }
+          },
+          "0.5": {
+            "overall": {
+              "true_positives": 9308,
+              "false_positives": 2950,
+              "missed": 12119,
+              "ground_truth": 21427,
+              "precision": 0.7593,
+              "recall": 0.4344,
+              "f1": 0.5526,
+              "false_alarms_per_frame": 0.5776
+            },
+            "per_class": {
+              "person": {
+                "true_positives": 5303,
+                "false_positives": 1946,
+                "missed": 3626,
+                "ground_truth": 8929,
+                "precision": 0.7315,
+                "recall": 0.5939,
+                "f1": 0.6556,
+                "false_alarms_per_frame": 0.381
+              },
+              "vehicle": {
+                "true_positives": 3925,
+                "false_positives": 773,
+                "missed": 7098,
+                "ground_truth": 11023,
+                "precision": 0.8355,
+                "recall": 0.3561,
+                "f1": 0.4993,
+                "false_alarms_per_frame": 0.1514
+              },
+              "animal": {
+                "true_positives": 6,
+                "false_positives": 10,
+                "missed": 19,
+                "ground_truth": 25,
+                "precision": 0.375,
+                "recall": 0.24,
+                "f1": 0.2927,
+                "false_alarms_per_frame": 0.002
+              },
+              "traffic light": {
+                "true_positives": 74,
+                "false_positives": 221,
+                "missed": 1376,
+                "ground_truth": 1450,
+                "precision": 0.2508,
+                "recall": 0.051,
+                "f1": 0.0848,
+                "false_alarms_per_frame": 0.0433
+              }
+            }
+          },
+          "all_predictions": {
+            "overall": {
+              "true_positives": 16104,
+              "false_positives": 324021,
+              "missed": 5323,
+              "ground_truth": 21427,
+              "precision": 0.0473,
+              "recall": 0.7516,
+              "f1": 0.0891,
+              "false_alarms_per_frame": 63.4464
+            },
+            "per_class": {
+              "person": {
+                "true_positives": 7088,
+                "false_positives": 108776,
+                "missed": 1841,
+                "ground_truth": 8929,
+                "precision": 0.0612,
+                "recall": 0.7938,
+                "f1": 0.1136,
+                "false_alarms_per_frame": 21.2994
+              },
+              "vehicle": {
+                "true_positives": 8448,
+                "false_positives": 182396,
+                "missed": 2575,
+                "ground_truth": 11023,
+                "precision": 0.0443,
+                "recall": 0.7664,
+                "f1": 0.0837,
+                "false_alarms_per_frame": 35.7149
+              },
+              "animal": {
+                "true_positives": 14,
+                "false_positives": 5174,
+                "missed": 11,
+                "ground_truth": 25,
+                "precision": 0.0027,
+                "recall": 0.56,
+                "f1": 0.0054,
+                "false_alarms_per_frame": 1.0131
+              },
+              "traffic light": {
+                "true_positives": 554,
+                "false_positives": 27675,
+                "missed": 896,
+                "ground_truth": 1450,
+                "precision": 0.0196,
+                "recall": 0.3821,
+                "f1": 0.0373,
+                "false_alarms_per_frame": 5.419
+              }
+            }
+          }
+        }
+      },
+      "speed_ms_per_frame": {
+        "preprocess": 12.73,
+        "inference": 0.6,
+        "postprocess": 1.91
+      },
+      "gpu_memory_peak_gb": 16.06
+    }
+  },
+  "near_objects": {
+    "5": {
+      "val": {
+        "overall": {
+          "AP50-95": 0.277,
+          "AP50": 0.3696,
+          "AP75": 0.3284,
+          "AP_small": 0.0,
+          "AP_medium": 0.0002,
+          "AP_large": 0.3898,
+          "AR1": 0.334,
+          "AR10": 0.4194,
+          "AR100": 0.4257,
+          "AR_small": 0.0,
+          "AR_medium": 0.1201,
+          "AR_large": 0.5871
+        },
+        "per_class": {
+          "person": {
+            "AP50-95": 0.6226,
+            "AP50": 0.8332,
+            "AP75": 0.7488,
+            "AR100": 0.7562,
+            "AP_small": 0.0,
+            "AP_medium": 0.0005,
+            "AP_large": 0.6595,
+            "ground_truth_boxes": 235,
+            "predictions": 38387
+          },
+          "vehicle": {
+            "AP50-95": 0.3799,
+            "AP50": 0.4411,
+            "AP75": 0.4221,
+            "AR100": 0.6847,
+            "AP_small": 0.0,
+            "AP_medium": 0.0,
+            "AP_large": 0.4026,
+            "ground_truth_boxes": 203,
+            "predictions": 98657
+          },
+          "animal": {
+            "AP50-95": 0.1057,
+            "AP50": 0.2042,
+            "AP75": 0.1427,
+            "AR100": 0.2619,
+            "AP_small": null,
+            "AP_medium": null,
+            "AP_large": 0.1074,
+            "ground_truth_boxes": 21,
+            "predictions": 1262
+          },
+          "traffic light": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0,
+            "AP_small": null,
+            "AP_medium": 0.0,
+            "AP_large": null,
+            "ground_truth_boxes": 1,
+            "predictions": 18082
+          }
+        },
+        "operating_points": {
+          "match_iou": 0.5,
+          "frames": 2297,
+          "by_confidence": {
+            "0.25": {
+              "overall": {
+                "true_positives": 364,
+                "false_positives": 3658,
+                "missed": 96,
+                "ground_truth": 460,
+                "precision": 0.0905,
+                "recall": 0.7913,
+                "f1": 0.1624,
+                "false_alarms_per_frame": 1.5925
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 218,
+                  "false_positives": 1204,
+                  "missed": 17,
+                  "ground_truth": 235,
+                  "precision": 0.1533,
+                  "recall": 0.9277,
+                  "f1": 0.2631,
+                  "false_alarms_per_frame": 0.5242
+                },
+                "vehicle": {
+                  "true_positives": 139,
+                  "false_positives": 1871,
+                  "missed": 64,
+                  "ground_truth": 203,
+                  "precision": 0.0692,
+                  "recall": 0.6847,
+                  "f1": 0.1256,
+                  "false_alarms_per_frame": 0.8145
+                },
+                "animal": {
+                  "true_positives": 7,
+                  "false_positives": 13,
+                  "missed": 14,
+                  "ground_truth": 21,
+                  "precision": 0.35,
+                  "recall": 0.3333,
+                  "f1": 0.3415,
+                  "false_alarms_per_frame": 0.0057
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 570,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.2481
+                }
+              }
+            },
+            "0.35": {
+              "overall": {
+                "true_positives": 352,
+                "false_positives": 2112,
+                "missed": 108,
+                "ground_truth": 460,
+                "precision": 0.1429,
+                "recall": 0.7652,
+                "f1": 0.2408,
+                "false_alarms_per_frame": 0.9195
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 215,
+                  "false_positives": 765,
+                  "missed": 20,
+                  "ground_truth": 235,
+                  "precision": 0.2194,
+                  "recall": 0.9149,
+                  "f1": 0.3539,
+                  "false_alarms_per_frame": 0.333
+                },
+                "vehicle": {
+                  "true_positives": 133,
+                  "false_positives": 1020,
+                  "missed": 70,
+                  "ground_truth": 203,
+                  "precision": 0.1154,
+                  "recall": 0.6552,
+                  "f1": 0.1962,
+                  "false_alarms_per_frame": 0.4441
+                },
+                "animal": {
+                  "true_positives": 4,
+                  "false_positives": 10,
+                  "missed": 17,
+                  "ground_truth": 21,
+                  "precision": 0.2857,
+                  "recall": 0.1905,
+                  "f1": 0.2286,
+                  "false_alarms_per_frame": 0.0044
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 317,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.138
+                }
+              }
+            },
+            "0.5": {
+              "overall": {
+                "true_positives": 327,
+                "false_positives": 871,
+                "missed": 133,
+                "ground_truth": 460,
+                "precision": 0.273,
+                "recall": 0.7109,
+                "f1": 0.3945,
+                "false_alarms_per_frame": 0.3792
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 205,
+                  "false_positives": 366,
+                  "missed": 30,
+                  "ground_truth": 235,
+                  "precision": 0.359,
+                  "recall": 0.8723,
+                  "f1": 0.5087,
+                  "false_alarms_per_frame": 0.1593
+                },
+                "vehicle": {
+                  "true_positives": 120,
+                  "false_positives": 396,
+                  "missed": 83,
+                  "ground_truth": 203,
+                  "precision": 0.2326,
+                  "recall": 0.5911,
+                  "f1": 0.3338,
+                  "false_alarms_per_frame": 0.1724
+                },
+                "animal": {
+                  "true_positives": 2,
+                  "false_positives": 5,
+                  "missed": 19,
+                  "ground_truth": 21,
+                  "precision": 0.2857,
+                  "recall": 0.0952,
+                  "f1": 0.1429,
+                  "false_alarms_per_frame": 0.0022
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 104,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0453
+                }
+              }
+            },
+            "all_predictions": {
+              "overall": {
+                "true_positives": 416,
+                "false_positives": 155972,
+                "missed": 44,
+                "ground_truth": 460,
+                "precision": 0.0027,
+                "recall": 0.9043,
+                "f1": 0.0053,
+                "false_alarms_per_frame": 67.9025
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 228,
+                  "false_positives": 38159,
+                  "missed": 7,
+                  "ground_truth": 235,
+                  "precision": 0.0059,
+                  "recall": 0.9702,
+                  "f1": 0.0118,
+                  "false_alarms_per_frame": 16.6125
+                },
+                "vehicle": {
+                  "true_positives": 178,
+                  "false_positives": 98479,
+                  "missed": 25,
+                  "ground_truth": 203,
+                  "precision": 0.0018,
+                  "recall": 0.8768,
+                  "f1": 0.0036,
+                  "false_alarms_per_frame": 42.8729
+                },
+                "animal": {
+                  "true_positives": 10,
+                  "false_positives": 1252,
+                  "missed": 11,
+                  "ground_truth": 21,
+                  "precision": 0.0079,
+                  "recall": 0.4762,
+                  "f1": 0.0156,
+                  "false_alarms_per_frame": 0.5451
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 18082,
+                  "missed": 1,
+                  "ground_truth": 1,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 7.872
+                }
+              }
+            }
+          }
+        },
+        "ground_truth_boxes": 460,
+        "predictions_ignored_far": 20093
+      },
+      "test": {
+        "overall": {
+          "AP50-95": 0.2383,
+          "AP50": 0.326,
+          "AP75": 0.2716,
+          "AP_small": 0.0,
+          "AP_medium": 0.0004,
+          "AP_large": 0.2687,
+          "AR1": 0.2932,
+          "AR10": 0.3933,
+          "AR100": 0.4008,
+          "AR_small": 0.0,
+          "AR_medium": 0.1432,
+          "AR_large": 0.4963
+        },
+        "per_class": {
+          "person": {
+            "AP50-95": 0.507,
+            "AP50": 0.7241,
+            "AP75": 0.5534,
+            "AR100": 0.6372,
+            "AP_small": 0.0,
+            "AP_medium": 0.0002,
+            "AP_large": 0.552,
+            "ground_truth_boxes": 1520,
+            "predictions": 106781
+          },
+          "vehicle": {
+            "AP50-95": 0.4084,
+            "AP50": 0.5166,
+            "AP75": 0.47,
+            "AR100": 0.666,
+            "AP_small": 0.0,
+            "AP_medium": 0.001,
+            "AP_large": 0.4479,
+            "ground_truth_boxes": 318,
+            "predictions": 174081
+          },
+          "animal": {
+            "AP50-95": 0.0379,
+            "AP50": 0.0631,
+            "AP75": 0.0631,
+            "AR100": 0.3,
+            "AP_small": null,
+            "AP_medium": 0.0,
+            "AP_large": 0.075,
+            "ground_truth_boxes": 2,
+            "predictions": 5170
+          },
+          "traffic light": {
+            "AP50-95": 0.0,
+            "AP50": 0.0,
+            "AP75": 0.0,
+            "AR100": 0.0,
+            "AP_small": 0.0,
+            "AP_medium": null,
+            "AP_large": 0.0,
+            "ground_truth_boxes": 15,
+            "predictions": 27362
+          }
+        },
+        "operating_points": {
+          "match_iou": 0.5,
+          "frames": 5107,
+          "by_confidence": {
+            "0.25": {
+              "overall": {
+                "true_positives": 1470,
+                "false_positives": 10006,
+                "missed": 385,
+                "ground_truth": 1855,
+                "precision": 0.1281,
+                "recall": 0.7925,
+                "f1": 0.2205,
+                "false_alarms_per_frame": 1.9593
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 1226,
+                  "false_positives": 5732,
+                  "missed": 294,
+                  "ground_truth": 1520,
+                  "precision": 0.1762,
+                  "recall": 0.8066,
+                  "f1": 0.2892,
+                  "false_alarms_per_frame": 1.1224
+                },
+                "vehicle": {
+                  "true_positives": 243,
+                  "false_positives": 3374,
+                  "missed": 75,
+                  "ground_truth": 318,
+                  "precision": 0.0672,
+                  "recall": 0.7642,
+                  "f1": 0.1235,
+                  "false_alarms_per_frame": 0.6607
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 64,
+                  "missed": 1,
+                  "ground_truth": 2,
+                  "precision": 0.0154,
+                  "recall": 0.5,
+                  "f1": 0.0299,
+                  "false_alarms_per_frame": 0.0125
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 836,
+                  "missed": 15,
+                  "ground_truth": 15,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.1637
+                }
+              }
+            },
+            "0.35": {
+              "overall": {
+                "true_positives": 1430,
+                "false_positives": 6227,
+                "missed": 425,
+                "ground_truth": 1855,
+                "precision": 0.1868,
+                "recall": 0.7709,
+                "f1": 0.3007,
+                "false_alarms_per_frame": 1.2193
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 1201,
+                  "false_positives": 3857,
+                  "missed": 319,
+                  "ground_truth": 1520,
+                  "precision": 0.2374,
+                  "recall": 0.7901,
+                  "f1": 0.3652,
+                  "false_alarms_per_frame": 0.7552
+                },
+                "vehicle": {
+                  "true_positives": 228,
+                  "false_positives": 1847,
+                  "missed": 90,
+                  "ground_truth": 318,
+                  "precision": 0.1099,
+                  "recall": 0.717,
+                  "f1": 0.1906,
+                  "false_alarms_per_frame": 0.3617
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 33,
+                  "missed": 1,
+                  "ground_truth": 2,
+                  "precision": 0.0294,
+                  "recall": 0.5,
+                  "f1": 0.0556,
+                  "false_alarms_per_frame": 0.0065
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 490,
+                  "missed": 15,
+                  "ground_truth": 15,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0959
+                }
+              }
+            },
+            "0.5": {
+              "overall": {
+                "true_positives": 1369,
+                "false_positives": 2926,
+                "missed": 486,
+                "ground_truth": 1855,
+                "precision": 0.3187,
+                "recall": 0.738,
+                "f1": 0.4452,
+                "false_alarms_per_frame": 0.5729
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 1153,
+                  "false_positives": 1943,
+                  "missed": 367,
+                  "ground_truth": 1520,
+                  "precision": 0.3724,
+                  "recall": 0.7586,
+                  "f1": 0.4996,
+                  "false_alarms_per_frame": 0.3805
+                },
+                "vehicle": {
+                  "true_positives": 215,
+                  "false_positives": 752,
+                  "missed": 103,
+                  "ground_truth": 318,
+                  "precision": 0.2223,
+                  "recall": 0.6761,
+                  "f1": 0.3346,
+                  "false_alarms_per_frame": 0.1472
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 10,
+                  "missed": 1,
+                  "ground_truth": 2,
+                  "precision": 0.0909,
+                  "recall": 0.5,
+                  "f1": 0.1538,
+                  "false_alarms_per_frame": 0.002
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 221,
+                  "missed": 15,
+                  "ground_truth": 15,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 0.0433
+                }
+              }
+            },
+            "all_predictions": {
+              "overall": {
+                "true_positives": 1621,
+                "false_positives": 311773,
+                "missed": 234,
+                "ground_truth": 1855,
+                "precision": 0.0052,
+                "recall": 0.8739,
+                "f1": 0.0103,
+                "false_alarms_per_frame": 61.0482
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 1351,
+                  "false_positives": 105430,
+                  "missed": 169,
+                  "ground_truth": 1520,
+                  "precision": 0.0127,
+                  "recall": 0.8888,
+                  "f1": 0.0249,
+                  "false_alarms_per_frame": 20.6442
+                },
+                "vehicle": {
+                  "true_positives": 269,
+                  "false_positives": 173812,
+                  "missed": 49,
+                  "ground_truth": 318,
+                  "precision": 0.0015,
+                  "recall": 0.8459,
+                  "f1": 0.0031,
+                  "false_alarms_per_frame": 34.0341
+                },
+                "animal": {
+                  "true_positives": 1,
+                  "false_positives": 5169,
+                  "missed": 1,
+                  "ground_truth": 2,
+                  "precision": 0.0002,
+                  "recall": 0.5,
+                  "f1": 0.0004,
+                  "false_alarms_per_frame": 1.0121
+                },
+                "traffic light": {
+                  "true_positives": 0,
+                  "false_positives": 27362,
+                  "missed": 15,
+                  "ground_truth": 15,
+                  "precision": 0.0,
+                  "recall": 0.0,
+                  "f1": null,
+                  "false_alarms_per_frame": 5.3577
+                }
+              }
+            }
+          }
+        },
+        "ground_truth_boxes": 1855,
+        "predictions_ignored_far": 26731
+      }
+    },
+    "10": {
+      "val": {
+        "overall": {
+          "AP50-95": 0.3068,
+          "AP50": 0.4909,
+          "AP75": 0.3304,
+          "AP_small": 0.0002,
+          "AP_medium": 0.1482,
+          "AP_large": 0.3086,
+          "AR1": 0.2869,
+          "AR10": 0.4561,
+          "AR100": 0.4811,
+          "AR_small": 0.0418,
+          "AR_medium": 0.3523,
+          "AR_large": 0.4688
+        },
+        "per_class": {
+          "person": {
+            "AP50-95": 0.5614,
+            "AP50": 0.8664,
+            "AP75": 0.6404,
+            "AR100": 0.6537,
+            "AP_small": 0.0005,
+            "AP_medium": 0.1951,
+            "AP_large": 0.6071,
+            "ground_truth_boxes": 1123,
+            "predictions": 39504
+          },
+          "vehicle": {
+            "AP50-95": 0.4577,
+            "AP50": 0.6188,
+            "AP75": 0.5325,
+            "AR100": 0.6211,
+            "AP_small": 0.0,
+            "AP_medium": 0.0502,
+            "AP_large": 0.5223,
+            "ground_truth_boxes": 1140,
+            "predictions": 100009
+          },
+          "animal": {
+            "AP50-95": 0.0954,
+            "AP50": 0.2306,
+            "AP75": 0.0589,
+            "AR100": 0.2,
+            "AP_small": 0.0,
+            "AP_medium": 0.1618,
+            "AP_large": 0.08,
+            "ground_truth_boxes": 96,
+            "predictions": 1308
+          },
+          "traffic light": {
+            "AP50-95": 0.1127,
+            "AP50": 0.2478,
+            "AP75": 0.0897,
+            "AR100": 0.4496,
+            "AP_small": 0.0003,
+            "AP_medium": 0.1856,
+            "AP_large": 0.0251,
+            "ground_truth_boxes": 139,
+            "predictions": 18353
+          }
+        },
+        "operating_points": {
+          "match_iou": 0.5,
+          "frames": 2297,
+          "by_confidence": {
+            "0.25": {
+              "overall": {
+                "true_positives": 1907,
+                "false_positives": 3725,
+                "missed": 591,
+                "ground_truth": 2498,
+                "precision": 0.3386,
+                "recall": 0.7634,
+                "f1": 0.4691,
+                "false_alarms_per_frame": 1.6217
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 1014,
+                  "false_positives": 1231,
+                  "missed": 109,
+                  "ground_truth": 1123,
+                  "precision": 0.4517,
+                  "recall": 0.9029,
+                  "f1": 0.6021,
+                  "false_alarms_per_frame": 0.5359
+                },
+                "vehicle": {
+                  "true_positives": 795,
+                  "false_positives": 1910,
+                  "missed": 345,
+                  "ground_truth": 1140,
+                  "precision": 0.2939,
+                  "recall": 0.6974,
+                  "f1": 0.4135,
+                  "false_alarms_per_frame": 0.8315
+                },
+                "animal": {
+                  "true_positives": 21,
+                  "false_positives": 13,
+                  "missed": 75,
+                  "ground_truth": 96,
+                  "precision": 0.6176,
+                  "recall": 0.2188,
+                  "f1": 0.3231,
+                  "false_alarms_per_frame": 0.0057
+                },
+                "traffic light": {
+                  "true_positives": 77,
+                  "false_positives": 571,
+                  "missed": 62,
+                  "ground_truth": 139,
+                  "precision": 0.1188,
+                  "recall": 0.554,
+                  "f1": 0.1957,
+                  "false_alarms_per_frame": 0.2486
+                }
+              }
+            },
+            "0.35": {
+              "overall": {
+                "true_positives": 1833,
+                "false_positives": 2146,
+                "missed": 665,
+                "ground_truth": 2498,
+                "precision": 0.4607,
+                "recall": 0.7338,
+                "f1": 0.566,
+                "false_alarms_per_frame": 0.9343
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 995,
+                  "false_positives": 777,
+                  "missed": 128,
+                  "ground_truth": 1123,
+                  "precision": 0.5615,
+                  "recall": 0.886,
+                  "f1": 0.6874,
+                  "false_alarms_per_frame": 0.3383
+                },
+                "vehicle": {
+                  "true_positives": 762,
+                  "false_positives": 1042,
+                  "missed": 378,
+                  "ground_truth": 1140,
+                  "precision": 0.4224,
+                  "recall": 0.6684,
+                  "f1": 0.5177,
+                  "false_alarms_per_frame": 0.4536
+                },
+                "animal": {
+                  "true_positives": 14,
+                  "false_positives": 10,
+                  "missed": 82,
+                  "ground_truth": 96,
+                  "precision": 0.5833,
+                  "recall": 0.1458,
+                  "f1": 0.2333,
+                  "false_alarms_per_frame": 0.0044
+                },
+                "traffic light": {
+                  "true_positives": 62,
+                  "false_positives": 317,
+                  "missed": 77,
+                  "ground_truth": 139,
+                  "precision": 0.1636,
+                  "recall": 0.446,
+                  "f1": 0.2394,
+                  "false_alarms_per_frame": 0.138
+                }
+              }
+            },
+            "0.5": {
+              "overall": {
+                "true_positives": 1698,
+                "false_positives": 881,
+                "missed": 800,
+                "ground_truth": 2498,
+                "precision": 0.6584,
+                "recall": 0.6797,
+                "f1": 0.6689,
+                "false_alarms_per_frame": 0.3835
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 958,
+                  "false_positives": 370,
+                  "missed": 165,
+                  "ground_truth": 1123,
+                  "precision": 0.7214,
+                  "recall": 0.8531,
+                  "f1": 0.7817,
+                  "false_alarms_per_frame": 0.1611
+                },
+                "vehicle": {
+                  "true_positives": 688,
+                  "false_positives": 402,
+                  "missed": 452,
+                  "ground_truth": 1140,
+                  "precision": 0.6312,
+                  "recall": 0.6035,
+                  "f1": 0.617,
+                  "false_alarms_per_frame": 0.175
+                },
+                "animal": {
+                  "true_positives": 8,
+                  "false_positives": 5,
+                  "missed": 88,
+                  "ground_truth": 96,
+                  "precision": 0.6154,
+                  "recall": 0.0833,
+                  "f1": 0.1468,
+                  "false_alarms_per_frame": 0.0022
+                },
+                "traffic light": {
+                  "true_positives": 44,
+                  "false_positives": 104,
+                  "missed": 95,
+                  "ground_truth": 139,
+                  "precision": 0.2973,
+                  "recall": 0.3165,
+                  "f1": 0.3066,
+                  "false_alarms_per_frame": 0.0453
+                }
+              }
+            },
+            "all_predictions": {
+              "overall": {
+                "true_positives": 2201,
+                "false_positives": 156973,
+                "missed": 297,
+                "ground_truth": 2498,
+                "precision": 0.0138,
+                "recall": 0.8811,
+                "f1": 0.0272,
+                "false_alarms_per_frame": 68.3383
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 1065,
+                  "false_positives": 38439,
+                  "missed": 58,
+                  "ground_truth": 1123,
+                  "precision": 0.027,
+                  "recall": 0.9484,
+                  "f1": 0.0524,
+                  "false_alarms_per_frame": 16.7344
+                },
+                "vehicle": {
+                  "true_positives": 980,
+                  "false_positives": 99029,
+                  "missed": 160,
+                  "ground_truth": 1140,
+                  "precision": 0.0098,
+                  "recall": 0.8596,
+                  "f1": 0.0194,
+                  "false_alarms_per_frame": 43.1123
+                },
+                "animal": {
+                  "true_positives": 40,
+                  "false_positives": 1268,
+                  "missed": 56,
+                  "ground_truth": 96,
+                  "precision": 0.0306,
+                  "recall": 0.4167,
+                  "f1": 0.057,
+                  "false_alarms_per_frame": 0.552
+                },
+                "traffic light": {
+                  "true_positives": 116,
+                  "false_positives": 18237,
+                  "missed": 23,
+                  "ground_truth": 139,
+                  "precision": 0.0063,
+                  "recall": 0.8345,
+                  "f1": 0.0125,
+                  "false_alarms_per_frame": 7.9395
+                }
+              }
+            }
+          }
+        },
+        "ground_truth_boxes": 2498,
+        "predictions_ignored_far": 17307
+      },
+      "test": {
+        "overall": {
+          "AP50-95": 0.25,
+          "AP50": 0.4244,
+          "AP75": 0.2493,
+          "AP_small": 0.001,
+          "AP_medium": 0.089,
+          "AP_large": 0.2944,
+          "AR1": 0.265,
+          "AR10": 0.4053,
+          "AR100": 0.4184,
+          "AR_small": 0.0117,
+          "AR_medium": 0.2822,
+          "AR_large": 0.4276
+        },
+        "per_class": {
+          "person": {
+            "AP50-95": 0.4458,
+            "AP50": 0.6993,
+            "AP75": 0.4746,
+            "AR100": 0.5613,
+            "AP_small": 0.0,
+            "AP_medium": 0.0656,
+            "AP_large": 0.5264,
+            "ground_truth_boxes": 4066,
+            "predictions": 109796
+          },
+          "vehicle": {
+            "AP50-95": 0.4365,
+            "AP50": 0.6034,
+            "AP75": 0.5099,
+            "AR100": 0.6178,
+            "AP_small": 0.003,
+            "AP_medium": 0.0044,
+            "AP_large": 0.505,
+            "ground_truth_boxes": 1760,
+            "predictions": 176454
+          },
+          "animal": {
+            "AP50-95": 0.1165,
+            "AP50": 0.3928,
+            "AP75": 0.0117,
+            "AR100": 0.3429,
+            "AP_small": null,
+            "AP_medium": 0.2819,
+            "AP_large": 0.146,
+            "ground_truth_boxes": 14,
+            "predictions": 5186
+          },
+          "traffic light": {
+            "AP50-95": 0.0011,
+            "AP50": 0.0021,
+            "AP75": 0.0011,
+            "AR100": 0.1517,
+            "AP_small": 0.0,
+            "AP_medium": 0.0042,
+            "AP_large": 0.0001,
+            "ground_truth_boxes": 60,
+            "predictions": 27396
+          }
+        },
+        "operating_points": {
+          "match_iou": 0.5,
+          "frames": 5107,
+          "by_confidence": {
+            "0.25": {
+              "overall": {
+                "true_positives": 4337,
+                "false_positives": 10125,
+                "missed": 1563,
+                "ground_truth": 5900,
+                "precision": 0.2999,
+                "recall": 0.7351,
+                "f1": 0.426,
+                "false_alarms_per_frame": 1.9826
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 3051,
+                  "false_positives": 5781,
+                  "missed": 1015,
+                  "ground_truth": 4066,
+                  "precision": 0.3454,
+                  "recall": 0.7504,
+                  "f1": 0.4731,
+                  "false_alarms_per_frame": 1.132
+                },
+                "vehicle": {
+                  "true_positives": 1269,
+                  "false_positives": 3444,
+                  "missed": 491,
+                  "ground_truth": 1760,
+                  "precision": 0.2693,
+                  "recall": 0.721,
+                  "f1": 0.3921,
+                  "false_alarms_per_frame": 0.6744
+                },
+                "animal": {
+                  "true_positives": 11,
+                  "false_positives": 64,
+                  "missed": 3,
+                  "ground_truth": 14,
+                  "precision": 0.1467,
+                  "recall": 0.7857,
+                  "f1": 0.2472,
+                  "false_alarms_per_frame": 0.0125
+                },
+                "traffic light": {
+                  "true_positives": 6,
+                  "false_positives": 836,
+                  "missed": 54,
+                  "ground_truth": 60,
+                  "precision": 0.0071,
+                  "recall": 0.1,
+                  "f1": 0.0133,
+                  "false_alarms_per_frame": 0.1637
+                }
+              }
+            },
+            "0.35": {
+              "overall": {
+                "true_positives": 4175,
+                "false_positives": 6275,
+                "missed": 1725,
+                "ground_truth": 5900,
+                "precision": 0.3995,
+                "recall": 0.7076,
+                "f1": 0.5107,
+                "false_alarms_per_frame": 1.2287
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 2968,
+                  "false_positives": 3875,
+                  "missed": 1098,
+                  "ground_truth": 4066,
+                  "precision": 0.4337,
+                  "recall": 0.73,
+                  "f1": 0.5441,
+                  "false_alarms_per_frame": 0.7588
+                },
+                "vehicle": {
+                  "true_positives": 1191,
+                  "false_positives": 1877,
+                  "missed": 569,
+                  "ground_truth": 1760,
+                  "precision": 0.3882,
+                  "recall": 0.6767,
+                  "f1": 0.4934,
+                  "false_alarms_per_frame": 0.3675
+                },
+                "animal": {
+                  "true_positives": 11,
+                  "false_positives": 33,
+                  "missed": 3,
+                  "ground_truth": 14,
+                  "precision": 0.25,
+                  "recall": 0.7857,
+                  "f1": 0.3793,
+                  "false_alarms_per_frame": 0.0065
+                },
+                "traffic light": {
+                  "true_positives": 5,
+                  "false_positives": 490,
+                  "missed": 55,
+                  "ground_truth": 60,
+                  "precision": 0.0101,
+                  "recall": 0.0833,
+                  "f1": 0.018,
+                  "false_alarms_per_frame": 0.0959
+                }
+              }
+            },
+            "0.5": {
+              "overall": {
+                "true_positives": 3898,
+                "false_positives": 2933,
+                "missed": 2002,
+                "ground_truth": 5900,
+                "precision": 0.5706,
+                "recall": 0.6607,
+                "f1": 0.6124,
+                "false_alarms_per_frame": 0.5743
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 2819,
+                  "false_positives": 1944,
+                  "missed": 1247,
+                  "ground_truth": 4066,
+                  "precision": 0.5919,
+                  "recall": 0.6933,
+                  "f1": 0.6386,
+                  "false_alarms_per_frame": 0.3807
+                },
+                "vehicle": {
+                  "true_positives": 1072,
+                  "false_positives": 758,
+                  "missed": 688,
+                  "ground_truth": 1760,
+                  "precision": 0.5858,
+                  "recall": 0.6091,
+                  "f1": 0.5972,
+                  "false_alarms_per_frame": 0.1484
+                },
+                "animal": {
+                  "true_positives": 6,
+                  "false_positives": 10,
+                  "missed": 8,
+                  "ground_truth": 14,
+                  "precision": 0.375,
+                  "recall": 0.4286,
+                  "f1": 0.4,
+                  "false_alarms_per_frame": 0.002
+                },
+                "traffic light": {
+                  "true_positives": 1,
+                  "false_positives": 221,
+                  "missed": 59,
+                  "ground_truth": 60,
+                  "precision": 0.0045,
+                  "recall": 0.0167,
+                  "f1": 0.0071,
+                  "false_alarms_per_frame": 0.0433
+                }
+              }
+            },
+            "all_predictions": {
+              "overall": {
+                "true_positives": 4996,
+                "false_positives": 313836,
+                "missed": 904,
+                "ground_truth": 5900,
+                "precision": 0.0157,
+                "recall": 0.8468,
+                "f1": 0.0308,
+                "false_alarms_per_frame": 61.4521
+              },
+              "per_class": {
+                "person": {
+                  "true_positives": 3452,
+                  "false_positives": 106344,
+                  "missed": 614,
+                  "ground_truth": 4066,
+                  "precision": 0.0314,
+                  "recall": 0.849,
+                  "f1": 0.0606,
+                  "false_alarms_per_frame": 20.8232
+                },
+                "vehicle": {
+                  "true_positives": 1517,
+                  "false_positives": 174937,
+                  "missed": 243,
+                  "ground_truth": 1760,
+                  "precision": 0.0086,
+                  "recall": 0.8619,
+                  "f1": 0.017,
+                  "false_alarms_per_frame": 34.2544
+                },
+                "animal": {
+                  "true_positives": 12,
+                  "false_positives": 5174,
+                  "missed": 2,
+                  "ground_truth": 14,
+                  "precision": 0.0023,
+                  "recall": 0.8571,
+                  "f1": 0.0046,
+                  "false_alarms_per_frame": 1.0131
+                },
+                "traffic light": {
+                  "true_positives": 15,
+                  "false_positives": 27381,
+                  "missed": 45,
+                  "ground_truth": 60,
+                  "precision": 0.0005,
+                  "recall": 0.25,
+                  "f1": 0.0011,
+                  "false_alarms_per_frame": 5.3615
+                }
+              }
+            }
+          }
+        },
+        "ground_truth_boxes": 5900,
+        "predictions_ignored_far": 21293
+      }
+    }
+  },
+  "finished_at": "2026-11-10T17:06:23"
+}

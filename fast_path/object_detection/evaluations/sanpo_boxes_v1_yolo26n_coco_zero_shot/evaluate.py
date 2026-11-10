@@ -95,7 +95,7 @@ volume = modal.Volume.from_name(VOLUME_NAME)
 image = (
     modal.Image.debian_slim(python_version="3.12")
     .apt_install("libgl1", "libglib2.0-0")
-    .pip_install("ultralytics==8.4.11", "pycocotools", "pandas", "nvidia-ml-py")
+    .pip_install("ultralytics==8.4.208", "pycocotools", "pandas", "nvidia-ml-py")
     .add_local_python_source("evaluate_shared_code")  # the shared code, available inside the container
 )
 
@@ -207,7 +207,7 @@ def main(image_size: int = IMAGE_SIZE):
     Steps:
         1. run_evaluation.remote(image_size): runs on a Modal GPU, returns the results dict.
         2. shared.write_results(): writes metrics.json, metrics.txt, summary.md, example_images/ into ./results/<RUN_NAME>/.
-        3. Print the summary.
+        3. Print the overview tables (aligned plain text; summary.md is for the editor).
     """
     import time
 
@@ -216,5 +216,6 @@ def main(image_size: int = IMAGE_SIZE):
     print(f"Running {EVALUATION_NAME} / {run_name} on Modal ({GPU}) ...", flush=True)
     results = run_evaluation.remote(image_size)
     output_directory = shared.write_results(results, RESULTS_DIRECTORY / run_name)
-    print((output_directory / "summary.md").read_text(encoding="utf-8"))
+    # shared.terminal_summary takes: results dict; returns: the overview as aligned plain-text tables
+    print(shared.terminal_summary(results))
     print(f"Results saved to {output_directory} | total time {shared.format_duration(time.time() - start_time)}")
