@@ -6,64 +6,62 @@
 | --- | --- |
 | model run | yolo26n_sem_ade20k_img640 |
 | evaluation | sanpo_semantic_yolo26n_sem_ade20k_zero_shot |
-| GPU | NVIDIA H100 80GB HBM3 |
+| GPU | Tesla T4 |
 | weights | yolo26n-sem-ade20k.pt |
 | task | semantic (one class per pixel) |
-| classes scored | 20 |
+| classes scored | 19 |
 | model input size (long side) | 640 |
 | splits | val (2,297 frames), test (5,107 frames) |
 
-## 1. MAIN SCORES (mIoU = main score)
+## 1. MAIN SCORES (mIoU = main score; human-labeled frames only = the SANPO paper's protocol)
 
-| split | mIoU | pixel accuracy | mIoU within 10 m | mIoU within 5 m |
-| --- | --- | --- | --- | --- |
-| val | 0.217 | 0.507 | 0.208 | 0.198 |
-| test | 0.251 | 0.468 | 0.230 | 0.221 |
+| split | mIoU | pixel accuracy | mIoU within 10 m | mIoU within 5 m | mIoU, human-labeled frames only | human-labeled frames |
+| --- | --- | --- | --- | --- | --- | --- |
+| val | 0.244 | 0.575 | 0.228 | 0.218 | 0.242 | 1,151 |
+| test | 0.289 | 0.542 | 0.260 | 0.248 | 0.283 | 2,561 |
 
 ## 2. PER CLASS (sorted by test IoU)
 
-| class | val IoU | test IoU | test precision | test recall | test share of scored pixels |
-| --- | --- | --- | --- | --- | --- |
-| person | 0.615 | 0.719 | 0.848 | 0.826 | 2.3% |
-| sky | 0.466 | 0.696 | 0.715 | 0.963 | 2.7% |
-| vehicle | 0.590 | 0.598 | 0.739 | 0.758 | 2.4% |
-| sidewalk | 0.543 | 0.560 | 0.667 | 0.777 | 22.4% |
-| building | 0.553 | 0.552 | 0.709 | 0.713 | 12.8% |
-| stairs | 0.039 | 0.380 | 0.709 | 0.450 | 0.4% |
-| terrain | 0.282 | 0.287 | 0.359 | 0.592 | 4.9% |
-| road | 0.365 | 0.275 | 0.299 | 0.774 | 4.3% |
-| wall/fence | 0.250 | 0.261 | 0.482 | 0.362 | 8.8% |
-| pole | 0.088 | 0.180 | 0.575 | 0.207 | 1.3% |
-| tree | 0.193 | 0.170 | 0.178 | 0.783 | 2.4% |
-| obstacle | 0.116 | 0.114 | 0.784 | 0.118 | 7.0% |
-| vegetation | 0.158 | 0.069 | 0.712 | 0.071 | 10.3% |
-| water body | 0.000 | 0.057 | 0.058 | 0.923 | 0.3% |
-| hand rail | 0.004 | 0.035 | 0.045 | 0.141 | 0.5% |
-| paved trail | 0.021 | 0.025 | 0.822 | 0.025 | 17.1% |
-| traffic sign | 0.025 | 0.025 | 0.027 | 0.226 | 0.0% |
-| traffic light | 0.020 | 0.011 | 0.019 | 0.023 | 0.0% |
-| opening-door | 0.000 | 0.002 | 0.021 | 0.003 | 0.2% |
-| animal | 0.009 | 0.000 | 0.000 | 0.000 | 0.0% |
+| class | val IoU | test IoU | test IoU, human-labeled frames only | test precision | test recall | test share of scored pixels |
+| --- | --- | --- | --- | --- | --- | --- |
+| person | 0.615 | 0.719 | 0.696 | 0.848 | 0.826 | 2.3% |
+| tree + vegetation | 0.659 | 0.710 | 0.702 | 0.875 | 0.790 | 12.6% |
+| sky | 0.466 | 0.696 | 0.672 | 0.715 | 0.963 | 2.7% |
+| vehicle | 0.590 | 0.598 | 0.586 | 0.739 | 0.758 | 2.4% |
+| sidewalk | 0.543 | 0.560 | 0.561 | 0.667 | 0.777 | 22.4% |
+| building | 0.553 | 0.552 | 0.545 | 0.709 | 0.713 | 12.8% |
+| stairs | 0.039 | 0.380 | 0.369 | 0.709 | 0.450 | 0.4% |
+| terrain | 0.282 | 0.288 | 0.287 | 0.359 | 0.592 | 4.9% |
+| road | 0.365 | 0.275 | 0.275 | 0.299 | 0.774 | 4.3% |
+| wall/fence | 0.250 | 0.261 | 0.254 | 0.482 | 0.362 | 8.8% |
+| pole | 0.088 | 0.180 | 0.169 | 0.575 | 0.207 | 1.3% |
+| obstacle | 0.116 | 0.114 | 0.114 | 0.784 | 0.118 | 7.0% |
+| water body | 0.000 | 0.057 | 0.057 | 0.058 | 0.923 | 0.3% |
+| hand rail | 0.004 | 0.035 | 0.030 | 0.045 | 0.141 | 0.5% |
+| paved trail | 0.021 | 0.025 | 0.025 | 0.822 | 0.025 | 17.1% |
+| traffic sign | 0.025 | 0.025 | 0.026 | 0.027 | 0.226 | 0.0% |
+| traffic light | 0.020 | 0.011 | 0.010 | 0.019 | 0.023 | 0.0% |
+| opening-door | 0.000 | 0.002 | 0.004 | 0.021 | 0.003 | 0.2% |
+| animal | 0.009 | 0.000 | 0.000 | 0.000 | 0.000 | 0.0% |
 
 ## 3. NEAR PIXELS, IoU PER CLASS (test; only pixels within N meters are counted)
 
 | class | all pixels | within 10 m | within 5 m |
 | --- | --- | --- | --- |
 | person | 0.719 | 0.766 | 0.820 |
+| tree + vegetation | 0.710 | 0.679 | 0.620 |
 | sky | 0.696 | 0.120 | 0.020 |
 | vehicle | 0.598 | 0.684 | 0.646 |
 | sidewalk | 0.560 | 0.571 | 0.591 |
 | building | 0.552 | 0.513 | 0.490 |
 | stairs | 0.380 | 0.404 | 0.460 |
-| terrain | 0.287 | 0.269 | 0.203 |
+| terrain | 0.288 | 0.269 | 0.203 |
 | road | 0.275 | 0.229 | 0.134 |
 | wall/fence | 0.261 | 0.281 | 0.278 |
 | pole | 0.180 | 0.214 | 0.249 |
-| tree | 0.170 | 0.169 | 0.085 |
 | obstacle | 0.114 | 0.125 | 0.137 |
-| vegetation | 0.069 | 0.162 | 0.225 |
 | water body | 0.057 | 0.001 | 0.001 |
-| hand rail | 0.035 | 0.039 | 0.036 |
+| hand rail | 0.035 | 0.039 | 0.037 |
 | paved trail | 0.025 | 0.023 | 0.023 |
 | traffic sign | 0.025 | 0.022 | 0.002 |
 | traffic light | 0.011 | 0.005 | 0.004 |
@@ -75,6 +73,7 @@
 | class (ground truth) | model classes counted as correct | what the model said |
 | --- | --- | --- |
 | person | person | person 83%, floor 2%, building 2% |
+| tree + vegetation | tree, palm, plant, flower | tree 71%, building 8%, plant 6% |
 | sky | sky | sky 96%, tree 2%, building 1% |
 | vehicle | car, bus, truck, van, bicycle, minibike | car 67%, building 11%, wall 4% |
 | sidewalk | sidewalk | sidewalk 78%, road 10%, water 4% |
@@ -84,9 +83,7 @@
 | road | road | road 77%, sidewalk 12%, earth 2% |
 | wall/fence | wall, fence | wall 21%, fence 15%, railing 14% |
 | pole | pole, streetlight | building 25%, pole 18%, tree 14% |
-| tree | tree, palm | tree 75%, building 8%, sky 6% |
 | obstacle | bench, ashcan, box, barrel, rock | water 15%, sidewalk 13%, road 9% |
-| vegetation | plant, flower | tree 69%, building 8%, plant 7% |
 | water body | water, sea, river, lake, swimming pool, waterfall | water 70%, sea 22%, bridge 2% |
 | hand rail | railing, bannister | wall 22%, tree 14%, road 14% |
 | paved trail | path | sidewalk 35%, road 24%, earth 12% |
@@ -99,5 +96,5 @@
 
 | split | model | preprocess | postprocess | GPU memory peak (GB) |
 | --- | --- | --- | --- | --- |
-| val | 0.10 | 82.74 | 0.76 | 0.00 |
-| test | 2.26 | 137.74 | 3.42 | 1.79 |
+| val | 1.73 | 100.37 | 4.45 | 1.79 |
+| test | 0.96 | 11.03 | 2.54 | 1.79 |

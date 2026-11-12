@@ -10,9 +10,8 @@ these files by separate, fast scripts.
 Which frames: SANPO-Real, CAMERA camera (left lens), only frames that have a
 segmentation mask, every FRAME_STRIDE-th one (stride 3 = 5 fps from 15 fps).
 
-Splits: SANPO's official test sessions -> test. Official train sessions are
-split BY SESSION into train / val (VAL_FRACTION, fixed seed), so frames of one
-walk never appear in two splits.
+Splits: SANPO's two official splits, unchanged: official train sessions -> train,
+official test sessions -> test. No validation split is made here.
 
 SANPO official links:
     Project page: https://google-research-datasets.github.io/sanpo_dataset/
@@ -24,10 +23,10 @@ Mask encoding (checked on a real file): R channel = class id (labelmap.json),
 B channel = object id (> 0 only for "panoptic" classes, see labeltype.json).
 
 Output on the Modal Volume VOLUME_NAME, under OUTPUT_SUBDIR:
-    frames/{train,val,test}/<session>_<frame>.jpg
-    masks/{train,val,test}/<session>_<frame>.png
+    frames/{train,test}/<session>_<frame>.jpg
+    masks/{train,test}/<session>_<frame>.png
     index/<session>.csv                one row per frame
-    sanpo_meta/labelmap.json, labeltype.json, splits used (train/val/test session lists)
+    sanpo_meta/labelmap.json, labeltype.json, splits used (train/test session lists)
 
 Run from the repo root (PowerShell). First a small test (2 sessions per split):
     $env:MODAL_CONFIG_PATH = "$HOME\\.modal_session1.toml"
@@ -49,8 +48,6 @@ OUTPUT_SUBDIR = "sanpo_real_chest_5fps"  # folder inside the volume
 CAMERA = "chest"  # "chest" or "head"
 FRAME_STRIDE = 3  # keep every 3rd annotated frame (15 fps -> 5 fps)
 JPEG_QUALITY = 95
-VAL_FRACTION = 0.12  # share of official-train sessions moved to val
-SPLIT_SEED = 0  # makes the train/val session split reproducible
 MAX_CONTAINERS = 10  # sessions processed in parallel
 COMMIT_EVERY = 50  # save progress to the Volume every N frames (for resuming)
 PRINT_EVERY = 25  # progress line every N frames inside a session
@@ -200,15 +197,15 @@ def download_session(session: str, split: str) -> dict:
 
 
 @app.function(image=image, volumes={DATA_MOUNT: volume}, timeout=1800)
-def save_metadata(train: list[str], val: list[str], test: list[str]) -> str:
-    """Store SANPO's label files and the session splits we used."""
+def save_metadata(train: list[str], test: list[str]) -> str:
+    """Store SANPO's label files and the session lists of the two official splits."""
     from pathlib import Path
 
     meta = Path(DATA_MOUNT) / OUTPUT_SUBDIR / "sanpo_meta"
     meta.mkdir(parents=True, exist_ok=True)
     for name in ("labelmap.json", "labeltype.json"):
         (meta / name).write_bytes(_read_bytes(name))
-    for split, sessions in (("train", train), ("val", val), ("test", test)):
+    for split, sessions in (("train", train), ("test", test)):
         (meta / f"{split}_sessions.txt").write_text("\n".join(sessions) + "\n")
     volume.commit()
     return str(meta)
@@ -217,8 +214,7 @@ def save_metadata(train: list[str], val: list[str], test: list[str]) -> str:
 @app.local_entrypoint()
 def main(max_sessions: int = 0):
     """max_sessions > 0 = quick test with that many sessions per split."""
-    import random
-
+    # SANPO's official session lists (one session = one walk)
     train = sorted(_read_bytes("sanpo-real/splits/train_session_ids.txt").decode().split())
     test = sorted(_read_bytes("sanpo-real/splits/test_session_ids.txt").decode().split())
 
@@ -234,17 +230,15 @@ def main(max_sessions: int = 0):
         test_ok = list(pool.map(has_masks, test))
     train = [s for s, ok in zip(train, train_ok) if ok]
     test = [s for s, ok in zip(test, test_ok) if ok]
-    val = sorted(random.Random(SPLIT_SEED).sample(train, max(1, round(len(train) * VAL_FRACTION))))
-    train = [s for s in train if s not in set(val)]
-    print(f"Sessions with {CAMERA} masks: train={len(train)} val={len(val)} test={len(test)}")
+    print(f"Sessions with {CAMERA} masks: train={len(train)} test={len(test)}")
 
     if max_sessions > 0:
-        train, val, test = train[:max_sessions], val[:max_sessions], test[:max_sessions]
+        train, test = train[:max_sessions], test[:max_sessions]
         print(f"TEST RUN: {max_sessions} session(s) per split")
     print("Saving SANPO label files and split lists ...")
-    print("Metadata saved to:", save_metadata.remote(train, val, test))
+    print("Metadata saved to:", save_metadata.remote(train, test))
 
-    jobs = [(s, "train") for s in train] + [(s, "val") for s in val] + [(s, "test") for s in test]
+    jobs = [(s, "train") for s in train] + [(s, "test") for s in test]
     print(f"Starting {len(jobs)} session downloads ({MAX_CONTAINERS} in parallel) "
           f"to Volume '{VOLUME_NAME}' / {OUTPUT_SUBDIR} ...")
     import time

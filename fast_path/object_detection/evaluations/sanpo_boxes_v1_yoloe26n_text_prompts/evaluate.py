@@ -49,7 +49,7 @@ import evaluate_shared_code as shared  # noqa: E402
 VOLUME_NAME = "sanpo"
 DATASET = "sanpo_real_chest_5fps"  # folder in the Volume (download_sanpo_modal.py)
 VIEW_NAME = "boxes_v1"  # box view (make_box_view_modal.py)
-SPLITS = ["val", "test"]  # splits to evaluate
+SPLITS = ["test"]  # SANPO official test split
 
 ARCHITECTURE = "yoloe-26n.yaml"  # box-only YOLOE architecture
 WEIGHTS = "yoloe-26n-seg.pt"  # official released weights (loaded into the box-only architecture)

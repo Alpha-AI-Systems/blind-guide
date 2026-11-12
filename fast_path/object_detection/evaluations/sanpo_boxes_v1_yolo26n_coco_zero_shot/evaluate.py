@@ -54,7 +54,7 @@ import evaluate_shared_code as shared  # noqa: E402
 VOLUME_NAME = "sanpo"
 DATASET = "sanpo_real_chest_5fps"  # folder in the Volume (download_sanpo_modal.py)
 VIEW_NAME = "boxes_v1"  # box view (make_box_view_modal.py)
-SPLITS = ["val", "test"]  # splits to evaluate
+SPLITS = ["test"]  # SANPO official test split
 
 WEIGHTS = "yolo26n.pt"
 IMAGE_SIZE = 640  # model input size (long side); override with --image-size, e.g. 1280
