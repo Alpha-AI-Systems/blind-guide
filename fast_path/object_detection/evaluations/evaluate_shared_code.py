@@ -1303,6 +1303,55 @@ def semantic_scores(counts, evaluation_classes: dict, sanpo_class_ids: dict[str,
 
 # ----------------------------------------------------------------------------- semantic: predict + count + score
 
+def load_human_labeled_frames(dataset_root: Path, sessions: list[str], camera: str = "chest") -> set:
+    """Which frames have HUMAN-made labels (the others were labeled by a model that carries human labels forward).
+
+    In SANPO-Real, people labeled every 6th frame of a walk; SANPO publishes one file per walk that says
+    which frames are which (frame_segmentation_annotation_type.json, SANPO paper appendix A.3.3).
+    The SANPO paper reports segmentation scores on the human-labeled test frames only.
+
+    Steps:
+        1. For every walk: read its file from <dataset_root>/sanpo_meta/annotation_types/<session>.json,
+           or download it from SANPO's public bucket first (small JSON) and keep it there.
+        2. Collect the human-labeled frames.
+    Returns a set of (session, frame number).
+    """
+    import json
+    import time
+    import urllib.parse
+    import urllib.request
+    from concurrent.futures import ThreadPoolExecutor
+
+    cache_directory = dataset_root / "sanpo_meta" / "annotation_types"
+    cache_directory.mkdir(parents=True, exist_ok=True)
+
+    def read_one(session):
+        cache_path = cache_directory / f"{session}.json"
+        if not cache_path.exists():
+            url = ("https://storage.googleapis.com/gresearch/sanpo_dataset/v0/sanpo-real/"
+                   f"{urllib.parse.quote(session)}/camera_{camera}/left/frame_segmentation_annotation_type.json")
+            for attempt in range(5):
+                try:
+                    with urllib.request.urlopen(url, timeout=60) as response:
+                        data = response.read()
+                    break
+                except Exception:
+                    if attempt == 4:
+                        raise
+                    time.sleep(2 ** attempt)
+            temporary_path = cache_path.with_suffix(".tmp")
+            temporary_path.write_bytes(data)
+            temporary_path.replace(cache_path)
+        return [(session, int(frame_number)) for frame_number, source in json.loads(cache_path.read_text()).items()
+                if source == "HUMAN_ANNOTATED"]
+
+    human_frames = set()
+    with ThreadPoolExecutor(16) as pool:
+        for session_frames in pool.map(read_one, sessions):
+            human_frames.update(session_frames)
+    return human_frames
+
+
 def evaluate_semantic_splits(*, model, volume, results: dict, dataset_root: Path, work_directory: Path,
                              splits: list[str], evaluation_classes: dict, image_size: int, half_precision: bool,
                              batch_size: int, save_every_batches: int, loader_threads: int = 32,
@@ -1312,11 +1361,17 @@ def evaluate_semantic_splits(*, model, volume, results: dict, dataset_root: Path
     evaluation_classes: {evaluation class: (SANPO class names, model class names)}.
     max_frames: 0 = all frames; N = only the first N frames of each split (quick test).
 
+    Two sets of scores per split:
+        all frames            every frame of the split (human-labeled and machine-labeled)
+        human-labeled frames  only frames whose labels were made by people (the SANPO paper's protocol)
+
     Steps (per split):
         a. frames of the split (index CSVs), with the path of their mask and depth file,
+           and which of them are human-labeled,
         b. predict in batches; per frame add its pixels to the count tables (GPU);
            progress is saved regularly so a stopped run resumes,
         c. scores from the count tables: all pixels, and pixels within N meters,
+           for all frames and for human-labeled frames only,
         d. example images (last split).
     Fills results["splits"][split] and returns results.
     """
@@ -1339,7 +1394,10 @@ def evaluate_semantic_splits(*, model, volume, results: dict, dataset_root: Path
     results["settings"]["sanpo_class_ids"] = sanpo_class_ids
     results["settings"]["model_class_ids"] = model_class_ids
     row_count, column_count = max(sanpo_class_ids.values()) + 1, max(model_class_ids.values()) + 1
-    scopes = ["all"] + [str(limit) for limit in distance_limits_meters]  # "all" pixels, then within N meters
+    # Count tables: "all" pixels and pixels within N meters, over all frames ("all", "5", "10"),
+    # and the same again over human-labeled frames only ("human_all", "human_5", "human_10")
+    distance_scopes = ["all"] + [str(limit) for limit in distance_limits_meters]
+    scopes = distance_scopes + [f"human_{scope}" for scope in distance_scopes]
 
     for split in splits:
         print(f"\n===== split: {split} =====", flush=True)
@@ -1352,11 +1410,17 @@ def evaluate_semantic_splits(*, model, volume, results: dict, dataset_root: Path
         frame_paths = [str(dataset_root / path) for path in frames["frame"]]
         mask_paths = [str(dataset_root / path) for path in frames["mask"]]
         depth_paths = [str(dataset_root / "depth" / split / f"{Path(path).stem}.float16.gz") for path in frames["frame"]]
-        print(f"{len(frame_paths):,} frames", flush=True)
+        # load_human_labeled_frames takes: dataset folder, session ids; returns: set of (session, frame number)
+        human_frames = load_human_labeled_frames(dataset_root, sorted(frames["session"].unique()))
+        volume.commit()  # keeps SANPO's annotation-type files on the Volume
+        is_human_labeled = [(session, int(frame_id)) in human_frames
+                            for session, frame_id in zip(frames["session"], frames["frame_id"])]
+        print(f"{len(frame_paths):,} frames, of which {sum(is_human_labeled):,} are human-labeled", flush=True)
 
         # Step b: predict and count (reused if finished, resumed if partial)
-        final_path = work_directory / f"counts_{split}.json"
-        partial_path = work_directory / f"counts_{split}.partial.json"
+        # ("v2" in the file names: counts that also have the human-labeled tables)
+        final_path = work_directory / f"counts_v2_{split}.json"
+        partial_path = work_directory / f"counts_v2_{split}.partial.json"
         if final_path.exists():
             saved = json.loads(final_path.read_text())
             print(f"Already done ({saved['frames_done']:,} frames), reusing", flush=True)
@@ -1365,7 +1429,7 @@ def evaluate_semantic_splits(*, model, volume, results: dict, dataset_root: Path
             #          postprocess] in ms (summed over frames), "frames_with_depth"}
             saved = (json.loads(partial_path.read_text()) if partial_path.exists() else
                      {"frames_done": 0, "counts": {scope: [0] * (row_count * column_count) for scope in scopes},
-                      "speed_sums": [0.0, 0.0, 0.0], "frames_with_depth": 0})
+                      "speed_sums": [0.0, 0.0, 0.0], "frames_with_depth": 0, "human_labeled_frames": 0})
             if saved["frames_done"]:
                 print(f"Resuming from frame {saved['frames_done']:,}", flush=True)
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -1402,19 +1466,27 @@ def evaluate_semantic_splits(*, model, volume, results: dict, dataset_root: Path
                 #   (result.semantic_mask.data = model class id per pixel, at the input image size; result.speed)
                 batch_results = model.predict([image for image, _, _ in loaded], imgsz=image_size,
                                               quantize=16 if half_precision else None, verbose=False)
-                for (image, class_ids, depth), result in zip(loaded, batch_results):
+                for position_in_batch, ((image, class_ids, depth), result) in enumerate(zip(loaded, batch_results)):
                     prediction = result.semantic_mask.data.to(device=device, dtype=torch.int64)
                     truth = torch.from_numpy(class_ids).to(device=device, dtype=torch.int64)
                     assert prediction.shape == truth.shape, f"prediction {prediction.shape} vs labels {truth.shape}"
+                    human_labeled = is_human_labeled[batch_start + position_in_batch]
                     # One number per pixel that says both classes: SANPO id * number of model classes + model id.
                     # Counting how often each number appears gives the count table (flattened).
                     pair = truth * column_count + prediction
-                    counts["all"] += torch.bincount(pair.flatten(), minlength=row_count * column_count)
+                    frame_counts = torch.bincount(pair.flatten(), minlength=row_count * column_count)
+                    counts["all"] += frame_counts
+                    if human_labeled:
+                        counts["human_all"] += frame_counts
+                        saved["human_labeled_frames"] += 1
                     if depth is not None:
                         depth_meters = torch.from_numpy(depth).to(device)
                         for limit in distance_limits_meters:
                             near = (depth_meters > 0) & (depth_meters <= limit)  # no depth (0, NaN, inf) = not near
-                            counts[str(limit)] += torch.bincount(pair[near], minlength=row_count * column_count)
+                            near_counts = torch.bincount(pair[near], minlength=row_count * column_count)
+                            counts[str(limit)] += near_counts
+                            if human_labeled:
+                                counts[f"human_{limit}"] += near_counts
                         saved["frames_with_depth"] += 1
                     for position, key in enumerate(["preprocess", "inference", "postprocess"]):
                         saved["speed_sums"][position] += result.speed[key]
@@ -1451,6 +1523,15 @@ def evaluate_semantic_splits(*, model, volume, results: dict, dataset_root: Path
                                                               sanpo_class_ids, model_class_ids)
         else:
             print("No depth files for this split: near-pixel scores skipped", flush=True)
+        # The same scores over human-labeled frames only (the SANPO paper's protocol)
+        human_metrics = semantic_scores(tables["human_all"], evaluation_classes, sanpo_class_ids, model_class_ids)
+        human_metrics["frames"] = saved["human_labeled_frames"]
+        human_metrics["near"] = {}
+        if saved["frames_with_depth"]:
+            for limit in distance_limits_meters:
+                human_metrics["near"][str(limit)] = semantic_scores(tables[f"human_{limit}"], evaluation_classes,
+                                                                    sanpo_class_ids, model_class_ids)
+        metrics["human_labeled"] = human_metrics
         frame_count = max(1, saved["frames_done"])
         metrics["speed_ms_per_frame"] = {key: round(saved["speed_sums"][position] / frame_count, 2)
                                          for position, key in enumerate(["preprocess", "inference", "postprocess"])}
@@ -1459,6 +1540,8 @@ def evaluate_semantic_splits(*, model, volume, results: dict, dataset_root: Path
         results["splits"][split] = metrics
         print(f"[{split}] mIoU {metrics['overall']['mIoU']} | pixel accuracy {metrics['overall']['pixel_accuracy']} | "
               f"classes scored {metrics['overall']['classes_scored']}", flush=True)
+        print(f"[{split}] human-labeled frames only ({human_metrics['frames']:,}): mIoU {human_metrics['overall']['mIoU']} | "
+              f"pixel accuracy {human_metrics['overall']['pixel_accuracy']}", flush=True)
         for limit, near_metrics in metrics["near"].items():
             print(f"[{split}] within {limit} m: mIoU {near_metrics['overall']['mIoU']} | "
                   f"pixel accuracy {near_metrics['overall']['pixel_accuracy']}", flush=True)
@@ -1612,24 +1695,31 @@ def semantic_summary_tables(results: dict) -> list[dict]:
     rows = []
     for split in splits:
         metrics = results["splits"][split]
+        human = metrics.get("human_labeled") or {}  # missing in runs made before human-labeled scoring existed
         rows.append([split, show(metrics["overall"]["mIoU"]), show(metrics["overall"]["pixel_accuracy"])]
                     + [show(metrics["near"][limit]["overall"]["mIoU"]) if limit in metrics.get("near", {}) else "n/a"
-                       for limit in near_limits])
-    tables.append({"title": "1. MAIN SCORES (mIoU = main score)",
-                   "headers": ["split", "mIoU", "pixel accuracy"] + [f"mIoU within {limit} m" for limit in near_limits],
-                   "rows": rows, "numeric_columns": set(range(1, 3 + len(near_limits))), "group_column": None})
+                       for limit in near_limits]
+                    + [show((human.get("overall") or {}).get("mIoU")),
+                       f"{human['frames']:,}" if human else "n/a"])
+    tables.append({"title": "1. MAIN SCORES (mIoU = main score; human-labeled frames only = the SANPO paper's protocol)",
+                   "headers": ["split", "mIoU", "pixel accuracy"] + [f"mIoU within {limit} m" for limit in near_limits]
+                   + ["mIoU, human-labeled frames only", "human-labeled frames"],
+                   "rows": rows, "numeric_columns": set(range(1, 5 + len(near_limits))), "group_column": None})
 
     class_names = sorted(results["splits"][last]["per_class"],
                          key=lambda name: results["splits"][last]["per_class"][name]["IoU"] or 0, reverse=True)
     rows = []
     for class_name in class_names:
         entry = results["splits"][last]["per_class"][class_name]
+        human_entry = ((results["splits"][last].get("human_labeled") or {}).get("per_class") or {}).get(class_name, {})
         rows.append([class_name] + [show(results["splits"][split]["per_class"][class_name]["IoU"]) for split in splits]
-                    + [show(entry["precision"]), show(entry["recall"]), percent(entry["ground_truth_pixel_share"])])
+                    + [show(human_entry.get("IoU")), show(entry["precision"]), show(entry["recall"]),
+                       percent(entry["ground_truth_pixel_share"])])
     tables.append({"title": f"2. PER CLASS (sorted by {last} IoU)",
                    "headers": ["class"] + [f"{split} IoU" for split in splits]
-                   + [f"{last} precision", f"{last} recall", f"{last} share of scored pixels"],
-                   "rows": rows, "numeric_columns": set(range(1, len(splits) + 4)), "group_column": None})
+                   + [f"{last} IoU, human-labeled frames only", f"{last} precision", f"{last} recall",
+                      f"{last} share of scored pixels"],
+                   "rows": rows, "numeric_columns": set(range(1, len(splits) + 5)), "group_column": None})
 
     if near_limits:
         rows = []

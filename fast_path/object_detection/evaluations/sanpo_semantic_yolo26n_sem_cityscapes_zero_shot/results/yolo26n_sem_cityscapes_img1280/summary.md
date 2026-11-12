@@ -6,54 +6,54 @@
 | --- | --- |
 | model run | yolo26n_sem_cityscapes_img1280 |
 | evaluation | sanpo_semantic_yolo26n_sem_cityscapes_zero_shot |
-| GPU | NVIDIA H100 80GB HBM3 |
+| GPU | Tesla T4 |
 | weights | yolo26n-sem.pt |
 | task | semantic (one class per pixel) |
 | classes scored | 13 |
 | model input size (long side) | 1280 |
 | splits | val (2,297 frames), test (5,107 frames) |
 
-## 1. MAIN SCORES (mIoU = main score)
+## 1. MAIN SCORES (mIoU = main score; human-labeled frames only = the SANPO paper's protocol)
 
-| split | mIoU | pixel accuracy | mIoU within 10 m | mIoU within 5 m |
-| --- | --- | --- | --- | --- |
-| val | 0.365 | 0.549 | 0.319 | 0.240 |
-| test | 0.352 | 0.510 | 0.302 | 0.246 |
+| split | mIoU | pixel accuracy | mIoU within 10 m | mIoU within 5 m | mIoU, human-labeled frames only | human-labeled frames |
+| --- | --- | --- | --- | --- | --- | --- |
+| val | 0.367 | 0.536 | 0.322 | 0.246 | 0.365 | 1,151 |
+| test | 0.352 | 0.499 | 0.302 | 0.245 | 0.350 | 2,561 |
 
 ## 2. PER CLASS (sorted by test IoU)
 
-| class | val IoU | test IoU | test precision | test recall | test share of scored pixels |
-| --- | --- | --- | --- | --- | --- |
-| sky | 0.705 | 0.741 | 0.882 | 0.823 | 3.6% |
-| tree + vegetation | 0.718 | 0.703 | 0.892 | 0.768 | 16.9% |
-| pedestrian | 0.527 | 0.672 | 0.722 | 0.908 | 3.0% |
-| building | 0.610 | 0.559 | 0.656 | 0.791 | 17.2% |
-| vehicle | 0.444 | 0.447 | 0.489 | 0.840 | 3.2% |
-| terrain | 0.230 | 0.379 | 0.774 | 0.426 | 6.6% |
-| pole | 0.173 | 0.259 | 0.670 | 0.297 | 1.8% |
-| wall/fence | 0.298 | 0.249 | 0.768 | 0.269 | 11.8% |
-| sidewalk | 0.200 | 0.150 | 0.638 | 0.164 | 30.1% |
-| rider | 0.269 | 0.128 | 0.254 | 0.204 | 0.0% |
-| road | 0.194 | 0.123 | 0.128 | 0.793 | 5.7% |
-| traffic sign | 0.291 | 0.114 | 0.162 | 0.281 | 0.1% |
-| traffic light | 0.091 | 0.057 | 0.320 | 0.065 | 0.0% |
+| class | val IoU | test IoU | test IoU, human-labeled frames only | test precision | test recall | test share of scored pixels |
+| --- | --- | --- | --- | --- | --- | --- |
+| sky | 0.714 | 0.745 | 0.739 | 0.887 | 0.823 | 3.7% |
+| pedestrian | 0.546 | 0.678 | 0.666 | 0.728 | 0.908 | 3.1% |
+| vegetation | 0.690 | 0.677 | 0.676 | 0.869 | 0.755 | 14.2% |
+| building | 0.622 | 0.567 | 0.564 | 0.667 | 0.791 | 17.8% |
+| vehicle | 0.448 | 0.450 | 0.445 | 0.492 | 0.840 | 3.3% |
+| terrain | 0.230 | 0.380 | 0.374 | 0.779 | 0.426 | 6.8% |
+| pole | 0.178 | 0.264 | 0.262 | 0.701 | 0.297 | 1.8% |
+| wall/fence | 0.298 | 0.249 | 0.254 | 0.771 | 0.269 | 12.2% |
+| sidewalk | 0.200 | 0.150 | 0.150 | 0.638 | 0.164 | 31.0% |
+| rider | 0.270 | 0.128 | 0.127 | 0.254 | 0.204 | 0.0% |
+| road | 0.194 | 0.123 | 0.124 | 0.128 | 0.793 | 5.9% |
+| traffic sign | 0.296 | 0.115 | 0.112 | 0.163 | 0.281 | 0.1% |
+| traffic light | 0.091 | 0.057 | 0.055 | 0.327 | 0.065 | 0.0% |
 
 ## 3. NEAR PIXELS, IoU PER CLASS (test; only pixels within N meters are counted)
 
 | class | all pixels | within 10 m | within 5 m |
 | --- | --- | --- | --- |
-| sky | 0.741 | 0.125 | 0.014 |
-| tree + vegetation | 0.703 | 0.694 | 0.618 |
-| pedestrian | 0.672 | 0.742 | 0.783 |
-| building | 0.559 | 0.516 | 0.444 |
-| vehicle | 0.447 | 0.440 | 0.319 |
-| terrain | 0.379 | 0.361 | 0.276 |
-| pole | 0.259 | 0.295 | 0.319 |
+| sky | 0.745 | 0.126 | 0.014 |
+| pedestrian | 0.678 | 0.746 | 0.784 |
+| vegetation | 0.677 | 0.670 | 0.605 |
+| building | 0.567 | 0.519 | 0.445 |
+| vehicle | 0.450 | 0.442 | 0.321 |
+| terrain | 0.380 | 0.362 | 0.277 |
+| pole | 0.264 | 0.299 | 0.320 |
 | wall/fence | 0.249 | 0.242 | 0.198 |
 | sidewalk | 0.150 | 0.145 | 0.108 |
 | rider | 0.128 | 0.139 | 0.053 |
 | road | 0.123 | 0.098 | 0.055 |
-| traffic sign | 0.114 | 0.123 | 0.009 |
+| traffic sign | 0.115 | 0.123 | 0.009 |
 | traffic light | 0.057 | 0.011 | 0.000 |
 
 ## 4. WHAT THE MODEL SAID ON EACH CLASS'S PIXELS (test; its 3 most common answers)
@@ -61,8 +61,8 @@
 | class (ground truth) | model classes counted as correct | what the model said |
 | --- | --- | --- |
 | sky | sky | sky 82%, vegetation 9%, building 8% |
-| tree + vegetation | vegetation | vegetation 77%, building 11%, road 4% |
 | pedestrian | person | person 91%, road 3%, building 3% |
+| vegetation | vegetation | vegetation 75%, building 11%, road 5% |
 | building | building | building 79%, train 5%, road 4% |
 | vehicle | car, truck, bus, train, motorcycle, bicycle | car 76%, building 9%, truck 6% |
 | terrain | terrain | terrain 43%, road 37%, sidewalk 12% |
@@ -78,5 +78,5 @@
 
 | split | model | preprocess | postprocess | GPU memory peak (GB) |
 | --- | --- | --- | --- | --- |
-| val | 0.35 | 274.10 | 0.19 | 6.81 |
-| test | 0.35 | 72.05 | 0.17 | 6.81 |
+| val | 3.34 | 4.23 | 1.37 | 6.81 |
+| test | 3.36 | 4.44 | 1.31 | 6.81 |

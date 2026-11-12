@@ -52,7 +52,7 @@ VOLUME_NAME = "sanpo"
 DATASET = "sanpo_real_chest_5fps"  # folder in the Volume (download_sanpo_modal.py)
 VIEW_NAME = "masks_v1"  # mask view (make_mask_view_modal.py): one mask per object, same objects as boxes_v1
 TASK = "segment"  # compare masks (COCO "segm" scores), not boxes
-SPLITS = ["val", "test"]  # splits to evaluate
+SPLITS = ["test"]  # SANPO official test split
 
 WEIGHTS = "yoloe-26n-seg.pt"  # official released segmentation weights, used as they are (with masks)
 IMAGE_SIZE = 640  # model input size (long side); override with --image-size, e.g. 1280

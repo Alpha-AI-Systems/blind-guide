@@ -24,8 +24,7 @@ What is measured
         pole               pole                         pole, streetlight
         obstacle           obstacle                     bench, ashcan, box, barrel, rock
         sky                sky                          sky
-        tree               tree                         tree, palm
-        vegetation         vegetation                   plant, flower
+        tree + vegetation  tree, vegetation             tree, palm, plant, flower   (ADE20K and SANPO split plants differently)
         terrain            terrain                      grass, earth, sand, land, field
 
     The obstacle list comes from looking at real SANPO obstacles (trash cans, benches, boxes, rocks);
@@ -74,16 +73,16 @@ import evaluate_shared_code as shared  # noqa: E402
 # =============================================================================
 VOLUME_NAME = "sanpo"
 DATASET = "sanpo_real_chest_5fps"  # folder in the Volume (download_sanpo_modal.py)
-SPLITS = ["val", "test"]  # splits to evaluate
+SPLITS = ["test"]  # SANPO official test split (the paper reports on test)
 
 WEIGHTS = "yolo26n-sem-ade20k.pt"  # official semantic model trained on ADE20K (150 classes)
 IMAGE_SIZE = 640  # model input size (long side); override with --image-size, e.g. 1280
 HALF_PRECISION = True  # FP16
-# Frames per GPU call, per image size (big batches, to use the H100's 80 GB).
+# Frames per GPU call, per image size.
 # Measured GPU memory: 640: about 0.033 GB per frame, 1280: about 0.11 GB per frame.
 BATCH_SIZES = {640: 128, 1280: 64}
 DEFAULT_BATCH_SIZE = 64  # for any other image size
-GPU = "H100"
+GPU = "T4"  # 16 GB; the semantic runs peak below 7 GB of GPU memory
 CPU_CORES = 16  # reading + resizing frames, masks and depth is the bottleneck, so give the container many CPUs
 LOADER_THREADS = 32  # frames read and resized in parallel
 DISTANCE_LIMITS_METERS = (5, 10)  # extra scores that count only pixels within N meters
@@ -114,8 +113,7 @@ EVALUATION_CLASSES = {
     "pole": (["pole"], ["pole", "streetlight"]),
     "obstacle": (["obstacle"], ["bench", "ashcan", "box", "barrel", "rock"]),
     "sky": (["sky"], ["sky"]),
-    "tree": (["tree"], ["tree", "palm"]),
-    "vegetation": (["vegetation"], ["plant", "flower"]),
+    "tree + vegetation": (["tree", "vegetation"], ["tree", "palm", "plant", "flower"]),  # merged: ADE20K and SANPO split plants differently
     "terrain": (["terrain"], ["grass", "earth", "sand", "land", "field"]),
 }
 SAVE_EVERY_BATCHES = 2  # save the pixel counts every N batches (for resuming)

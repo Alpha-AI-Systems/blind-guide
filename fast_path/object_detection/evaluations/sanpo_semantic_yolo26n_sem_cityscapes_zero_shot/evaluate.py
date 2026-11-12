@@ -4,7 +4,8 @@ What is measured
     A semantic model gives ONE CLASS PER PIXEL (no objects, no confidence per object), so there is
     no AP here. The scores are IoU per class, mIoU (main score), pixel accuracy, precision and recall.
 
-    YOLO26n-sem only knows the 19 Cityscapes classes, so it is scored on the SANPO classes they can match:
+    YOLO26n-sem only knows the 19 Cityscapes classes, so it is scored on the SANPO classes they can match.
+    The mapping is the one of the SANPO paper (appendix A.4.1), so the scores can be compared with the paper:
 
         evaluation class    SANPO ground-truth classes   Cityscapes classes counted as a match
         road                road                         road
@@ -14,14 +15,14 @@ What is measured
         pole                pole                         pole
         traffic light       traffic light                traffic light
         traffic sign        traffic sign                 traffic sign
-        tree + vegetation   tree, vegetation             vegetation   (Cityscapes has one class for both)
+        vegetation          vegetation                   vegetation   (SANPO "tree" is ignored, as in the paper)
         terrain             terrain                      terrain
         sky                 sky                          sky
         pedestrian          pedestrian                   person
         rider               rider                        rider
         vehicle             vehicle                      car, truck, bus, train, motorcycle, bicycle
 
-    Pixels of all other SANPO classes (curb, crosswalk, obstacle, stairs, water body, ...) and
+    Pixels of all other SANPO classes (curb, crosswalk, obstacle, stairs, water body, tree, ...) and
     "unlabeled" pixels are ignored: not counted as right or wrong.
 
 How
@@ -64,16 +65,16 @@ import evaluate_shared_code as shared  # noqa: E402
 # =============================================================================
 VOLUME_NAME = "sanpo"
 DATASET = "sanpo_real_chest_5fps"  # folder in the Volume (download_sanpo_modal.py)
-SPLITS = ["val", "test"]  # splits to evaluate
+SPLITS = ["test"]  # SANPO official test split (the paper reports on test)
 
 WEIGHTS = "yolo26n-sem.pt"  # official semantic model trained on Cityscapes (19 classes)
 IMAGE_SIZE = 640  # model input size (long side); override with --image-size, e.g. 1280
 HALF_PRECISION = True  # FP16
-# Frames per GPU call, per image size (big batches, to use the H100's 80 GB).
+# Frames per GPU call, per image size.
 # Measured GPU memory: 640: about 0.015 GB per frame, 1280: about 0.04 GB per frame.
 BATCH_SIZES = {640: 256, 1280: 128}
 DEFAULT_BATCH_SIZE = 64  # for any other image size
-GPU = "H100"
+GPU = "T4"  # 16 GB; the semantic runs peak below 7 GB of GPU memory
 CPU_CORES = 16  # reading + resizing frames, masks and depth is the bottleneck, so give the container many CPUs
 LOADER_THREADS = 32  # frames read and resized in parallel
 DISTANCE_LIMITS_METERS = (5, 10)  # extra scores that count only pixels within N meters
@@ -94,7 +95,7 @@ EVALUATION_CLASSES = {
     "pole": (["pole"], ["pole"]),
     "traffic light": (["traffic light"], ["traffic light"]),
     "traffic sign": (["traffic sign"], ["traffic sign"]),
-    "tree + vegetation": (["tree", "vegetation"], ["vegetation"]),
+    "vegetation": (["vegetation"], ["vegetation"]),  # SANPO "tree" is ignored, as in the paper
     "terrain": (["terrain"], ["terrain"]),
     "sky": (["sky"], ["sky"]),
     "pedestrian": (["pedestrian"], ["person"]),
