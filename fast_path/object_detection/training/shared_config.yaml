@@ -1,0 +1,62 @@
+# shared_config.yaml - settings shared by every training run in runs/.
+# Merge order: shared_training_code.DEFAULTS_YAML < this file < runs/<run>/config.yaml (the run wins).
+# Every key and its meaning is listed in DEFAULTS_YAML at the top of shared_training_code.py;
+# this file only states what this project sets for all runs. Decisions: md_files/decisions_for_training_yolo.md
+
+model:
+  weights: yolo26n-sem-ade20k.pt          # step 1 of the experiment plan starts from the ADE20K model
+  weights_dir: "D:/My Projects/blind-guide/weights"   # local download folder for official weights
+
+data:
+  # Ultralytics dataset YAML of the SANPO semantic view (chest camera, 5 fps, official train split minus
+  # the 12 validation walks; validation = the 12 walks). Made by data_code/sanpo/ (semantic view).
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest_5fps/views/semantic_v1_352/data.yaml"
+
+ultralytics:
+  epochs: 25
+  batch: 32
+  nbs: 32                    # nominal batch size; = batch: no gradient accumulation (Ultralytics' default nbs=64 would accumulate 2 batches)
+  imgsz: 352                 # training sets the SHORT side: frames scaled to 626x352 (multiple of 32; the phone runs 640x352)
+  optimizer: MuSGD
+  lr0: 0.001
+  lrf: 0.01                  # cosine down to 1% of the peak
+  cos_lr: true
+  warmup_epochs: 2
+  mosaic: 0.05
+  close_mosaic: 15           # mosaic only in the first 10 of 25 epochs
+  scale: 0.25
+  degrees: 3.0
+  seed: 42
+  deterministic: false       # true made the GPU about 4x slower (T4 test: 29 vs 109 img/s); the seed is still fixed
+  cache: ram                 # decode + resize every frame once, keep it in RAM (about 12 GB for train + val)
+  workers: 8                 # data loader worker processes (2 per Modal CPU core = 1 per vCPU; frames are pre-resized)
+
+dataloader:                  # built by the trainer subclass, so every setting is ours (ultralytics.workers above
+                             # = training workers; batch and cache are in ultralytics: too)
+  val_workers: null          # validation workers (null = the same as ultralytics.workers)
+  prefetch_factor: 4         # batches each training worker prepares ahead
+  val_prefetch_factor: 2     # the same for validation
+  pin_memory: true           # page-locked memory: faster copies to the GPU
+  drop_last: false           # keep the last, smaller training batch of each epoch
+  cap_workers_at_cpu_count: false   # true = never more workers than os.cpu_count()
+
+logging:
+  unit: img
+  console_log_every: 20
+  diagnostics_every: 200
+
+output:
+  commit_every_steps: 50
+
+modal:
+  gpu: "T4"                  # smoke test: 5.4 GB peak GPU memory (T4 has 16 GB); the run is limited by data loading, not the GPU
+  timeout_hours: 8
+  cpu: 4                     # physical CPU cores reserved on Modal = half of ultralytics.workers (1 core = 2 vCPUs)
+                             # ($0.0473 per core per hour)
+  memory_gb: 32              # RAM reserved on Modal; the RAM cache needs about 11 GB ($0.008 per GB per hour)
+  sync_checkpoints: true     # also download weights/best.pt and last.pt when the results sync home
+  runs_volume: "blind-guide-runs"
+  data_volume: "sanpo"
+  data_mount: "/data"
+  path_remap:
+    data.yaml: "/data/sanpo_real_chest_5fps/views/semantic_v1_352/data.yaml"
