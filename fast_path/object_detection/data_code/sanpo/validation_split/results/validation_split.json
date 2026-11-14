@@ -1,0 +1,51 @@
+{
+  "validation_walks": [
+    "4Py0fr78AEVfKZAVmaspA7pO36WjMLUl",
+    "7X41_wkj6FHIcIpxSuh4tRR6R8P_SAGr",
+    "ChcneDEXiD6dzznmQNtTnlVflFy2nK2s",
+    "SPoj3wSxZDDu1zDcE8RYTRxtxrRP_AMK",
+    "Wa0yBTLPFCLYEmxwzfQ3gC6egLJOBkRf",
+    "aS0hVe_uSBiAMtWO1Dqc6zvMZt32j5JH",
+    "gcyWXbvJVi0vjf4lLgIkR_0txpX8LAx9",
+    "kg00o09y82-Kgy_XKrS-FBySUm3VSGjW",
+    "prtHExKdxrEhGHKs3AaKgMkhCigMWx_u",
+    "wXwTZnJHaWsMeYvf-hR0a3ZHrNXH3I0G",
+    "wweXnLBKNzbCxRHgq6frkOOGKxM4zJ4A",
+    "xnKsFF3HurcEaPZ9og818sQMEzZlQDhV"
+  ],
+  "validation_frames": 1864,
+  "train_frames": 16882,
+  "distances": {
+    "class pixels": 0.08,
+    "class frames": 0.03553,
+    "environments": 0.02003,
+    "weather": 0.0203,
+    "blurry": 0.00386,
+    "human-labeled": 1e-05,
+    "size": 0.00057
+  },
+  "candidates_tried": 2000000,
+  "candidates_kept": 25,
+  "settings": {
+    "VALIDATION_WALKS": 12,
+    "FRAME_SHARE_RANGE": [
+      0.08,
+      0.12
+    ],
+    "REQUIRED_CLASS_MIN_WALKS": 5,
+    "MIN_FRAMES_IN_VALIDATION": 10,
+    "MAX_SHARE_OF_CLASS_WALKS": 0.3333333333333333,
+    "MIN_RELATIVE_FRAME_SHARE": 0.5,
+    "MAX_RELATIVE_FRAME_SHARE": 2.0,
+    "SWAP_STARTS": 20,
+    "NORMALIZATION_CANDIDATES": 80000,
+    "HEAVY_TRAFFIC_WALKS": 2,
+    "IGNORED_CLASSES": [
+      "unlabeled",
+      "bus stop"
+    ],
+    "BLURRY_PERCENTILE": 5,
+    "SEED": 42,
+    "FIXED_VALIDATION_WALKS": null
+  }
+}
