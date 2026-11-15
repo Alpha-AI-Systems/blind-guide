@@ -32,7 +32,7 @@ from tqdm import tqdm  # noqa: E402
 
 from fast_path.depth import sanpo  # noqa: E402
 from fast_path.depth.metrics import align_disparity_ssi, align_median, frame_report  # noqa: E402
-from fast_path.depth.models import DepthEstimator, colorize_depth  # noqa: E402
+from fast_path.depth.models import colorize_depth, load_estimator  # noqa: E402
 
 
 def save_vis(path: Path, rgb: np.ndarray, gt: np.ndarray, pred: np.ndarray, mask: np.ndarray, vmax: float) -> None:
@@ -75,7 +75,7 @@ def main() -> None:
     if not frames:
         sys.exit(f"No frames with {args.gt} under {args.root}/{args.split}. Run fast_path/depth/scripts/download_sanpo.py first.")
 
-    est = DepthEstimator(args.model, args.device, args.input_size, args.fp16)
+    est = load_estimator(args.model, args.device, args.input_size, args.fp16)
     modes = args.align or (["none", "median"] if est.is_metric else ["ssi"])
     if "none" in modes and not est.is_metric:
         sys.exit("--align none needs a metric model (relative output has no unit)")
@@ -112,7 +112,10 @@ def main() -> None:
             else:
                 disp = 1.0 / np.maximum(raw, 1e-3) if est.is_metric else raw
                 pred = align_disparity_ssi(disp, gt, mask, args.min_depth, args.max_depth)
-            rows.append({"key": fr.key, "align": mode} | frame_report(pred, gt, mask, obstacles))
+            row = {"key": fr.key, "align": mode} | frame_report(pred, gt, mask, obstacles)
+            if getattr(est, "last_focal_px", None) is not None:  # Depth Pro's estimated focal length
+                row["focal_px"] = est.last_focal_px
+            rows.append(row)
 
         if i < args.save_vis:
             vis_pred = raw if est.is_metric else pred
@@ -140,6 +143,9 @@ def main() -> None:
         keys = [k for k in fields if k not in ("key", "align", "n_px")
                 and any(np.isfinite(r.get(k, np.nan)) for r in sub)]
         summary["results"][mode] = {k: round(float(np.nanmean([r.get(k, np.nan) for r in sub])), 4) for k in keys}
+        # typical frame: a few failed frames can dominate the mean
+        summary.setdefault("results_median", {})[mode] = {
+            k: round(float(np.nanmedian([r.get(k, np.nan) for r in sub])), 4) for k in keys}
         # how many frames actually had pixels for each metric (bands / obstacles can be sparse)
         summary.setdefault("frames_per_metric", {k: int(np.sum(np.isfinite([r.get(k, np.nan) for r in sub])))
                                                  for k in keys})

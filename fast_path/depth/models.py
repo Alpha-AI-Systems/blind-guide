@@ -99,6 +99,77 @@ class DepthEstimator:
         return pred[0, 0].cpu().numpy()
 
 
+# Short name -> Hugging Face repo id for Depth Pro (Apple, metric, research-only weights).
+DEPTH_PRO_MODELS = {"depth-pro": "apple/DepthPro-hf"}
+
+
+class DepthProEstimator:
+    """Apple Depth Pro via transformers, with the same interface as DepthEstimator.
+
+    Metric depth in meters. It also estimates the camera's field of view, so it needs no
+    intrinsics; the estimated focal length (pixels) of the last frame is in last_focal_px.
+    The network always runs at its fixed 1536x1536 input.
+    """
+
+    def __init__(self, model: str = "depth-pro", device: str | None = None, fp16: bool = False):
+        from transformers import DepthProForDepthEstimation, DepthProImageProcessorFast
+
+        self.repo_id = DEPTH_PRO_MODELS.get(model, model)
+        self.name = model
+        self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.dtype = torch.float16 if (fp16 and self.device.type == "cuda") else torch.float32
+
+        self.processor = DepthProImageProcessorFast.from_pretrained(self.repo_id)
+        self.model = DepthProForDepthEstimation.from_pretrained(self.repo_id)
+        self.model.to(self.device, dtype=self.dtype).eval()
+
+        self.is_metric = True
+        self.max_depth = None
+        self.num_params = sum(p.numel() for p in self.model.parameters())
+        size = self.processor.size
+        self.input_size = int(size["height"]) if isinstance(size, dict) else 1536
+        self.last_latency_ms = 0.0
+        self.last_focal_px: float | None = None
+
+    def input_shape(self, h: int, w: int) -> tuple[int, int]:
+        """Depth Pro resizes every image to a fixed square input."""
+        return self.input_size, self.input_size
+
+    @torch.inference_mode()
+    def predict(self, rgb: np.ndarray, out_size: tuple[int, int] | None = None) -> np.ndarray:
+        """rgb: HxWx3 uint8 (RGB order). Returns float32 depth in meters at out_size (default: input size)."""
+        h, w = rgb.shape[:2]
+        out_size = out_size or (h, w)
+
+        inputs = self.processor(images=rgb, return_tensors="pt").to(self.device)
+        inputs["pixel_values"] = inputs["pixel_values"].to(self.dtype)
+
+        if self.device.type == "cuda":
+            torch.cuda.synchronize()
+        t0 = time.perf_counter()
+        outputs = self.model(**inputs)
+        if self.device.type == "cuda":
+            torch.cuda.synchronize()
+        self.last_latency_ms = (time.perf_counter() - t0) * 1000
+
+        # Converts the network's output to meters using the estimated field of view.
+        post = self.processor.post_process_depth_estimation(outputs, target_sizes=[(h, w)])[0]
+        focal = post.get("focal_length")
+        self.last_focal_px = None if focal is None else float(focal)
+        depth = post["predicted_depth"].float()
+        if tuple(depth.shape[-2:]) != tuple(out_size):
+            depth = F.interpolate(depth.reshape(1, 1, *depth.shape[-2:]), size=out_size,
+                                  mode="bilinear", align_corners=False)
+        return depth.reshape(out_size).cpu().numpy()
+
+
+def load_estimator(model: str, device: str | None = None, input_size: int = 518, fp16: bool = False):
+    """DepthProEstimator for Depth Pro names, DepthEstimator (Depth Anything V2) for everything else."""
+    if model in DEPTH_PRO_MODELS or "depthpro" in model.lower():
+        return DepthProEstimator(model, device, fp16)
+    return DepthEstimator(model, device, input_size, fp16)
+
+
 def box_distance(depth_m: np.ndarray, box_xyxy, percentile: float = 20.0, shrink: float = 0.2) -> float:
     """Distance (m) to an object given a detector box -- the depth<->YOLO hand-off.
 
