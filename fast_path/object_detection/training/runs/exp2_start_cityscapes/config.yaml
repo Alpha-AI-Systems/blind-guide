@@ -1,0 +1,8 @@
+# exp2_start_cityscapes: experiment plan step 2 (starting weights), B = Cityscapes.
+# Same as exp1_baseline_lr002 (the step 1 winner) except the starting weights.
+# Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
+model:
+  weights: yolo26n-sem.pt    # official YOLO26n-sem trained on Cityscapes (19 classes; the head is re-made for our 29)
+
+ultralytics:
+  lr0: 0.002

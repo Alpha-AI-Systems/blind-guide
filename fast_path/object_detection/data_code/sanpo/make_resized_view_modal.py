@@ -6,7 +6,7 @@ INPUT (on the Modal Volume):
     <DATASET>/views/<SOURCE_VIEW>/masks/<folder>/<stem>.png                       one-channel raw SANPO class ids
     <DATASET>/frames/<folder>/<stem>.jpg                                          native-size frames
 
-OUTPUT (default name "<SOURCE_VIEW>_<IMAGE_SIZE>", e.g. semantic_v1_352):
+OUTPUT (default name "<SOURCE_VIEW>_short<IMAGE_SIZE>", e.g. semantic_v1_short352):
     <DATASET>/views/<view>/frames/<folder>/<stem>.png    resized frame (PNG = lossless, no second JPEG loss)
     <DATASET>/views/<view>/masks/<folder>/<stem>.png     resized mask (nearest neighbour, class ids unchanged)
     <DATASET>/views/<view>/<same lists>.txt              paths "./frames/<folder>/<stem>.png"
@@ -17,8 +17,11 @@ OUTPUT (default name "<SOURCE_VIEW>_<IMAGE_SIZE>", e.g. semantic_v1_352):
 
 Each frame is resized EXACTLY as Ultralytics 8.4.208 would resize it at imgsz = IMAGE_SIZE
 (ultralytics/data/base.py load_image, cv2.INTER_LINEAR; masks: dataset.py get_image_and_label, INTER_NEAREST):
-    training lists (train, train_human): SHORT side = IMAGE_SIZE, long side = ceil(long * ratio)  (augment=True)
-    other lists (val, test, test_human): LONG side = IMAGE_SIZE, short side = min(ceil(short * ratio), IMAGE_SIZE)
+    every list (train, val, test): SHORT side = IMAGE_SIZE, long side = ceil(long * ratio)  (Ultralytics' training
+    rule). Ultralytics itself validates at the LONG side (352x198), a smaller scale than training; the training code
+    validates at the training scale instead (data.validate_at_training_scale), so val/test frames are sized like the
+    training frames (626x352). Set a list to "eval" in LISTS for Ultralytics' long-side rule.
+    (The first view, semantic_v1_352, used the long side for val/test; it stays on the volumes but is not used.)
 The training and validation walks are different walks, so no frame needs two sizes. When training runs with the
 same imgsz, Ultralytics finds the size already right and does not resize again: the pixels the model sees are
 identical to training on the native-size frames. With another imgsz, train on another resized view.
@@ -53,7 +56,7 @@ VOLUME_NAME = "sanpo"
 DATASET = "sanpo_real_chest_5fps"
 SOURCE_VIEW = "semantic_v1"        # override with --source-view
 IMAGE_SIZE = 352                   # = ultralytics.imgsz used in training; override with --image-size
-LISTS = {"train": "train", "train_human": "train", "val": "eval", "test": "eval", "test_human": "eval"}
+LISTS = {"train": "train", "train_human": "train", "val": "train", "test": "train", "test_human": "train"}
 MAX_CONTAINERS = 20                # walks processed in parallel
 PRINT_EVERY = 50                   # progress line every N frames inside a walk
 PACK_THREADS = 32                  # parallel file reads when packing a walk's archive
@@ -189,13 +192,14 @@ def write_lists_and_yaml(source_view: str, target_view: str, image_size: int, si
     data["image_size"] = image_size                 # read by the training code: warns if imgsz differs
     header = (f"# Resized copy of the semantic view '{source_view}' at imgsz {image_size} "
               f"(made by make_resized_view_modal.py)\n"
-              f"# training lists: short side {image_size}; val/test lists: long side {image_size}\n")
+              f"# every list: short side {image_size} (val/test at the training scale)\n")
     (target_root / "data.yaml").write_text(header + yaml.safe_dump(data, sort_keys=False, allow_unicode=True),
                                            encoding="utf-8")
     view_info = {"made": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"), "dataset": DATASET,
                  "source_view": source_view, "image_size": image_size,
-                 "resize": {"train lists": "short side = image_size, cv2.INTER_LINEAR",
-                            "val and test lists": "long side = image_size, cv2.INTER_LINEAR",
+                 "resize": {"lists": {name: ("short side" if mode == "train" else "long side") + " = image_size"
+                                      for name, mode in LISTS.items()},
+                            "interpolation": "frames cv2.INTER_LINEAR",
                             "masks": "same size as their frame, cv2.INTER_NEAREST",
                             "formulas": "ultralytics 8.4.208 data/base.py load_image"},
                  "frame_sizes_written": size_counts, "frames_per_list": counts,
@@ -210,7 +214,7 @@ def write_lists_and_yaml(source_view: str, target_view: str, image_size: int, si
 
 @app.local_entrypoint()
 def main(source_view: str = SOURCE_VIEW, image_size: int = IMAGE_SIZE, view_name: str = ""):
-    target_view = view_name or f"{source_view}_{image_size}"
+    target_view = view_name or f"{source_view}_short{image_size}"
     print(f"Resizing view '{source_view}' -> '{target_view}' at imgsz {image_size} on Volume '{VOLUME_NAME}'")
     walks: dict[str, dict[str, str]] = {}           # walk -> {frame path: mode}
     for name, mode in LISTS.items():

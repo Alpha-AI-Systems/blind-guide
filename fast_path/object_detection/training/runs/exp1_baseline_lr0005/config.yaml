@@ -2,3 +2,7 @@
 # Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
 ultralytics:
   lr0: 0.0005
+
+test:
+  in_leaderboard: false
+  leaderboard_note: "learning-rate sweep, not chosen on val (exp1_baseline_lr002 was)"
