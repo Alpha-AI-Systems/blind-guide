@@ -1,0 +1,20 @@
+# exp3_imgsz544: experiment plan step 3 (image size), 960x544 (frames 968x544, full-frame batches 992x544).
+# Full frames (ultralytics.rect, the default since these runs), lr 0.002 (step 1 winner), 18 epochs, batch 32.
+# Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
+model:
+  weights: yolo26n-sem-ade20k.pt
+
+data:
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest_5fps/views/semantic_v1_short544/data.yaml"
+
+ultralytics:
+  imgsz: 544
+  lr0: 0.002
+  workers: 12
+
+modal:
+  gpu: "A10G"            # full frames at 544 need about 16 GB at batch 32: too much for a T4 (16 GB)
+  cpu: 6                     # = workers / 2
+  memory_gb: 48
+  path_remap:
+    data.yaml: "/data/sanpo_real_chest_5fps/views/semantic_v1_short544/data.yaml"

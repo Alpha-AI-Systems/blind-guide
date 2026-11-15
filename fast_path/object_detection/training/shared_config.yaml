@@ -12,9 +12,12 @@ data:
   # the 12 validation walks; validation = the 12 walks). Made by data_code/sanpo/ (semantic view).
   yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest_5fps/views/semantic_v1_short352/data.yaml"
   validate_at_training_scale: true   # validate at the training scale (626x352), not Ultralytics' 352x198
+  human_lists: {val_human.txt: val.txt}   # made after the data copy: the human-labeled frames of val.txt only
+  annotation_types_dir: ../../sanpo_meta/annotation_types   # SANPO's label-source files (relative to the view)
+  extra_validation: {val_human: val_human.txt}   # also validated every epoch (val_human_*); best.pt still uses val
 
 ultralytics:
-  epochs: 25
+  epochs: 18                 # from step 2 on (all lr 0.002 runs peaked at epoch 8-19); the lr sweep used 25
   batch: 32
   nbs: 32                    # nominal batch size; = batch: no gradient accumulation (Ultralytics' default nbs=64 would accumulate 2 batches)
   imgsz: 352                 # training sets the SHORT side: frames scaled to 626x352 (multiple of 32; the phone runs 640x352)
@@ -29,12 +32,17 @@ ultralytics:
   degrees: 3.0
   seed: 42
   deterministic: false       # true made the GPU about 4x slower (T4 test: 29 vs 109 img/s); the seed is still fixed
+  rect: true                 # true = train on the WHOLE frame (640x352 at imgsz 352, 14 ignored columns) through
+                             # Ultralytics' rect mode (mosaic/mixup/cutmix then off, shuffling stays on);
+                             # false = Ultralytics' default: a CENTERED imgsz x imgsz square of each frame
   cache: ram                 # decode + resize every frame once, keep it in RAM (about 12 GB for train + val)
   workers: 8                 # data loader worker processes (2 per Modal CPU core = 1 per vCPU; frames are pre-resized)
 
 dataloader:                  # built by the trainer subclass, so every setting is ours (ultralytics.workers above
                              # = training workers; batch and cache are in ultralytics: too)
   val_workers: null          # validation workers (null = the same as ultralytics.workers)
+  val_batch_size: 32         # validation batch (Ultralytics: 2x the training batch = 64, which ran out of
+                             # GPU memory at imgsz 544 on a T4); only speed and memory change, not the scores
   prefetch_factor: 4         # batches each training worker prepares ahead
   val_prefetch_factor: 2     # the same for validation
   pin_memory: true           # page-locked memory: faster copies to the GPU
@@ -55,13 +63,14 @@ logging:
                  tree, vegetation]
   unit: img
   console_log_every: 20
+  ultralytics_progress_bars: false   # Ultralytics' own per-batch progress bars off (our lines show progress)
   diagnostics_every: 200
 
 output:
   commit_every_steps: 50
 
 test:                        # runs/<run>/test.py: scores the run's checkpoints (same code as the training validation)
-  splits: {val: val.txt, test_human: test_human.txt, test_all: test.txt}   # split name -> image list in the view
+  splits: {val: val.txt, val_human: val_human.txt, test_human: test_human.txt, test_all: test.txt}   # split -> list
   leaderboard_split: test_human   # runs/leaderboard.md is sorted by this split's mIoU (the SANPO paper's protocol)
   checkpoints: [best]        # only best.pt (chosen on val): never choose a checkpoint on the test set
   leaderboard_checkpoint: best   # only this checkpoint of each run appears in runs/leaderboard.md
