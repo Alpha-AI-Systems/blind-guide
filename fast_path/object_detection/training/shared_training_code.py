@@ -312,6 +312,12 @@ data:
   masks_dir: masks           # ... with this (a path segment), e.g. frames/train/x.jpg -> <masks_dir>/train/x.png
   validate_at_training_scale: true   # validation frames sized by the SHORT side like training (626x352 at
                              # imgsz 352); false = Ultralytics' long side (352x198, objects 1.8x smaller)
+  human_lists: {val_human.txt: val.txt}   # image lists made after the data copy: only the HUMAN-labeled frames
+                             # of the source list (target list: source list), from SANPO's annotation-type files
+  annotation_types_dir: ../../sanpo_meta/annotation_types   # SANPO's per-walk label-source files, relative to
+                             # the view folder on the volume (<walk>.json: frame number -> HUMAN_ANNOTATED / ...)
+  extra_validation: {val_human: val_human.txt}   # also validated after every epoch (logged as val_human_mIoU,
+                             # val_human_pixel_acc, val_human_group_...); best.pt is still chosen on data.yaml's val
 
 ultralytics:                 # passed as-is to Ultralytics model.train(...); see docs.ultralytics.com/modes/train
   epochs: 25
@@ -346,6 +352,8 @@ ultralytics:                 # passed as-is to Ultralytics model.train(...); see
   deterministic: true
   amp: true
   workers: 8                 # training data loader worker processes (see dataloader: below for the rest)
+  rect: false                # true = train on WHOLE frames (e.g. 640x352) instead of Ultralytics' centered imgsz x imgsz
+                             # square; mosaic, mixup and cutmix are then off (Ultralytics' rule), shuffling stays on
   cache: false               # false | ram | disk: keep decoded images in RAM (fastest) or as .npy files on disk
   save_period: -1            # also keep a checkpoint every N epochs (-1 = only last.pt and best.pt)
   val: true
@@ -355,6 +363,8 @@ ultralytics:                 # passed as-is to Ultralytics model.train(...); see
 dataloader:                  # the data loaders are built here (trainer subclass), not by Ultralytics, so all of this
                              # is configurable; workers / batch / cache come from the ultralytics section
   val_workers: null          # validation workers (null = the same as ultralytics.workers; Ultralytics itself uses 2x)
+  val_batch_size: null       # validation batch (null = Ultralytics' 2x the training batch); no training
+                             # there, so it changes only speed and GPU memory, not the scores
   prefetch_factor: 4         # batches each training worker prepares ahead (Ultralytics' fixed value: 4)
   val_prefetch_factor: 2     # the same for validation (Ultralytics: 2)
   pin_memory: true           # page-locked host memory: faster copies to the GPU
@@ -369,6 +379,8 @@ logging:
   disable_integrations: [mlflow, comet, clearml, dvc, neptune, raytune, wandb, tensorboard, hub]
   unit: img                  # what ONE training item is called in throughput lines
   console_log_every: 20      # optimizer steps between console lines
+  ultralytics_progress_bars: false   # Ultralytics' own per-batch progress bars (training and validation); off:
+                             # the console lines above already show progress, ETA, speed and loss
   diagnostics_every: 200     # steps between update-to-weight ratio / scale probe readings (0 = off)
   debug_images_every: 500    # steps between debug images of the EXACT model input + mask (step 1 too; 0 = off)
   debug_images_per_save: 4   # images of the batch per debug PNG (one row each)
@@ -420,12 +432,12 @@ modal:
   secrets: []
   sync_checkpoints: false    # also bring checkpoints home when syncing results
   prices_per_hour:           # US$, for the cost line of summary.md (modal.com/pricing)
-    gpu: {B200: 6.25, H200: 4.54, H100: 3.95, A100-80GB: 2.50, A100: 2.10, L40S: 1.95, A10: 1.10, L4: 0.80, T4: 0.59}
+    gpu: {B200: 6.25, H200: 4.54, H100: 3.95, A100-80GB: 2.50, A100: 2.10, L40S: 1.95, A10: 1.10, A10G: 1.10, L4: 0.80, T4: 0.59}
     cpu_core: 0.0473
     memory_gb: 0.008
 
 test:                        # runs/<run>/test.py: scores the run's checkpoints on these splits (same code as validation)
-  splits: {val: val.txt, test_human: test_human.txt, test_all: test.txt}   # split name -> image list in the view
+  splits: {val: val.txt, val_human: val_human.txt, test_human: test_human.txt, test_all: test.txt}   # split -> image list
   leaderboard_split: test_human   # runs/leaderboard.md is sorted by this split's mIoU (the SANPO paper's protocol)
   checkpoints: [best]        # only best.pt (chosen on val): never choose a checkpoint on the test set
   leaderboard_checkpoint: best   # only this checkpoint of each run appears in runs/leaderboard.md
@@ -1289,6 +1301,57 @@ class CheckpointUploader:
 # =============================================================================
 # Ultralytics: dataset with a configurable mask path, trainer subclass
 # =============================================================================
+def describe_transforms(transforms, depth: int = 0) -> list:
+    """One line per transform of an Ultralytics pipeline (Compose), with its settings, nested pipelines indented.
+
+    Settings shown: the simple attributes of each transform (probability p, degrees, translate, scale, gains,
+    output size ...), so the log records exactly which augmentations ran and how strong they were.
+    """
+    if transforms is None:
+        return ["(no transforms)"]
+    items = getattr(transforms, "transforms", None)
+    if items is None:
+        items = [transforms]
+    lines = []
+    for transform in items:
+        settings = {}
+        for key, value in vars(transform).items():
+            if key.startswith("_") or key in ("dataset", "buffer"):
+                continue
+            if isinstance(value, (bool, int, float, str)) or (isinstance(value, tuple) and len(value) <= 4):
+                settings[key] = round(value, 4) if isinstance(value, float) else value
+        lines.append("  " * depth + f"{type(transform).__name__}"
+                     + (f"  {settings}" if settings else ""))
+        nested = getattr(transform, "pre_transform", None)
+        if nested is not None and depth < 2:
+            lines += describe_transforms(nested, depth + 1)
+    return lines
+
+
+def switch_off_progress_bars() -> None:
+    """Silence Ultralytics' per-batch progress bars in training and validation (logging.ultralytics_progress_bars).
+
+    Ultralytics' trainer and validator create their bars with ultralytics.utils.tqdm.TQDM; the name each module
+    imported is replaced by a subclass that is always disabled. Everything else Ultralytics prints stays.
+    """
+    import ultralytics.engine.trainer as trainer_module
+    import ultralytics.engine.validator as validator_module
+
+    for module in (trainer_module, validator_module):
+        original = module.TQDM
+        if getattr(original, "_blind_guide_silent", False):
+            continue
+
+        class SilentTQDM(original):
+            _blind_guide_silent = True
+
+            def __init__(self, *arguments, **keyword_arguments):
+                keyword_arguments["disable"] = True
+                super().__init__(*arguments, **keyword_arguments)
+
+        module.TQDM = SilentTQDM
+
+
 def make_dataset_class(config: dict):
     """The semantic dataset class used for training, validation and the test evaluation.
 
@@ -1328,11 +1391,14 @@ def make_dataset_class(config: dict):
             return super().load_image(i, rect_mode=rect_mode)
 
         def set_rectangle(self):
-            # validation batches: Ultralytics sets each batch shape from the LONG side (352 x 224 for 16:9);
-            # with validation at the training scale the SHORT side is imgsz and the long side is rounded up to
-            # the stride (626x352 frames -> 640x352 batches; the 14 padding columns are labeled 255 = ignored)
+            # Rectangular batches (validation always; training when ultralytics.rect is true). Ultralytics sets each
+            # batch shape from the LONG side (352 x 224 for 16:9 at imgsz 352). Our frames are sized by the SHORT
+            # side (training always; validation with data.validate_at_training_scale), so a long-side shape would
+            # cut them. Here the SHORT side is imgsz and the long side is rounded up to the stride: 626x352 frames
+            # -> 640x352 batches. The extra columns are padding, labeled 255 (ignored) by Ultralytics' augmentation
+            # (RandomPerspective, borderValue=255) in training and its LetterBox in validation.
             super().set_rectangle()
-            if not self._validation_at_training_scale():
+            if not (self.augment or self._validation_at_training_scale()):
                 return
             shapes = []
             for batch_number in range(int(self.batch[-1]) + 1):
@@ -1385,6 +1451,7 @@ def make_trainer_class(monitor):
     class BlindGuideSemanticTrainer(SemanticSegmentationTrainer):
         def __init__(self, *arguments, **keyword_arguments):
             super().__init__(*arguments, **keyword_arguments)
+            self.monitor_settings_printed = False      # the augmentation pipeline is printed once
             # remove the outside tracking integrations listed in logging.disable_integrations; their setup
             # runs at on_pretrain_routine_end, which comes after this, so nothing of theirs has run yet
             disabled = [name.lower() for name in (monitor.config["logging"].get("disable_integrations") or [])]
@@ -1419,11 +1486,17 @@ def make_trainer_class(monitor):
             from ultralytics.data.build import InfiniteDataLoader, seed_worker
 
             settings = monitor.config.get("dataloader") or {}
+            if mode != "train" and settings.get("val_batch_size"):
+                batch_size = int(settings["val_batch_size"])   # Ultralytics passes 2x the training batch
             dataset = self.build_dataset(dataset_path, mode, batch_size)
             training = mode == "train"
             shuffle = training
-            if getattr(dataset, "rect", False) and shuffle:
-                shuffle = False                       # rectangular batches cannot be shuffled
+            if getattr(dataset, "rect", False) and shuffle and not np.all(dataset.batch_shapes == dataset.batch_shapes[0]):
+                # Ultralytics' own rule (8.4.208, models/yolo/detect/train.py): rectangular batches of DIFFERENT
+                # shapes must keep their sorted order; when every batch has the same shape (all our frames are
+                # 16:9), shuffling stays on
+                print("  ⚠️  rect: batches have different shapes, so shuffling is off (Ultralytics' rule)")
+                shuffle = False
             batch = min(batch_size, len(dataset))
             batches = math.ceil(len(dataset) / batch) if batch else 0
             workers = int(self.args.workers if training else (settings.get("val_workers") or self.args.workers))
@@ -1439,10 +1512,17 @@ def make_trainer_class(monitor):
             print(f"[data] {mode} loader: {len(dataset):,} images, batch {batch}, {batches} batches, workers {workers}, "
                   f"prefetch {prefetch if workers else '-'}, pin_memory {pin_memory}, drop_last {drop_last}, "
                   f"shuffle {shuffle}, cache {self.args.cache}")
-            if not training and getattr(dataset, "batch_shapes", None) is not None:
+            if training and self.monitor_settings_printed is False:
+                self.monitor_settings_printed = True
+                # describe_transforms takes: Ultralytics' transform pipeline; returns: one line per transform
+                print("[data] training augmentation pipeline (Ultralytics' transforms, in order, as built):")
+                for line in describe_transforms(getattr(dataset, "transforms", None)):
+                    print(f"         {line}")
+            if getattr(dataset, "rect", False) and getattr(dataset, "batch_shapes", None) is not None:
                 shapes = sorted({f"{int(width)}x{int(height)}" for height, width in dataset.batch_shapes})
                 print(f"[data] {mode} batch sizes (width x height): {', '.join(shapes)}"
-                      f"{' (training scale)' if config_get(monitor.config, 'data.validate_at_training_scale', True) else ''}")
+                      f"{' (full frames, training scale)' if training else ''}"
+                      f"{' (training scale)' if not training and config_get(monitor.config, 'data.validate_at_training_scale', True) else ''}")
             view_size = (self.data or {}).get("image_size")   # set by make_resized_view_modal.py
             if view_size and int(view_size) != int(self.args.imgsz):
                 print(f"  ⚠️  the dataset view was resized for imgsz {view_size} but training uses imgsz "
@@ -1571,6 +1651,7 @@ class TrainingMonitor:
         self.total_steps = None
         self.pending_step = None             # set by after_optimizer_step, consumed by on_train_batch_end
         self.debug_saved_step = None         # last step whose batch was saved as a debug image
+        self.extra_loaders = {}              # data loaders of data.extra_validation, built once
 
     # ---- registration --------------------------------------------------------------------------------
     def register(self, model):
@@ -1769,10 +1850,18 @@ class TrainingMonitor:
         # by the batch size, which is what is back-propagated; logged as loss_batch_scaled.)
         total_loss = sum(losses.values()) if losses else None
         scaled_loss = float(trainer.loss.detach()) if torch.is_tensor(trainer.loss) else None
-        # learning rate per optimizer parameter group, by Ultralytics' group name (weight, bn, bias, muon)
-        group_rates = {}
+        # learning rate per optimizer parameter group, by Ultralytics' group name (weight, bn, bias, muon).
+        # With MuSGD, Ultralytics splits every group in two: the segmentation head's parameters get 3x the learning
+        # rate ("higher lr ... when finetuning"), the rest get lr0. The group with the higher starting rate is
+        # logged as "<name>_head"; "<name>" is the rest of the network.
+        group_rates, by_name = {}, {}
         for group in trainer.optimizer.param_groups:
-            group_rates.setdefault(str(group.get("param_group", f"group{len(group_rates)}")), float(group["lr"]))
+            by_name.setdefault(str(group.get("param_group", f"group{len(by_name)}")), []).append(group)
+        for name, groups in by_name.items():
+            ordered = sorted(groups, key=lambda group: float(group.get("initial_lr", group["lr"])))
+            group_rates[name] = float(ordered[0]["lr"])
+            if len(ordered) > 1:
+                group_rates[f"{name}_head"] = float(ordered[-1]["lr"])
         learning_rates = list(group_rates.values())
         main_rate = group_rates.get("weight", max(learning_rates))
         memory = torch.cuda.max_memory_allocated() / 1024**3 if torch.cuda.is_available() else 0.0
@@ -1904,6 +1993,11 @@ class TrainingMonitor:
                                     self.config["logging"].get("class_groups") or {}))
         except Exception as error:
             print(f"  ⚠️  group scores failed: {type(error).__name__}: {error}")
+        try:
+            # extra_validation takes: the trainer; returns: {"<name>_mIoU": ..., "<name>_pixel_acc": ..., ...}
+            row.update(self.extra_validation(trainer))
+        except Exception as error:
+            print(f"  ⚠️  extra validation failed: {type(error).__name__}: {error}")
         fitness = row.get("val_mIoU") if final else (float(trainer.fitness) if trainer.fitness is not None else None)
         row["fitness"] = fitness
         row["epoch_time_s"] = round(float(getattr(trainer, "epoch_time", 0.0) or 0.0), 1)
@@ -1955,6 +2049,44 @@ class TrainingMonitor:
 
     def on_train_end(self, trainer):
         self.write_summary(trainer, status="finished")
+
+    def extra_validation(self, trainer) -> dict:
+        """Validate the current model on the lists of data.extra_validation too (e.g. val_human).
+
+        Same validator class, model (EMA) and dataset class as Ultralytics' own validation; its own data loader,
+        built once. best.pt is NOT chosen on these. Returns {"<name>_mIoU", "<name>_pixel_acc",
+        "<name>_<loss part>", "<name>_group_<set>_<group>", ...}.
+        """
+        lists = config_get(self.config, "data.extra_validation") or {}
+        scores = {}
+        for name, list_name in lists.items():
+            path = Path(str(trainer.data["val"])).parent / list_name
+            if not path.exists() or not path.read_text(encoding="utf-8").strip():
+                if name not in self.extra_loaders:
+                    print(f"  ⚠️  extra validation {name}: {path} missing or empty, skipped")
+                    self.extra_loaders[name] = None
+                continue
+            if self.extra_loaders.get(name) is None:
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()           # release what the main validation left cached
+                self.extra_loaders[name] = trainer.get_dataloader(str(path), batch_size=trainer.batch_size * 2,
+                                                                  rank=-1, mode="val")
+            arguments = copy.copy(trainer.args)
+            arguments.plots = False
+            validator = type(trainer.validator)(dataloader=self.extra_loaders[name],
+                                                save_dir=Path(trainer.save_dir) / f"{name}_validation", args=arguments)
+            results = validator(trainer=trainer)
+            for key, value in (results or {}).items():
+                if key.split("/")[-1] == "fitness":            # the same number as mIoU
+                    continue
+                try:
+                    scores[f"{name}_{key.split('/')[-1]}"] = round(float(value), 6)
+                except (TypeError, ValueError):
+                    pass
+            groups = group_scores(validator.metrics.matrix, validator.metrics.names,
+                                  self.config["logging"].get("class_groups") or {})
+            scores.update({key.replace("val_group_", f"{name}_group_"): value for key, value in groups.items()})
+        return scores
 
     def model_cost(self, trainer) -> dict:
         """Parameters, forward GFLOPs per image, peak GPU memory and best.pt size, for the paper's cost table."""
@@ -2135,6 +2267,9 @@ def _run_training(config: dict, run_dir: Path, results_dir: Path, extra_callback
     status = "crashed"
     start = time.time()
     try:
+        if not config["logging"].get("ultralytics_progress_bars", True):
+            # switch_off_progress_bars takes: nothing; returns: nothing (Ultralytics' bars stay silent)
+            switch_off_progress_bars()
         model.train(trainer=make_trainer_class(monitor), **arguments)
         status = "finished"
     except KeyboardInterrupt:
@@ -2324,6 +2459,39 @@ def copy_view_to_local_disk(data_yaml, local_root, quiet: bool = False) -> str:
     return str(target / Path(data_yaml).name)
 
 
+def make_human_lists(config: dict, local_yaml, volume_yaml) -> list:
+    """Write the image lists of data.human_lists next to the local data.yaml: the HUMAN-labeled frames only.
+
+    Each frame path ends in <walk>_<frame number>.<ext>; SANPO's annotation-type file of the walk
+    (data.annotation_types_dir, on the volume, next to the dataset) says per frame number whether its labels were
+    made by people ("HUMAN_ANNOTATED") or propagated by a model. Returns the lists written.
+    """
+    lists = config_get(config, "data.human_lists") or {}
+    folder = Path(local_yaml).parent
+    annotation_dir = (Path(volume_yaml).parent / str(config_get(config, "data.annotation_types_dir"))).resolve()
+    human_cache, written = {}, []
+    for target, source in lists.items():
+        source_path = folder / source
+        if not source_path.exists():
+            print(f"  ⚠️  human list {target}: {source} not found, skipped")
+            continue
+        kept, lines = [], source_path.read_text(encoding="utf-8").split()
+        for line in lines:
+            walk, frame_number = Path(line).stem.rsplit("_", 1)
+            if walk not in human_cache:
+                file = annotation_dir / f"{walk}.json"
+                human_cache[walk] = ({int(number) for number, source_type in json.loads(file.read_text()).items()
+                                      if source_type == "HUMAN_ANNOTATED"} if file.exists() else None)
+                if human_cache[walk] is None:
+                    print(f"  ⚠️  no annotation-type file for walk {walk}: its frames are left out of {target}")
+            if human_cache[walk] and int(frame_number) in human_cache[walk]:
+                kept.append(line)
+        (folder / target).write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
+        written.append(target)
+        print(f"  🧑 {target}: {len(kept):,} of {len(lines):,} frames of {source} are human-labeled")
+    return written
+
+
 def modal_train(config: dict, run_dir, run_id: str = "", volumes: dict | None = None,
                 extra_callbacks: dict | None = None):
     """The body of a run's Modal GPU function: remap paths, train, always commit the runs volume."""
@@ -2339,8 +2507,11 @@ def modal_train(config: dict, run_dir, run_id: str = "", volumes: dict | None = 
     if remote["modal"].get("local_data_copy", True):
         # copy_view_to_local_disk takes: the data.yaml path on the volume, the local folder;
         # returns: the local data.yaml path (or the same path when the view has no tars/ folder)
-        config_set(remote, "data.yaml", copy_view_to_local_disk(remote["data"]["yaml"],
+        volume_yaml = remote["data"]["yaml"]
+        config_set(remote, "data.yaml", copy_view_to_local_disk(volume_yaml,
                                                                 remote["modal"].get("local_data_dir", "/tmp/local_data")))
+        # make_human_lists takes: config, local data.yaml, data.yaml on the volume; returns: the lists written
+        make_human_lists(remote, remote["data"]["yaml"], volume_yaml)
     try:
         return run_training(remote, remote_run_dir, extra_callbacks,
                             persist_function=(runs_volume.commit if runs_volume is not None else None))
@@ -2414,6 +2585,7 @@ def write_run_report(config: dict, results_dir) -> Path | None:
                       + float(memory_gb or 0) * prices.get("memory_gb", 0))
         group_columns = [column for column in epochs.columns if column.startswith("val_group_")]
         group_means = [column for column in group_columns if column.endswith("_mIoU")]
+        human_columns = ["val_human_mIoU"] if "val_human_mIoU" in epochs.columns else []
         status = summary.get("status", "unknown")
         done = int(epochs["epoch"].max())
 
@@ -2425,6 +2597,8 @@ def write_run_report(config: dict, results_dir) -> Path | None:
         if not final.empty:
             lines.append(f"| best.pt re-validated | {number(final.iloc[-1]['val_mIoU'])} |")
         lines.append(f"| Pixel accuracy (best epoch) | {number(best_row.get('val_pixel_acc'))} |")
+        if "val_human_mIoU" in epochs.columns:
+            lines.append(f"| val_human mIoU (best epoch, human-labeled frames) | {number(best_row.get('val_human_mIoU'))} |")
         for column in group_means:
             lines.append(f"| {column[len('val_group_'):-len('_mIoU')]} mIoU (best epoch) | {number(best_row[column])} |")
         lines.append(f"| Last epoch mIoU | {number(epochs.iloc[-1]['val_mIoU'])} (epoch {done}) |")
@@ -2461,8 +2635,8 @@ def write_run_report(config: dict, results_dir) -> Path | None:
                          f"{number(training['data_wait_pct'].median(), 0)}% |")
         lines.append("")
 
-        table_columns = ["epoch", "val_mIoU", "val_pixel_acc", "val_ce_loss", "val_dice_loss"] + group_means
-        headers = ["Epoch", "mIoU", "Pixel acc", "CE loss", "Dice loss"] + [
+        table_columns = ["epoch", "val_mIoU", "val_pixel_acc", "val_ce_loss", "val_dice_loss"] + human_columns + group_means
+        headers = ["Epoch", "mIoU", "Pixel acc", "CE loss", "Dice loss"] + ["val_human mIoU"] * len(human_columns) + [
             column[len("val_group_"):-len("_mIoU")] + " mIoU" for column in group_means]
         if not training.empty and "loss" in training:
             train_loss = training.groupby("epoch")["loss"].mean()
@@ -2659,6 +2833,7 @@ MERGE_CSVS = {"train_log.csv": ("run_id", "global_step"),
               "ud_ratio.csv": ("run_id", "step", "param")}
 # per-side "latest" files: the remote copy wins when the two differ
 LATEST_ONLY = {"training_summary.json", "results.csv", "args.yaml"}
+UNIQUE_NAME_FOLDERS = {"debug", "train_config"}   # file names never repeat: fetched only when missing
 
 
 def _volume(name: str):
@@ -2851,8 +3026,12 @@ def sync_results(config: dict, run_dir, direction: str = "down", dry: bool = Fal
         if relative in MERGE_CSVS:
             continue
         in_local, in_remote = relative in local, relative in remote
-        latest = relative.split("/")[-1] in LATEST_ONLY
-        if in_remote and (not in_local or (latest and local[relative] != remote[relative])):
+        # files rewritten in place under the same name (checkpoints, plots, summaries, Ultralytics' files) can keep
+        # the same size after changing, so the remote copy always wins on a download; files in folders whose
+        # names never repeat (debug images, console captures) are only fetched when missing
+        unique_names = relative.split("/")[0] in UNIQUE_NAME_FOLDERS
+        latest = relative.split("/")[-1] in LATEST_ONLY or not unique_names
+        if in_remote and (not in_local or (latest and (direction == "down" or local[relative] != remote[relative]))):
             if direction in ("down", "both"):
                 rows.append([relative, "⬇ download", f"{remote[relative]:,} B"])
                 gets.append(relative)
@@ -3264,6 +3443,8 @@ def evaluate_checkpoint(config: dict, checkpoint: str, weights: bytes) -> dict:
                                               remote["modal"].get("local_data_dir", "/tmp/local_data"), quiet=True))
     say(f"data        {Path(remote['data']['yaml']).parent.name} copied to local disk in "
         f"{format_duration(time.time() - start)}")
+    # make_human_lists takes: config, local data.yaml, data.yaml on the volume; returns: the lists written
+    make_human_lists(remote, local_yaml, remote["data"]["yaml"])
     weights_path = Path("/tmp") / f"{config['experiment']['name']}_{checkpoint}.pt"
     weights_path.write_bytes(weights)
     model = YOLO(str(weights_path), task="semantic")
@@ -3347,7 +3528,7 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
     runs_dir = Path(runs_dir)
     rows, untested, excluded, main_split = [], [], [], "test_human"
     for run_dir in sorted(path for path in runs_dir.iterdir() if path.is_dir() and (path / "config.yaml").exists()):
-        if run_dir.name == "smoke_test_local":
+        if run_dir.name.startswith("smoke"):              # smoke tests never appear on the leaderboard
             continue
         config = load_config(run_dir)
         if not config["test"].get("in_leaderboard", True):
@@ -3367,21 +3548,27 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
             group = next((value for key, value in ((splits.get(main_split) or {}).get("groups") or {}).items()
                           if key.endswith("_mIoU")), None)
             rows.append({"run": run_dir.name, "checkpoint": result["checkpoint"], "group": group,
-                         **{split: (splits.get(split) or {}).get("mIoU") for split in ("test_human", "test_all", "val")},
+                         **{split: (splits.get(split) or {}).get("mIoU") for split in ("test_human", "test_all", "val", "val_human")},
                          "main": (splits.get(main_split) or {}).get("mIoU"), "imgsz": result["settings"]["image_size"],
                          "lr0": result["settings"]["lr0"], "start": Path(str(result["settings"]["weights_start"])).stem,
-                         "parameters": cost.get("parameters") or result["settings"].get("parameters")})
+                         "parameters": cost.get("parameters") or result["settings"].get("parameters"),
+                         # what the model saw in training: the whole frame (ultralytics.rect) or Ultralytics' centered square
+                         "train_input": "full frame" if config_get(config, "ultralytics.rect", False) else "center square"})
     rows.sort(key=lambda row: -(row["main"] if row["main"] is not None else -1))
     show = lambda value: "" if value is None else f"{value:.4f}"
     lines = ["# Leaderboard", "",
              f"Sorted by test mIoU on the human-labeled test frames (SANPO paper's protocol). Written by runs/<run>/test.py, "
              f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.", "",
-             "| # | Run | Ckpt | **Test mIoU** (human) | Test mIoU (all) | Test 3-class | Val mIoU | imgsz | lr0 | Start | Params |",
-             "|---|---|---|---|---|---|---|---|---|---|---|"]
+             "| # | Run | Ckpt | **Test mIoU** (human) | Test mIoU (all) | Test 3-class | Val mIoU | Val mIoU (human) | imgsz | "
+             "Train input | lr0 | Start | Params |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for rank, row in enumerate(rows, 1):
         parameters = f"{row['parameters'] / 1e6:.2f} M" if row["parameters"] else ""
         lines.append(f"| {rank} | {row['run']} | {row['checkpoint']} | **{show(row['test_human'])}** | {show(row['test_all'])} | "
-                     f"{show(row['group'])} | {show(row['val'])} | {row['imgsz']} | {row['lr0']} | {row['start']} | {parameters} |")
+                     f"{show(row['group'])} | {show(row['val'])} | {show(row['val_human'])} | {row['imgsz']} | "
+                     f"{row['train_input']} | {row['lr0']} | {row['start']} | {parameters} |")
+    lines += ["", "Train input: **center square** = Ultralytics' default, training saw a centered imgsz x imgsz square of "
+                  "each frame; **full frame** = the whole 16:9 frame (ultralytics.rect)."]
     if untested:
         lines += ["", "Not tested yet: " + ", ".join(untested)]
     if excluded:

@@ -1,0 +1,12 @@
+# exp2_start_ade20k: experiment plan step 2 (starting weights), A = ADE20K.
+# Full frames (ultralytics.rect, the default since these runs), lr 0.002 (step 1 winner), 18 epochs, batch 32.
+# Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
+model:
+  weights: yolo26n-sem-ade20k.pt
+
+ultralytics:
+  imgsz: 352
+  lr0: 0.002
+
+modal:
+  gpu: "T4"            # 6.7 GB of GPU memory measured at batch 32 (full frames 640x352)

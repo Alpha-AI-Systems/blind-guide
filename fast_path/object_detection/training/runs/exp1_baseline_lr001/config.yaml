@@ -2,6 +2,8 @@
 # Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
 ultralytics:
   lr0: 0.001
+  rect: false                # this run trained on Ultralytics' centered square (before full frames)
+  epochs: 25                 # this run trained for 25 epochs (before the 18-epoch default)
 
 test:
   in_leaderboard: false

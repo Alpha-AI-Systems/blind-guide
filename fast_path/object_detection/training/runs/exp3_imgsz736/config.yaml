@@ -1,0 +1,24 @@
+# exp3_imgsz736: experiment plan step 3 (image size), 1280x736 (frames 1309x736, full-frame batches 1312x736).
+# Full frames (ultralytics.rect, the default since these runs), lr 0.002 (step 1 winner), 18 epochs, batch 32.
+# Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
+model:
+  weights: yolo26n-sem-ade20k.pt
+
+data:
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest_5fps/views/semantic_v1_short736/data.yaml"
+
+ultralytics:
+  imgsz: 736
+  lr0: 0.002
+  workers: 12
+  cache: false               # the frames need about 55 GB of RAM at 736: decoded on the fly
+
+modal:
+  gpu: "A100"            # full frames at 736 need about 29 GB at batch 32: too much for an A10 (24 GB); A100 40 GB
+  cpu: 6                     # = workers / 2
+  memory_gb: 32
+  path_remap:
+    data.yaml: "/data/sanpo_real_chest_5fps/views/semantic_v1_short736/data.yaml"
+
+test:
+  batch: 32                  # test batch 128 ran out of GPU memory at 1312x736 on the T4

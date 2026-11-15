@@ -1,8 +1,12 @@
 # exp2_start_cityscapes: experiment plan step 2 (starting weights), B = Cityscapes.
-# Same as exp1_baseline_lr002 (the step 1 winner) except the starting weights.
+# Full frames (ultralytics.rect, the default since these runs), lr 0.002 (step 1 winner), 18 epochs, batch 32.
 # Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
 model:
-  weights: yolo26n-sem.pt    # official YOLO26n-sem trained on Cityscapes (19 classes; the head is re-made for our 29)
+  weights: yolo26n-sem.pt
 
 ultralytics:
+  imgsz: 352
   lr0: 0.002
+
+modal:
+  gpu: "T4"            # 6.7 GB of GPU memory measured at batch 32 (full frames 640x352)
