@@ -241,3 +241,12 @@ temp7.md
 # Presentation slides (kept local)
 slides/
 modal_setup_commands.txt
+
+# Training runs: the smoke test stays local; real runs push results/ except the console
+# captures and per-launch configs (train_config/) and the run-id bookkeeping (.run_ids/)
+fast_path/object_detection/training/runs/smoke_test_local/
+fast_path/object_detection/training/runs/*/results/train/train_config/
+fast_path/object_detection/training/runs/*/results/train/.run_ids/
+# debug images: only the first one of each launch (step 1) is pushed; the rest stay local
+fast_path/object_detection/training/runs/*/results/train/debug/*
+!fast_path/object_detection/training/runs/*/results/train/debug/*_step000001_*

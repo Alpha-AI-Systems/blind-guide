@@ -310,6 +310,8 @@ data:
   yaml: null                 # Ultralytics dataset YAML (train / val image lists, names, masks_dir, label_mapping)
   image_dir_name: frames     # the folder name in every image path that the mask path replaces ...
   masks_dir: masks           # ... with this (a path segment), e.g. frames/train/x.jpg -> <masks_dir>/train/x.png
+  validate_at_training_scale: true   # validation frames sized by the SHORT side like training (626x352 at
+                             # imgsz 352); false = Ultralytics' long side (352x198, objects 1.8x smaller)
 
 ultralytics:                 # passed as-is to Ultralytics model.train(...); see docs.ultralytics.com/modes/train
   epochs: 25
@@ -385,7 +387,7 @@ logging:
     final_summary: true      # end-of-run table
 
 output:
-  run_dir: results
+  run_dir: results/train      # training outputs (results/test/ holds the test evaluation of the run)
   ultralytics_dir: ultralytics   # Ultralytics' own folder inside results/ (weights/last.pt, best.pt, results.csv)
   train_log_csv: train_log.csv
   val_log_csv: val_log.csv
@@ -417,6 +419,22 @@ modal:
   local_data_dir: "/tmp/local_data"
   secrets: []
   sync_checkpoints: false    # also bring checkpoints home when syncing results
+  prices_per_hour:           # US$, for the cost line of summary.md (modal.com/pricing)
+    gpu: {B200: 6.25, H200: 4.54, H100: 3.95, A100-80GB: 2.50, A100: 2.10, L40S: 1.95, A10: 1.10, L4: 0.80, T4: 0.59}
+    cpu_core: 0.0473
+    memory_gb: 0.008
+
+test:                        # runs/<run>/test.py: scores the run's checkpoints on these splits (same code as validation)
+  splits: {val: val.txt, test_human: test_human.txt, test_all: test.txt}   # split name -> image list in the view
+  leaderboard_split: test_human   # runs/leaderboard.md is sorted by this split's mIoU (the SANPO paper's protocol)
+  checkpoints: [best]        # only best.pt (chosen on val): never choose a checkpoint on the test set
+  leaderboard_checkpoint: best   # only this checkpoint of each run appears in runs/leaderboard.md
+  in_leaderboard: true       # false = this run is left out of runs/leaderboard.md (listed below it, with the reason)
+  leaderboard_note: ""       # why the run is left out (e.g. "learning-rate sweep: not chosen on val")
+  batch: 32
+  gpu: "T4"
+  cpu: 4
+  memory_gb: 16
 
 resume: auto                 # auto = continue Ultralytics' last.pt if the run is unfinished | false = start fresh
 resume_force: false          # resume even though guarded settings changed
@@ -1229,19 +1247,14 @@ class CheckpointUploader:
 # =============================================================================
 # Ultralytics: dataset with a configurable mask path, trainer subclass
 # =============================================================================
-def make_trainer_class(monitor):
-    """An Ultralytics semantic trainer that (1) finds masks with the dataset YAML's own path rule and
-    (2) reports every optimizer step (gradient norm, update-to-weight ratio) to the monitor.
+def make_dataset_class(config: dict):
+    """The semantic dataset class used for training, validation and the test evaluation.
 
-    Mask paths: Ultralytics finds a mask by replacing the LAST "/images/" folder of the image path with
-    "/<masks_dir>/". Our frames live under "frames/", not "images/", so when the dataset YAML has an
-    `image_dir_name` key, the LAST "/<image_dir_name>/" is replaced with "/<masks_dir>/" instead (masks_dir
-    may contain several folders, e.g. "views/semantic_v1/masks"). Without that key, Ultralytics' own rule is
-    used unchanged.
+    Ultralytics' SemanticDataset plus: masks found with the dataset YAML's image_dir_name / masks_dir rule,
+    validation and test frames at the training scale (data.validate_at_training_scale), and one label cache
+    file per image list. Returns the class (Ultralytics builds it through data.build.SemanticDataset).
     """
-    from ultralytics.data import build as ultralytics_build
     from ultralytics.data.dataset import SemanticDataset
-    from ultralytics.models.yolo.semantic import SemanticSegmentationTrainer
 
     class MaskPathSemanticDataset(SemanticDataset):
         def get_label_files(self) -> list[str]:
@@ -1260,6 +1273,44 @@ def make_trainer_class(monitor):
             self.mask_files = mask_files
             return mask_files
 
+        def _validation_at_training_scale(self) -> bool:
+            return (not self.augment) and bool(config_get(config, "data.validate_at_training_scale", True))
+
+        def load_image(self, i, rect_mode=True):
+            # Ultralytics 8.4.208 sizes TRAINING frames by their SHORT side (imgsz 352 -> 626x352) but VALIDATION
+            # frames by their LONG side (352x198): objects then look about 1.8x smaller in validation than in
+            # training. With data.validate_at_training_scale (default true), validation frames are sized by the
+            # short side too (626x352), the same scale the model trains on.
+            if self._validation_at_training_scale():
+                return super(SemanticDataset, self).load_image(i, rect_mode=rect_mode, resize_short=True)
+            return super().load_image(i, rect_mode=rect_mode)
+
+        def set_rectangle(self):
+            # validation batches: Ultralytics sets each batch shape from the LONG side (352 x 224 for 16:9);
+            # with validation at the training scale the SHORT side is imgsz and the long side is rounded up to
+            # the stride (626x352 frames -> 640x352 batches; the 14 padding columns are labeled 255 = ignored)
+            super().set_rectangle()
+            if not self._validation_at_training_scale():
+                return
+            shapes = []
+            for batch_number in range(int(self.batch[-1]) + 1):
+                ratios = np.array([label["ratio_hw"] for label, index in zip(self.labels, self.batch)
+                                   if index == batch_number])
+                if ratios.max() < 1:                   # landscape: height = imgsz, width = imgsz / (h / w)
+                    shapes.append([1.0, 1.0 / ratios.min()])
+                elif ratios.min() > 1:                 # portrait: width = imgsz
+                    shapes.append([ratios.max(), 1.0])
+                else:
+                    shapes.append([max(1.0, ratios.max()), max(1.0, 1.0 / ratios.min())])
+            self.batch_shapes = (np.ceil(np.array(shapes) * self.imgsz / self.stride).astype(int) * self.stride)
+
+        def get_labels(self):
+            labels = super().get_labels()
+            for label in labels:                       # kept for set_rectangle (Ultralytics pops "shape")
+                height, width = label["shape"]
+                label["ratio_hw"] = height / width
+            return labels
+
         def _load_or_scan_cache(self, cache_path, cache_hash):
             # Ultralytics names the label cache after the folder of the FIRST mask (masks/train.cache). Our
             # validation walks also live under the official "train" folder, so train and val wrote the same
@@ -1269,6 +1320,25 @@ def make_trainer_class(monitor):
             if image_list is not None and str(image_list).endswith(".txt"):
                 cache_path = Path(cache_path).with_name(f"{Path(image_list).stem}.cache")
             return super()._load_or_scan_cache(cache_path, cache_hash)
+
+    return MaskPathSemanticDataset
+
+
+def make_trainer_class(monitor):
+    """An Ultralytics semantic trainer that (1) finds masks with the dataset YAML's own path rule and
+    (2) reports every optimizer step (gradient norm, update-to-weight ratio) to the monitor.
+
+    Mask paths: Ultralytics finds a mask by replacing the LAST "/images/" folder of the image path with
+    "/<masks_dir>/". Our frames live under "frames/", not "images/", so when the dataset YAML has an
+    `image_dir_name` key, the LAST "/<image_dir_name>/" is replaced with "/<masks_dir>/" instead (masks_dir
+    may contain several folders, e.g. "views/semantic_v1/masks"). Without that key, Ultralytics' own rule is
+    used unchanged.
+    """
+    from ultralytics.data import build as ultralytics_build
+    from ultralytics.data.dataset import SemanticDataset
+    from ultralytics.models.yolo.semantic import SemanticSegmentationTrainer
+
+    MaskPathSemanticDataset = make_dataset_class(monitor.config)
 
     class BlindGuideSemanticTrainer(SemanticSegmentationTrainer):
         def __init__(self, *arguments, **keyword_arguments):
@@ -1327,6 +1397,10 @@ def make_trainer_class(monitor):
             print(f"[data] {mode} loader: {len(dataset):,} images, batch {batch}, {batches} batches, workers {workers}, "
                   f"prefetch {prefetch if workers else '-'}, pin_memory {pin_memory}, drop_last {drop_last}, "
                   f"shuffle {shuffle}, cache {self.args.cache}")
+            if not training and getattr(dataset, "batch_shapes", None) is not None:
+                shapes = sorted({f"{int(width)}x{int(height)}" for height, width in dataset.batch_shapes})
+                print(f"[data] {mode} batch sizes (width x height): {', '.join(shapes)}"
+                      f"{' (training scale)' if config_get(monitor.config, 'data.validate_at_training_scale', True) else ''}")
             view_size = (self.data or {}).get("image_size")   # set by make_resized_view_modal.py
             if view_size and int(view_size) != int(self.args.imgsz):
                 print(f"  ⚠️  the dataset view was resized for imgsz {view_size} but training uses imgsz "
@@ -1365,6 +1439,43 @@ def make_trainer_class(monitor):
 # =============================================================================
 # the monitor: Ultralytics callbacks -> console lines, CSV logs, summary, Modal flushes
 # =============================================================================
+def group_scores(matrix, names: dict, class_groups: dict) -> dict:
+    """IoU of groups of classes (e.g. the SANPO paper's safe / not safe / obstacle), from a confusion matrix.
+
+    matrix: Ultralytics' semantic confusion matrix [nc, nc], rows = true class, columns = predicted class
+    (ignored pixels are not in it). The classes of each group are merged (rows and columns summed), then
+    IoU = merged diagonal / (row sum + column sum - diagonal). mIoU = mean over the groups with true pixels.
+    class_groups: {set name: {group name: [class names]}}; a class in no group of a set is left out of that set.
+    Returns {"val_group_<set>_mIoU": float, "val_group_<set>_<group>": float, ...}.
+    """
+    if matrix is None or not class_groups:
+        return {}
+    is_tensor = torch is not None and torch.is_tensor(matrix)
+    counts = matrix.detach().double().cpu().numpy() if is_tensor else np.asarray(matrix, dtype=float)
+    index_of = {name: index for index, name in names.items()}
+    scores = {}
+    for set_name, groups in class_groups.items():
+        unknown = [name for members in groups.values() for name in members if name not in index_of]
+        if unknown:
+            raise ValueError(f"class_groups.{set_name}: unknown class names {unknown}")
+        group_indices = [[index_of[name] for name in members] for members in groups.values()]
+        size = len(group_indices)
+        merged = np.zeros((size, size))
+        for row_group, rows in enumerate(group_indices):
+            for column_group, columns in enumerate(group_indices):
+                merged[row_group, column_group] = counts[np.ix_(rows, columns)].sum()
+        intersection = np.diag(merged)
+        union = merged.sum(1) + merged.sum(0) - intersection
+        present = merged.sum(1) > 0
+        for group_number, group_name in enumerate(groups):
+            safe_name = str(group_name).replace(" ", "_")
+            scores[f"val_group_{set_name}_{safe_name}"] = (round(float(intersection[group_number] / union[group_number]), 6)
+                                                           if present[group_number] else "")
+        iou = intersection[present] / union[present] if present.any() else np.array([0.0])
+        scores[f"val_group_{set_name}_mIoU"] = round(float(iou.mean()), 6)
+    return scores
+
+
 class TrainingMonitor:
     """Everything printed and logged around Ultralytics' training loop.
 
@@ -1651,7 +1762,11 @@ class TrainingMonitor:
             "units_s": round(compute_rate, 1), "real_units_s": round(real_rate, 1),
             "data_wait_pct": round(wait_percent, 1), "overall_units_s": round(overall_rate, 1),
             "units_done": self.images_done, "mfu_pct": round(mfu, 2) if mfu is not None else "",
-            "gpu_mem_gb": round(memory, 2), "elapsed_s": round(elapsed, 1), **OutputScaleProbe.row(probe_reading)})
+            "gpu_mem_gb": round(memory, 2), "elapsed_s": round(elapsed, 1), **OutputScaleProbe.row(probe_reading),
+            # median log10(update / weight) over the weight tensors, on the steps where it is measured
+            # (logging.diagnostics_every); every tensor separately is in ud_ratio.csv
+            "ud_log10_median": (round(float(np.median([value for _, value in step_info["ud"]])), 4)
+                                if step_info.get("ud") else "")})
         commit_every = int(self.config["output"].get("commit_every_steps") or 0)
         if commit_every and self.step % commit_every == 0:
             self.persist()
@@ -1689,7 +1804,7 @@ class TrainingMonitor:
             print("\n" + "─" * 70)             # the newline ends Ultralytics' progress bar line first
             print(f"  epoch {trainer.epoch + 1}/{trainer.epochs}  epoch_step: {epoch_step}/{self.steps_per_epoch}"
                   f"  global_step: {self.step}/{self.total_steps}")
-            print(f"     loss={loss_value:.4f}{delta}  [{parts}]  {learning_rate_text}{gradient_text}")
+            print(f"     loss={loss_value:.4f}{delta}  [{parts}]  {learning_rate_text}{gradient_text}\n")
             print(f"     elapsed={format_duration(elapsed)}  ETA={format_duration(eta)}"
                   + (f"  gpu_mem(peak)={memory:.2f}GB" if torch.cuda.is_available() else "") + since)
         if self.print_switches.get("throughput", True):
@@ -1712,7 +1827,7 @@ class TrainingMonitor:
             if memory_busy is not None:
                 bits.append(f"mem ctrl busy {memory_busy:.0f}%")
             if bits:
-                print("     compute:    " + " | ".join(bits), flush=True)
+                print("     compute:    " + " | ".join(bits) + "\n", flush=True)
 
     # ---- validation, checkpoints, end ------------------------------------------------------------------
     def on_fit_epoch_end(self, trainer):
@@ -1740,6 +1855,13 @@ class TrainingMonitor:
                 row[f"val_iou_{name}"] = per_class[name] if per_class[name] is not None else ""
         except Exception:
             pass
+        try:
+            # group_scores takes: the validation confusion matrix, class names, logging.class_groups;
+            # returns: {"val_group_<set>_mIoU": ..., "val_group_<set>_<group>": IoU, ...}
+            row.update(group_scores(trainer.validator.metrics.matrix, trainer.validator.metrics.names,
+                                    self.config["logging"].get("class_groups") or {}))
+        except Exception as error:
+            print(f"  ⚠️  group scores failed: {type(error).__name__}: {error}")
         fitness = row.get("val_mIoU") if final else (float(trainer.fitness) if trainer.fitness is not None else None)
         row["fitness"] = fitness
         row["epoch_time_s"] = round(float(getattr(trainer, "epoch_time", 0.0) or 0.0), 1)
@@ -1764,7 +1886,18 @@ class TrainingMonitor:
         for start in range(0, len(scalar_keys), 4):
             print("     📊 " + "  ".join(f"{key[4:]}={row[key]:.4f}{delta(key)}" for key in scalar_keys[start:start + 4]
                                        if isinstance(row[key], (int, float))))
-        print(f"     ⭐ best mIoU so far {self.best:.4f} @ epoch {self.best_epoch}" if self.best is not None else "")
+        current = row.get("val_mIoU")
+        if self.best is None or not isinstance(current, (int, float)):
+            print("")
+        elif final:
+            print(f"     🏁 best.pt (epoch {self.best_epoch}) re-validated: mIoU {current:.4f}")
+        elif self.best_epoch == row["epoch"]:
+            print(f"     ⭐ NEW BEST mIoU {current:.4f} at this epoch ({row['epoch']}) -> saved as best.pt")
+        else:
+            since = row["epoch"] - self.best_epoch
+            print(f"     ⚠️  NO IMPROVEMENT: mIoU {current:.4f} is {self.best - current:.4f} below the best "
+                  f"{self.best:.4f} from epoch {self.best_epoch} ({since} epoch{'s' if since != 1 else ''} ago); "
+                  f"best.pt stays epoch {self.best_epoch}")
         if per_class and self.print_switches.get("per_class_eval", True):
             ordered = sorted(per_class.items(), key=lambda item: -1 if item[1] is None else item[1], reverse=True)
             for start in range(0, len(ordered), 3):
@@ -1781,6 +1914,20 @@ class TrainingMonitor:
     def on_train_end(self, trainer):
         self.write_summary(trainer, status="finished")
 
+    def model_cost(self, trainer) -> dict:
+        """Parameters, forward GFLOPs per image, peak GPU memory and best.pt size, for the paper's cost table."""
+        model = getattr(trainer.model, "module", trainer.model)
+        best = Path(str(getattr(trainer, "best", "") or ""))
+        height, width = self.batch_shape or (None, None)
+        return {
+            "parameters": sum(parameter.numel() for parameter in model.parameters()) if model is not None else None,
+            "forward_gflops_per_image": round(self.flops_per_image / 1e9, 4) if self.flops_per_image else None,
+            "gflops_input_size": f"{width}x{height}" if width else None,
+            "peak_gpu_memory_gb": (round(torch.cuda.max_memory_allocated() / 1024**3, 3)
+                                   if torch is not None and torch.cuda.is_available() else None),
+            "best_pt_megabytes": round(best.stat().st_size / 1e6, 2) if best.is_file() else None,
+        }
+
     def write_summary(self, trainer, status: str):
         """training_summary.json: settings, hardware, best score, last validation, files."""
         try:
@@ -1792,6 +1939,7 @@ class TrainingMonitor:
                 "elapsed": clock(time.time() - self.start_wall),
                 "last_validation": self.history[-1] if self.history else None,
                 "weights": {"best": str(getattr(trainer, "best", "")), "last": str(getattr(trainer, "last", ""))},
+                "model_cost": self.model_cost(trainer),
                 "hardware": hardware_info(self.config), "config": self.config,
             }
             self.summary_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1955,6 +2103,7 @@ def _run_training(config: dict, run_dir: Path, results_dir: Path, extra_callback
         _print_final_summary(config, monitor, results_dir, status, time.time() - start)
         if config["output"].get("make_plots", True):
             _safe("make_plots", make_plots, config, results_dir, config["output"].get("plots_dir", "plots"))
+        write_run_report(config, results_dir)
         persist(blocking=True)                     # the run is over: this flush has to land
         if persist.skipped:
             print(f"  ℹ️  {persist.done} volume flushes, {persist.skipped} skipped as redundant")
@@ -2076,7 +2225,7 @@ def launch_run_id(config: dict, run_dir) -> str:
     return run_id
 
 
-def copy_view_to_local_disk(data_yaml, local_root) -> str:
+def copy_view_to_local_disk(data_yaml, local_root, quiet: bool = False) -> str:
     """Copy a dataset view from the Modal Volume to the container's local disk; return the local data.yaml.
 
     A Modal Volume reads many small files slowly (Ultralytics warned "read: 1.3 MB/s"; Modal advises fewer than
@@ -2097,26 +2246,39 @@ def copy_view_to_local_disk(data_yaml, local_root) -> str:
         return str(target / Path(data_yaml).name)
     target.mkdir(parents=True, exist_ok=True)
     start, total_bytes = time.time(), sum(archive.stat().st_size for archive in archives)
-    print(f"\n  📦 copying {len(archives)} archives ({total_bytes / 1e9:.1f} GB) of view '{view_dir.name}' "
-          f"to local disk {target} ...", flush=True)
+    if not quiet:
+        print(f"\n  📦 copying {len(archives)} archives ({total_bytes / 1e9:.1f} GB) of view '{view_dir.name}' "
+              f"to local disk {target} ...", flush=True)
 
     def extract(archive):
+        # several threads extract at once: create every folder first (exist_ok), because tarfile's own
+        # os.makedirs fails when two threads create the same folder at the same moment
         with tarfile.open(archive, "r") as tar:
-            tar.extractall(target, filter="data")
+            members = tar.getmembers()
+            for folder in {str(Path(member.name).parent) for member in members}:
+                (target / folder).mkdir(parents=True, exist_ok=True)
+            for attempt in range(3):
+                try:
+                    tar.extractall(target, members=members, filter="data")
+                    break
+                except FileExistsError:                 # a folder race despite the above: just extract again
+                    if attempt == 2:
+                        raise
         return archive.stat().st_size
 
     copied = 0
     with ThreadPoolExecutor(max_workers=8) as pool:
         for number, size in enumerate(pool.map(extract, archives), 1):
             copied += size
-            if number % 20 == 0 or number == len(archives):
+            if not quiet and (number % 20 == 0 or number == len(archives)):
                 elapsed = time.time() - start
                 print(f"    [{number}/{len(archives)}] {copied / 1e9:.1f} GB | {copied / 1e6 / max(elapsed, 1e-6):.0f} MB/s"
                       f" | elapsed {format_duration(elapsed)}", flush=True)
     for small_file in list(view_dir.glob("*.txt")) + list(view_dir.glob("*.yaml")):
         shutil.copy2(small_file, target / small_file.name)
     done_marker.write_text("ok")
-    print(f"  ✅ local copy ready in {format_duration(time.time() - start)}: {target / Path(data_yaml).name}", flush=True)
+    if not quiet:
+        print(f"  ✅ local copy ready in {format_duration(time.time() - start)}: {target / Path(data_yaml).name}", flush=True)
     return str(target / Path(data_yaml).name)
 
 
@@ -2162,6 +2324,172 @@ def sync_back(config: dict, run_dir, status: str = "", once: bool = True) -> Non
     plot_after_run(config, run_dir, status)
 
 
+def write_run_report(config: dict, results_dir) -> Path | None:
+    """results/summary.md: a short, complete report of the whole run, made from the merged files.
+
+    Reads training_summary.json, val_log.csv and train_log.csv (all launches of the run), so it is right
+    after resumes too. Written at the end of every local run and after every Modal sync. Never raises.
+    Returns the path of summary.md, or None when there is nothing to report yet.
+    """
+    try:
+        results_dir = Path(results_dir)
+        output = config["output"]
+        validation_path = results_dir / output["val_log_csv"]
+        train_path = results_dir / output["train_log_csv"]
+        if not validation_path.exists():
+            return None
+        validation = pd.read_csv(validation_path)
+        training = pd.read_csv(train_path) if train_path.exists() else pd.DataFrame()
+        summary_path = results_dir / output["summary_json"]
+        summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else {}
+        epochs = validation[validation["trigger"] == "epoch"].drop_duplicates("epoch", keep="last").sort_values("epoch")
+        final = validation[validation["trigger"] == "final_best"]
+        if epochs.empty:
+            return None
+
+        def number(value, digits=4):
+            try:
+                value = float(value)
+                return "" if math.isnan(value) else f"{value:.{digits}f}"
+            except (TypeError, ValueError):
+                return ""
+
+        best_row = epochs.loc[epochs["val_mIoU"].idxmax()]
+        best_epoch = int(best_row["epoch"])
+        planned_epochs = config_get(config, "ultralytics.epochs")
+        launches = sorted(set(training["run_id"])) if "run_id" in training else sorted(set(validation["run_id"]))
+        training_seconds = (float(training.groupby("run_id")["elapsed_s"].max().sum())
+                            if {"run_id", "elapsed_s"} <= set(training.columns) else None)
+        hardware = summary.get("hardware") or {}
+        modal_settings = config.get("modal") or {}
+        prices = modal_settings.get("prices_per_hour") or {}
+        gpu = str(hardware.get("gpu_requested") or modal_settings.get("gpu") or "")
+        cpu_cores = hardware.get("cpu_requested", modal_settings.get("cpu"))      # what the last launch used
+        memory_gb = hardware.get("memory_gb_requested", modal_settings.get("memory_gb"))
+        hourly = None
+        if hardware.get("side") == "modal-container" and gpu in (prices.get("gpu") or {}):
+            hourly = (prices["gpu"][gpu] + float(cpu_cores or 0) * prices.get("cpu_core", 0)
+                      + float(memory_gb or 0) * prices.get("memory_gb", 0))
+        group_columns = [column for column in epochs.columns if column.startswith("val_group_")]
+        group_means = [column for column in group_columns if column.endswith("_mIoU")]
+        status = summary.get("status", "unknown")
+        done = int(epochs["epoch"].max())
+
+        lines = [f"# {config['experiment']['name']}", ""]
+        lines += [f"**{status}** · {done}/{planned_epochs} epochs · launches {', '.join(launches)} · "
+                  f"updated {summary.get('updated', '')}", ""]
+        lines += ["## Result", "", "| Score | Value |", "|---|---|",
+                  f"| **Best val mIoU** | **{number(best_row['val_mIoU'])}** (epoch {best_epoch}) |"]
+        if not final.empty:
+            lines.append(f"| best.pt re-validated | {number(final.iloc[-1]['val_mIoU'])} |")
+        lines.append(f"| Pixel accuracy (best epoch) | {number(best_row.get('val_pixel_acc'))} |")
+        for column in group_means:
+            lines.append(f"| {column[len('val_group_'):-len('_mIoU')]} mIoU (best epoch) | {number(best_row[column])} |")
+        lines.append(f"| Last epoch mIoU | {number(epochs.iloc[-1]['val_mIoU'])} (epoch {done}) |")
+        lines += ["", "> Validation set (data.yaml 'val') at Ultralytics' validation size. The paper score comes "
+                      "from the separate test evaluation (human-labeled frames, full resolution).", ""]
+
+        settings = [("weights", config_get(config, "model.weights")), ("data", Path(str(config_get(config, "data.yaml"))).parent.name)]
+        for key in ("epochs", "batch", "imgsz", "optimizer", "lr0", "lrf", "warmup_epochs", "mosaic", "close_mosaic",
+                    "scale", "degrees", "fliplr", "seed", "deterministic", "amp"):
+            settings.append((key, config_get(config, f"ultralytics.{key}")))
+        lines += ["## Setup", "", "| Setting | Value |", "|---|---|"]
+        lines += [f"| {key} | {value} |" for key, value in settings]
+        lines += ["", "Full config: `train_config/<launch>_config.yaml`, `training_summary.json`.", ""]
+
+        cost = summary.get("model_cost") or {}
+        lines += ["## Model and cost", "", "| Item | Value |", "|---|---|"]
+        if cost.get("parameters"):
+            lines.append(f"| Parameters | {cost['parameters']:,} ({cost['parameters'] / 1e6:.2f} M) |")
+        if cost.get("forward_gflops_per_image"):
+            lines.append(f"| Forward GFLOPs per image | {cost['forward_gflops_per_image']} at {cost.get('gflops_input_size')} |")
+        if cost.get("best_pt_megabytes"):
+            lines.append(f"| best.pt size | {cost['best_pt_megabytes']} MB |")
+        if cost.get("peak_gpu_memory_gb") or hardware.get("gpu_peak_gb"):
+            lines.append(f"| Peak GPU memory | {cost.get('peak_gpu_memory_gb') or hardware.get('gpu_peak_gb')} GB |")
+        lines.append(f"| Hardware | {hardware.get('gpu', '?')}, {cpu_cores} CPU cores, "
+                     f"{memory_gb} GB ({hardware.get('side', '?')}) |")
+        if training_seconds:
+            lines.append(f"| Training time | {format_duration(training_seconds)} (training loop, all launches; start-up "
+                         f"of a few minutes per launch not included) |")
+            if hourly:
+                lines.append(f"| Estimated cost | ${hourly * training_seconds / 3600:.2f} at ${hourly:.2f}/h |")
+        if "real_units_s" in training:
+            lines.append(f"| Speed (median) | {number(training['real_units_s'].median(), 0)} img/s, data wait "
+                         f"{number(training['data_wait_pct'].median(), 0)}% |")
+        lines.append("")
+
+        table_columns = ["epoch", "val_mIoU", "val_pixel_acc", "val_ce_loss", "val_dice_loss"] + group_means
+        headers = ["Epoch", "mIoU", "Pixel acc", "CE loss", "Dice loss"] + [
+            column[len("val_group_"):-len("_mIoU")] + " mIoU" for column in group_means]
+        if not training.empty and "loss" in training:
+            train_loss = training.groupby("epoch")["loss"].mean()
+            headers.insert(1, "Train loss")
+        lines += ["## Validation per epoch", "", "| " + " | ".join(headers) + " |",
+                  "|" + "---|" * len(headers)]
+        running_best = None
+        for _, row in epochs.iterrows():
+            epoch = int(row["epoch"])
+            marker = ""
+            if running_best is None or row["val_mIoU"] > running_best:
+                running_best, marker = row["val_mIoU"], " ⭐"
+            cells = [f"{epoch}{marker}"]
+            if "Train loss" in headers:
+                cells.append(number(train_loss.get(epoch)))
+            cells += [number(row.get(column)) for column in table_columns[1:]]
+            lines.append("| " + " | ".join(cells) + " |")
+        lines += ["", "⭐ = new best at that epoch.", ""]
+
+        class_columns = [column for column in epochs.columns if column.startswith("val_iou_")]
+        if class_columns:
+            values = sorted(((column[len("val_iou_"):], best_row[column]) for column in class_columns),
+                            key=lambda item: -(item[1] if isinstance(item[1], (int, float)) and not math.isnan(item[1]) else -1))
+            lines += [f"## IoU per class (best epoch {best_epoch})", "", "| Class | IoU | Class | IoU |",
+                      "|---|---|---|---|"]
+            half = (len(values) + 1) // 2
+            for left, right in zip(values[:half], values[half:] + [("", "")]):
+                left_value = number(left[1]) or "absent"
+                right_value = (number(right[1]) or "absent") if right[0] else ""
+                lines.append(f"| {left[0]} | {left_value} | {right[0]} | {right_value} |")
+            lines += ["", "absent = no pixels of that class in the validation set (left out of the mIoU).", ""]
+        if group_columns:
+            lines += ["## Class groups (best epoch)", "", "| Group | IoU |", "|---|---|"]
+            lines += [f"| {column[len('val_group_'):]} | {number(best_row[column])} |"
+                      for column in group_columns if column not in group_means]
+            lines.append("")
+
+        if not training.empty:
+            gradient = pd.to_numeric(training.get("gnorm"), errors="coerce") if "gnorm" in training else None
+            overflow = int((training["gnorm"].astype(str) == "overflow").sum()) if "gnorm" in training else 0
+            lines += ["## Training health", "", "| Item | Value |", "|---|---|",
+                      f"| Train loss, first / last logged | {number(training['loss'].iloc[0])} / {number(training['loss'].iloc[-1])} |"]
+            if gradient is not None and gradient.notna().any():
+                lines.append(f"| Gradient norm, median | {number(gradient.median(), 2)} (clipped at 10; "
+                             f"{100.0 * (gradient > 10).mean():.0f}% of steps above) |")
+            lines.append(f"| Mixed-precision overflow steps | {overflow} |")
+            if "ud_log10_median" in training and pd.to_numeric(training["ud_log10_median"], errors="coerce").notna().any():
+                ud = pd.to_numeric(training["ud_log10_median"], errors="coerce").dropna()
+                lines.append(f"| Update/weight ratio, log10 median, first / last | {number(ud.iloc[0], 2)} / "
+                             f"{number(ud.iloc[-1], 2)} (about -3 is healthy) |")
+            lines.append("")
+
+        plots_dir = results_dir / output.get("plots_dir", "plots")
+        files = [f"[{path.stem}]({plots_dir.name}/{path.name})" for path in sorted(plots_dir.glob("*.png"))]
+        debug_dir = results_dir / (output.get("debug_dir") or "debug")
+        lines += ["## Files", "", "- Plots: " + (", ".join(files) if files else "none yet"),
+                  f"- Debug images (exact model input): `{debug_dir.name}/` "
+                  f"({len(list(debug_dir.glob('*.png'))) if debug_dir.is_dir() else 0} saved)",
+                  "- Logs: `train_log.csv` (every step), `val_log.csv` (every validation), `ud_ratio.csv`",
+                  f"- Ultralytics: `{output.get('ultralytics_dir', 'ultralytics')}/` (weights/best.pt, last.pt, results.csv)", ""]
+        report = results_dir / "summary.md"
+        report.write_text("\n".join(lines), encoding="utf-8")
+        print(f"  📝 report -> {report}")
+        return report
+    except Exception as error:
+        print(f"  ⚠️  summary.md not written: {type(error).__name__}: {error}")
+        return None
+
+
 def plot_after_run(config: dict, run_dir, status: str = "") -> None:
     """Draw the training curves on this PC from the merged CSVs, whatever the status (a partial run's
     curves are useful too). A plotting error never masks the run's own result."""
@@ -2173,6 +2501,8 @@ def plot_after_run(config: dict, run_dir, status: str = "") -> None:
         make_plots(config, results_dir, config["output"].get("plots_dir", "plots"))
     except Exception as error:
         print(f"  ⚠️  plotting failed: {type(error).__name__}: {error}")
+    # write_run_report takes: config, results folder; returns: the path of summary.md (or None)
+    write_run_report(config, Path(run_dir) / config["output"].get("run_dir", "results"))
 
 
 def modal_launch(config: dict, run_dir, remote_function) -> None:
@@ -2851,14 +3181,227 @@ def make_plots(config: dict, results_dir, out_subdir: str = "plots", smooth_wind
 
 
 # =============================================================================
+# test evaluation (runs/<run>/test.py) and runs/leaderboard.md
+# =============================================================================
+def checkpoint_file(config: dict, run_dir, checkpoint: str) -> Path:
+    """Local path of a run's checkpoint: results/train/ultralytics/weights/<best|last>.pt."""
+    output = config["output"]
+    return Path(run_dir) / output["run_dir"] / output["ultralytics_dir"] / "weights" / f"{checkpoint}.pt"
+
+
+def evaluate_checkpoint(config: dict, checkpoint: str, weights: bytes) -> dict:
+    """Score one checkpoint on every split in test.splits (runs inside the Modal container, on a GPU).
+
+    Same frames, masks and scale as the training validation (make_dataset_class, frames sized by the short
+    side), Ultralytics' own validator. The run's dataset view is first copied to local disk (tars/).
+    Ultralytics' own console output is switched off; every line printed here starts with [<checkpoint>], so the
+    lines of the parallel containers stay readable.
+    Returns {"run", "checkpoint", "evaluated", "settings", "splits": {split: {frames, mIoU, pixel_acc, per_class,
+    groups, confusion_matrix (rows = true class, columns = predicted), seconds}}}.
+    """
+    import logging
+
+    os.environ["YOLO_VERBOSE"] = "False"            # no Ultralytics banners, settings notes or progress bars
+    import yaml
+    from ultralytics import YOLO
+    from ultralytics.data import build as ultralytics_build
+    from ultralytics.utils import LOGGER
+
+    LOGGER.setLevel(logging.ERROR)
+    tag = f"[{checkpoint}]"
+
+    def say(message: str) -> None:
+        print(f"  {tag:<7} {message}", flush=True)
+
+    remote = remote_config(config)
+    test = config["test"]
+    image_size = int(config["ultralytics"]["imgsz"])
+    start = time.time()
+    # copy_view_to_local_disk takes: data.yaml on the volume, local folder, quiet; returns: the local data.yaml
+    local_yaml = Path(copy_view_to_local_disk(remote["data"]["yaml"],
+                                              remote["modal"].get("local_data_dir", "/tmp/local_data"), quiet=True))
+    say(f"data        {Path(remote['data']['yaml']).parent.name} copied to local disk in "
+        f"{format_duration(time.time() - start)}")
+    weights_path = Path("/tmp") / f"{config['experiment']['name']}_{checkpoint}.pt"
+    weights_path.write_bytes(weights)
+    model = YOLO(str(weights_path), task="semantic")
+    parameters = sum(parameter.numel() for parameter in model.model.parameters())
+    say(f"model       {checkpoint}.pt | {parameters:,} parameters | imgsz {image_size} (training scale) | "
+        f"batch {test['batch']}")
+    # make_dataset_class takes: the config; returns: the training code's dataset class
+    ultralytics_build.SemanticDataset = make_dataset_class(remote)
+    data = yaml.safe_load(local_yaml.read_text(encoding="utf-8"))
+    result = {"run": config["experiment"]["name"], "checkpoint": checkpoint,
+              "evaluated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+              "settings": {"image_size": image_size, "data": remote["data"]["yaml"], "batch": test["batch"],
+                           "validate_at_training_scale": config_get(config, "data.validate_at_training_scale", True),
+                           "lr0": config["ultralytics"]["lr0"], "epochs": config["ultralytics"]["epochs"],
+                           "weights_start": config["model"]["weights"], "gpu": test["gpu"], "parameters": parameters},
+              "splits": {}}
+    for split, list_name in test["splits"].items():
+        list_path = local_yaml.parent / list_name
+        if not list_path.exists() or not list_path.read_text(encoding="utf-8").strip():
+            say(f"{split:<11} skipped ({list_name} missing or empty)")
+            continue
+        split_yaml = local_yaml.parent / f"data_{split}.yaml"          # the same dataset, val = this list
+        split_yaml.write_text(yaml.safe_dump({**data, "val": str(list_path)}, sort_keys=False), encoding="utf-8")
+        split_start = time.time()
+        metrics = model.val(data=str(split_yaml), split="val", imgsz=image_size, batch=int(test["batch"]), rect=True,
+                            workers=int(test["cpu"]) * 2, plots=False, verbose=False, project="/tmp/val",
+                            name=f"{checkpoint}_{split}", exist_ok=True)
+        names = metrics.names
+        # group_scores takes: confusion matrix, class names, class groups; returns: {column: IoU}
+        groups = group_scores(metrics.matrix, names, config["logging"].get("class_groups") or {})
+        scores = {"frames": len(list_path.read_text(encoding="utf-8").split()),
+                  "mIoU": round(float(metrics.miou), 4), "pixel_acc": round(float(metrics.pixel_accuracy), 4),
+                  "per_class": {names[index]: (round(float(value), 4) if metrics.nt_per_class[index] > 0 else None)
+                                for index, value in enumerate(metrics.per_class_iou)},
+                  "groups": {key.replace("val_group_", ""): value for key, value in groups.items()},
+                  "confusion_matrix": metrics.matrix.detach().cpu().long().tolist(),
+                  "seconds": round(time.time() - split_start)}
+        result["splits"][split] = scores
+        group_text = " | ".join(f"{key[:-len('_mIoU')]} {value:.4f}" for key, value in scores["groups"].items()
+                                if key.endswith("_mIoU") and isinstance(value, (int, float)))
+        say(f"{split:<11} {scores['frames']:>6,} frames | mIoU {scores['mIoU']:.4f} | pixel acc "
+            f"{scores['pixel_acc']:.4f} | {group_text} | {scores['seconds']} s")
+    say(f"done in {format_duration(time.time() - start)}")
+    return result
+
+
+def write_test_results(config: dict, run_dir, result: dict, quiet: bool = False) -> Path:
+    """results/test/<checkpoint>/metrics.json + summary.md of one checkpoint. Returns the folder."""
+    folder = Path(run_dir) / "results" / "test" / result["checkpoint"]
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "metrics.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
+    splits, settings = result["splits"], result["settings"]
+    group_sets = sorted({key[:-len("_mIoU")] for scores in splits.values() for key in scores["groups"]
+                         if key.endswith("_mIoU")})
+    show = lambda value: "absent" if value is None else (f"{value:.4f}" if isinstance(value, (int, float)) else "")
+    lines = [f"# Test: {result['run']} / {result['checkpoint']}.pt", "",
+             f"{result['evaluated']} · imgsz {settings['image_size']} (training scale) · trained from "
+             f"{settings['weights_start']}, lr0 {settings['lr0']}", "",
+             "| Split | Frames | mIoU | Pixel acc | " + " | ".join(f"{name} mIoU" for name in group_sets) + " |",
+             "|---|---|---|---|" + "---|" * len(group_sets)]
+    for split, scores in splits.items():
+        lines.append(f"| {split} | {scores['frames']:,} | **{scores['mIoU']:.4f}** | {scores['pixel_acc']:.4f} | "
+                     + " | ".join(show(scores["groups"].get(f"{name}_mIoU")) for name in group_sets) + " |")
+    main_split = config["test"]["leaderboard_split"]
+    if main_split in splits:
+        ordered = sorted(splits[main_split]["per_class"].items(), key=lambda item: -(item[1] if item[1] is not None else -1))
+        half = (len(ordered) + 1) // 2
+        lines += ["", f"## IoU per class ({main_split})", "", "| Class | IoU | Class | IoU |", "|---|---|---|---|"]
+        for left, right in zip(ordered[:half], ordered[half:] + [("", "")]):
+            lines.append(f"| {left[0]} | {show(left[1])} | {right[0]} | {show(right[1]) if right[0] else ''} |")
+    lines += ["", "test_human = the SANPO paper's protocol (human-labeled test frames); val = for choosing between "
+                  "runs. Labels compared at the frames' training size. All numbers and confusion matrices: metrics.json.", ""]
+    (folder / "summary.md").write_text("\n".join(lines), encoding="utf-8")
+    if not quiet:
+        print(f"  📝 {folder / 'summary.md'}")
+    return folder
+
+
+def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
+    """runs/leaderboard.md: every tested checkpoint of every run, sorted by the test.leaderboard_split mIoU."""
+    runs_dir = Path(runs_dir)
+    rows, untested, excluded, main_split = [], [], [], "test_human"
+    for run_dir in sorted(path for path in runs_dir.iterdir() if path.is_dir() and (path / "config.yaml").exists()):
+        if run_dir.name == "smoke_test_local":
+            continue
+        config = load_config(run_dir)
+        if not config["test"].get("in_leaderboard", True):
+            excluded.append(f"{run_dir.name} ({config['test'].get('leaderboard_note') or 'excluded in its config.yaml'})")
+            continue
+        wanted = config["test"].get("leaderboard_checkpoint", "best")
+        tested = sorted((run_dir / "results" / "test").glob(f"{wanted}/metrics.json"))
+        if not tested:
+            untested.append(run_dir.name)
+            continue
+        main_split = config["test"]["leaderboard_split"]
+        summary_path = run_dir / config["output"]["run_dir"] / config["output"]["summary_json"]
+        cost = (json.loads(summary_path.read_text(encoding="utf-8")).get("model_cost") or {}) if summary_path.exists() else {}
+        for path in tested:
+            result = json.loads(path.read_text(encoding="utf-8"))
+            splits = result["splits"]
+            group = next((value for key, value in ((splits.get(main_split) or {}).get("groups") or {}).items()
+                          if key.endswith("_mIoU")), None)
+            rows.append({"run": run_dir.name, "checkpoint": result["checkpoint"], "group": group,
+                         **{split: (splits.get(split) or {}).get("mIoU") for split in ("test_human", "test_all", "val")},
+                         "main": (splits.get(main_split) or {}).get("mIoU"), "imgsz": result["settings"]["image_size"],
+                         "lr0": result["settings"]["lr0"], "start": Path(str(result["settings"]["weights_start"])).stem,
+                         "parameters": cost.get("parameters") or result["settings"].get("parameters")})
+    rows.sort(key=lambda row: -(row["main"] if row["main"] is not None else -1))
+    show = lambda value: "" if value is None else f"{value:.4f}"
+    lines = ["# Leaderboard", "",
+             f"Sorted by test mIoU on the human-labeled test frames (SANPO paper's protocol). Written by runs/<run>/test.py, "
+             f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.", "",
+             "| # | Run | Ckpt | **Test mIoU** (human) | Test mIoU (all) | Test 3-class | Val mIoU | imgsz | lr0 | Start | Params |",
+             "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for rank, row in enumerate(rows, 1):
+        parameters = f"{row['parameters'] / 1e6:.2f} M" if row["parameters"] else ""
+        lines.append(f"| {rank} | {row['run']} | {row['checkpoint']} | **{show(row['test_human'])}** | {show(row['test_all'])} | "
+                     f"{show(row['group'])} | {show(row['val'])} | {row['imgsz']} | {row['lr0']} | {row['start']} | {parameters} |")
+    if untested:
+        lines += ["", "Not tested yet: " + ", ".join(untested)]
+    if excluded:
+        lines += ["", "Left out: " + "; ".join(excluded)]
+    lines += ["", "Choose between runs with the **Val** column; the test columns are the reported scores.", ""]
+    path = runs_dir / "leaderboard.md"
+    path.write_text("\n".join(lines), encoding="utf-8")
+    if not quiet:
+        print(f"  🏁 {path}")
+    return path
+
+
+def modal_test_resources(config: dict) -> dict:
+    """gpu / cpu / memory / timeout of a test.py container (the test: section)."""
+    test = config["test"]
+    return {"gpu": test["gpu"], "cpu": float(test["cpu"]), "memory": int(float(test["memory_gb"]) * 1024),
+            "timeout": 2 * 3600, "max_containers": 8}
+
+
+def modal_test_launch(config: dict, run_dir, remote_function, checkpoints: str = "") -> None:
+    """The body of a test.py local entrypoint: send the checkpoints, write the results, update the leaderboard."""
+    names = [name.strip() for name in (checkpoints or ",".join(config["test"]["checkpoints"])).split(",") if name.strip()]
+    _banner(f"TEST: {config['experiment']['name']}", "\U0001F9EA")
+    jobs = []
+    for checkpoint in names:
+        path = checkpoint_file(config, run_dir, checkpoint)
+        if not path.exists():
+            print(f"  ⚠️  {path} not found (sync the run first), skipped")
+            continue
+        jobs.append((checkpoint, path.read_bytes()))
+        print(f"  📤 sending {checkpoint}.pt ({path.stat().st_size / 1e6:.1f} MB)")
+    print(f"\n  splits: {', '.join(config['test']['splits'])} | {config['test']['gpu']}, one container per checkpoint\n",
+          flush=True)
+    results = list(remote_function.starmap(jobs, order_outputs=True))
+    _banner(f"TEST RESULTS: {config['experiment']['name']}", "\U0001F3C1")
+    group_sets = sorted({key[:-len("_mIoU")] for result in results for scores in result["splits"].values()
+                         for key in scores["groups"] if key.endswith("_mIoU")})
+    rows = []
+    for result in results:
+        for split, scores in result["splits"].items():
+            rows.append([result["checkpoint"], split, f"{scores['frames']:,}", f"{scores['mIoU']:.4f}",
+                         f"{scores['pixel_acc']:.4f}"]
+                        + [f"{scores['groups'].get(name + '_mIoU', 0):.4f}" for name in group_sets])
+    _table("scores (test_human = the paper score, val = for choosing between runs)",
+           ["checkpoint", "split", "frames", "mIoU", "pixel acc"] + [f"{name} mIoU" for name in group_sets],
+           rows, "\U0001F4CA")
+    print("\n  files written:")
+    for result in results:
+        print(f"    {write_test_results(config, run_dir, result, quiet=True) / 'summary.md'}")
+    print(f"    {write_leaderboard(Path(run_dir).parent, quiet=True)}\n", flush=True)
+
+
+# =============================================================================
 # leaderboard and command line
 # =============================================================================
 def leaderboard(runs_dir) -> pd.DataFrame:
     """Best validation mIoU of every run folder under runs_dir, printed as a table."""
     rows = []
     for run_dir in sorted(path for path in Path(runs_dir).iterdir() if path.is_dir()):
-        log_path = run_dir / "results" / "val_log.csv"
-        if not log_path.exists():
+        log_path = next((path for path in (run_dir / "results" / "train" / "val_log.csv",
+                                           run_dir / "results" / "val_log.csv") if path.exists()), None)
+        if log_path is None:
             continue
         try:
             log = pd.read_csv(log_path)
@@ -2902,6 +3445,8 @@ def _command_line():
     command.add_argument("runs_dir")
     command = commands.add_parser("config", help="print a run's merged config")
     command.add_argument("run_dir")
+    command = commands.add_parser("report", help="write a run's results/summary.md from its logs")
+    command.add_argument("run_dir")
     arguments = parser.parse_args()
     if arguments.command == "leaderboard":
         leaderboard(arguments.runs_dir)
@@ -2915,6 +3460,8 @@ def _command_line():
         pull_checkpoint(config, arguments.run_dir, arguments.name)
     elif arguments.command == "config":
         print_config(config)
+    elif arguments.command == "report":
+        write_run_report(config, Path(arguments.run_dir) / config["output"]["run_dir"])
 
 
 if __name__ == "__main__":
