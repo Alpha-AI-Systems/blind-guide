@@ -683,6 +683,47 @@ class _Tee:
         return False
 
 
+class _CleanLogFile:
+    """A text file that receives terminal output but stores it the way it finally LOOKED on screen.
+
+    Progress bars redraw one line many times, in two ways: "\\r" + ESC[K (back to the line start, clear it), or
+    ESC[1A + ESC[K at the start of a new line (move up one line, clear it). Here only the last state of every
+    line is kept, and terminal escape codes (colors, clear-line, cursor moves) are removed.
+    """
+
+    _ESCAPE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
+
+    def __init__(self, handle):
+        self.handle = handle
+        self.pending = ""                     # text of the current line, not finished by "\n" yet
+        self.last_line = None                 # last finished line, held back in case the next one redraws it
+
+    def _finish(self, line: str):
+        redraws_previous = "\x1b[1A" in line[:12]
+        clean = self._ESCAPE.sub("", line.rstrip("\r").rsplit("\r", 1)[-1])   # "\r\n" endings count as "\n"
+        if self.last_line is not None and not redraws_previous:
+            self.handle.write(self.last_line + "\n")
+        self.last_line = clean
+
+    def write(self, data: str):
+        self.pending += data
+        *complete, self.pending = self.pending.split("\n")
+        for line in complete:
+            self._finish(line)
+
+    def flush(self):
+        self.handle.flush()
+
+    def close(self):
+        if self.pending:
+            self._finish(self.pending)
+            self.pending = ""
+        if self.last_line is not None:
+            self.handle.write(self.last_line + "\n")
+            self.last_line = None
+        self.handle.close()
+
+
 class ConsoleCapture:
     """Everything printed to the terminal (stdout and stderr) is also appended to a text file.
 
@@ -703,7 +744,8 @@ class ConsoleCapture:
             except Exception:
                 pass
         self.original_out, self.original_error = sys.stdout, sys.stderr
-        self.file = open(self.path, "a", encoding="utf-8")
+        # newline="" keeps "\r" as written (progress-bar redraws), so _CleanLogFile can keep only the final state
+        self.file = _CleanLogFile(open(self.path, "a", encoding="utf-8", newline=""))
         sys.stdout, sys.stderr = _Tee(self.original_out, self.file), _Tee(self.original_error, self.file)
         # Ultralytics logs through `logging` handlers that were bound to the ORIGINAL streams at import;
         # point them at the tee as well, so its lines also reach the file
