@@ -41,6 +41,8 @@ def main() -> None:
     ap.add_argument("--gt", nargs="+", default=["depth_maps"],
                     choices=["depth_maps", "zed_depth_maps", "segmentation_masks"],
                     help="what to fetch besides RGB (segmentation is only present on some frames)")
+    ap.add_argument("--official-split", choices=["train", "test"], default=None,
+                    help="only use sessions from SANPO's official train or test list (sanpo-real only)")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--list", action="store_true", help="list sessions and exit")
@@ -49,6 +51,10 @@ def main() -> None:
     root = Path(args.root)
     sessions = sanpo.list_sessions(args.split)
     print(f"{args.split}: {len(sessions)} sessions in the bucket")
+    if args.official_split:
+        official = sanpo.official_split_sessions(args.split, args.official_split)
+        sessions = [s for s in sessions if s in official]
+        print(f"official {args.official_split} split: {len(sessions)} sessions")
     if args.list:
         print("\n".join(sessions))
         return

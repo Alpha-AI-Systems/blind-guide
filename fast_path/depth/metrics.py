@@ -9,6 +9,8 @@ import numpy as np
 
 # Distance bands that matter for a walking user: immediate / near / mid / far.
 RANGE_BINS = [(0.0, 2.0), (2.0, 5.0), (5.0, 10.0), (10.0, float("inf"))]
+# Obstacles closer than this are the ones a warning is about (extra "obstacles<3m" metric).
+NEAR_OBSTACLE_M = 3.0
 
 
 def align_median(pred: np.ndarray, gt: np.ndarray, mask: np.ndarray) -> np.ndarray:
@@ -60,4 +62,7 @@ def frame_report(pred: np.ndarray, gt: np.ndarray, mask: np.ndarray,
     if obstacle_mask is not None:
         m = depth_metrics(pred, gt, mask & obstacle_mask)
         out["abs_rel@obstacles"], out["d1@obstacles"] = m["abs_rel"], m["d1"]
+        tag = f"obstacles<{NEAR_OBSTACLE_M:g}m"
+        m = depth_metrics(pred, gt, mask & obstacle_mask & (gt < NEAR_OBSTACLE_M))
+        out[f"abs_rel@{tag}"], out[f"d1@{tag}"] = m["abs_rel"], m["d1"]
     return out
