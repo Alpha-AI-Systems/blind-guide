@@ -14,6 +14,8 @@ OUTPUT (default name "<SOURCE_VIEW>_short<IMAGE_SIZE>", e.g. semantic_v1_short35
     <DATASET>/views/<view>/tars/<walk>.tar               the walk's frames/ and masks/ in ONE file: a Modal Volume
                                                          reads many small files slowly but big files fast, so
                                                          training copies these to the container's local disk
+    <DATASET>/views/<view>/tars_15fps_extra/<walk>.tar   the 15 fps frames that are in no 5 fps list (EXTRA_ONLY_LISTS);
+                                                         copied only by runs that set data.extra_archives
 
 Each frame is resized EXACTLY as Ultralytics 8.4.208 would resize it at imgsz = IMAGE_SIZE
 (ultralytics/data/base.py load_image, cv2.INTER_LINEAR; masks: dataset.py get_image_and_label, INTER_NEAREST):
@@ -53,11 +55,17 @@ import yaml
 # SETTINGS (edit here)
 # =============================================================================
 VOLUME_NAME = "sanpo"
-DATASET = "sanpo_real_chest_5fps"
+DATASET = "sanpo_real_chest"
 SOURCE_VIEW = "semantic_v1"        # override with --source-view
 IMAGE_SIZE = 352                   # = ultralytics.imgsz used in training; override with --image-size
-LISTS = {"train": "train", "train_human": "train", "val": "train", "test": "train", "test_human": "train"}
-MAX_CONTAINERS = 20                # walks processed in parallel
+LISTS = {"train": "train", "train_human": "train", "val": "train", "test": "train", "test_human": "train",
+         "train_15fps": "train"}
+EXTRA_ONLY_LISTS = ["train_15fps"]  # frames found ONLY in these lists are packed into EXTRA_ARCHIVE_DIR/<walk>.tar,
+EXTRA_ARCHIVE_DIR = "tars_15fps_extra"  # so tars/ (copied by every run) stays as before; a run needs these
+                                        # archives only when it trains on such a list (data.extra_archives)
+MAX_CONTAINERS = 50                # walks processed in parallel
+THREADS_PER_WALK = 16              # frames resized at once inside one walk
+CPU_PER_CONTAINER = 4              # cores per container (JPEG decode, resize, PNG encode); default is a fraction
 PRINT_EVERY = 50                   # progress line every N frames inside a walk
 PACK_THREADS = 32                  # parallel file reads when packing a walk's archive
 # =============================================================================
@@ -94,54 +102,74 @@ def target_size(height: int, width: int, image_size: int, mode: str) -> tuple[in
 
 
 @app.function(image=image, volumes={VOLUME_MOUNT_PATH: volume}, timeout=3 * 3600,
-              max_containers=MAX_CONTAINERS, retries=2)
+              max_containers=MAX_CONTAINERS, retries=2, cpu=CPU_PER_CONTAINER)
 def resize_walk(walk: str, items: list[list[str]], source_view: str, target_view: str, image_size: int) -> dict:
-    """Resize the frames and masks of one walk.
+    """Resize the frames and masks of one walk, and pack them into the walk's archive(s).
 
-    items: [frame path relative to the dataset ("frames/<folder>/<stem>.jpg"), mode ("train" or "eval")].
+    items: [frame path relative to the dataset ("frames/<folder>/<stem>.jpg"), mode ("train" or "eval"),
+            archive folder ("tars", or EXTRA_ARCHIVE_DIR for frames that are only in EXTRA_ONLY_LISTS)].
+    An archive that already exists is complete: its frames are skipped.
     Returns {"walk", "frames", "written", "skipped", "sizes": {"WxH": count}}.
     """
     dataset_root = Path(VOLUME_MOUNT_PATH) / DATASET
     source_root, target_root = dataset_root / "views" / source_view, dataset_root / "views" / target_view
-    tar_path = target_root / "tars" / f"{walk}.tar"
-    if tar_path.exists():                           # walk finished earlier (files and archive)
-        print(f"{walk}: archive already exists, skipped", flush=True)
+    archive_folders = sorted({folder for _, _, folder in items})
+    pending = [item for item in items if not (target_root / item[2] / f"{walk}.tar").exists()]
+    if not pending:                                 # walk finished earlier (files and archives)
+        print(f"{walk}: archive(s) {archive_folders} already exist, skipped", flush=True)
         return {"walk": walk, "frames": len(items), "written": 0, "skipped": len(items), "sizes": {}}
-    written, skipped, sizes, start_time = 0, 0, {}, time.time()
-    for item_number, (frame_path, mode) in enumerate(items, 1):
+    total_frames = len(items)
+    written, skipped, sizes, start_time = 0, len(items) - len(pending), {}, time.time()   # skipped: in a finished archive
+    items = pending
+    for folder_name in {Path(frame_path).parent.name for frame_path, _, _ in items}:
+        for kind in ("frames", "masks"):
+            (target_root / kind / folder_name).mkdir(parents=True, exist_ok=True)
+
+    def resize_one(item: list) -> str | None:
+        """Resize one frame and its mask unless both exist. Returns "WxH" if written now, else None."""
+        frame_path, mode, _ = item
         folder, stem = Path(frame_path).parent.name, Path(frame_path).stem
         frame_target = target_root / "frames" / folder / f"{stem}.png"
         mask_target = target_root / "masks" / folder / f"{stem}.png"
         if frame_target.exists() and mask_target.exists():
-            skipped += 1
-        else:
-            frame = cv2.imread(str(dataset_root / frame_path))             # BGR, as Ultralytics reads it
-            mask = cv2.imread(str(source_root / "masks" / folder / f"{stem}.png"), cv2.IMREAD_UNCHANGED)
-            if frame is None or mask is None:
-                raise FileNotFoundError(f"{frame_path} or its mask in view {source_view}")
-            # target_size takes: frame height, width, image size, mode; returns: (width, height) Ultralytics uses
-            width, height = target_size(frame.shape[0], frame.shape[1], image_size, mode)
-            if (frame.shape[1], frame.shape[0]) != (width, height):
-                frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_LINEAR)
-            if (mask.shape[1], mask.shape[0]) != (width, height):
-                mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
-            for target, array in ((frame_target, frame), (mask_target, mask)):
-                target.parent.mkdir(parents=True, exist_ok=True)
-                temporary = target.with_name(target.stem + ".tmp.png")
-                cv2.imwrite(str(temporary), array)
-                os.replace(temporary, target)
-            written += 1
-            sizes[f"{width}x{height}"] = sizes.get(f"{width}x{height}", 0) + 1
-        if item_number % PRINT_EVERY == 0 or item_number == len(items):
-            elapsed = time.time() - start_time
-            print(f"{walk}: {item_number}/{len(items)} frames | {written} written, {skipped} existed | "
-                  f"elapsed {format_duration(elapsed)} | "
-                  f"ETA {format_duration(elapsed / item_number * (len(items) - item_number))}", flush=True)
-    # pack_walk takes: view folder, frame paths, archive path; returns: the archive size in bytes
-    archive_bytes = pack_walk(target_root, [frame_path for frame_path, _ in items], tar_path)
-    print(f"{walk}: archive {tar_path.name} written ({archive_bytes / 1e6:.0f} MB)", flush=True)
+            return None
+        frame = cv2.imread(str(dataset_root / frame_path))                 # BGR, as Ultralytics reads it
+        mask = cv2.imread(str(source_root / "masks" / folder / f"{stem}.png"), cv2.IMREAD_UNCHANGED)
+        if frame is None or mask is None:
+            raise FileNotFoundError(f"{frame_path} or its mask in view {source_view}")
+        # target_size takes: frame height, width, image size, mode; returns: (width, height) Ultralytics uses
+        width, height = target_size(frame.shape[0], frame.shape[1], image_size, mode)
+        if (frame.shape[1], frame.shape[0]) != (width, height):
+            frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_LINEAR)
+        if (mask.shape[1], mask.shape[0]) != (width, height):
+            mask = cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+        for target, array in ((frame_target, frame), (mask_target, mask)):
+            temporary = target.with_name(target.stem + ".tmp.png")
+            cv2.imwrite(str(temporary), array)
+            os.replace(temporary, target)
+        return f"{width}x{height}"
+
+    # THREADS_PER_WALK frames at once (volume reads wait on the network; OpenCV releases the GIL)
+    with ThreadPoolExecutor(max_workers=THREADS_PER_WALK) as pool:
+        for item_number, size in enumerate(pool.map(resize_one, items), 1):
+            if size is None:
+                skipped += 1
+            else:
+                written += 1
+                sizes[size] = sizes.get(size, 0) + 1
+            if item_number % PRINT_EVERY == 0 or item_number == len(items):
+                elapsed = time.time() - start_time
+                print(f"{walk}: {item_number}/{len(items)} frames | {written} written, {skipped} existed | "
+                      f"elapsed {format_duration(elapsed)} | "
+                      f"ETA {format_duration(elapsed / item_number * (len(items) - item_number))}", flush=True)
+    for archive_folder in sorted({folder for _, _, folder in items}):
+        tar_path = target_root / archive_folder / f"{walk}.tar"
+        # pack_walk takes: view folder, frame paths, archive path; returns: the archive size in bytes
+        archive_bytes = pack_walk(target_root, [frame_path for frame_path, _, folder in items
+                                                if folder == archive_folder], tar_path)
+        print(f"{walk}: archive {archive_folder}/{tar_path.name} written ({archive_bytes / 1e6:.0f} MB)", flush=True)
     volume.commit()
-    return {"walk": walk, "frames": len(items), "written": written, "skipped": skipped, "sizes": sizes}
+    return {"walk": walk, "frames": total_frames, "written": written, "skipped": skipped, "sizes": sizes}
 
 
 def pack_walk(view_root: Path, frame_paths: list[str], tar_path: Path) -> int:
@@ -203,7 +231,8 @@ def write_lists_and_yaml(source_view: str, target_view: str, image_size: int, si
                             "masks": "same size as their frame, cv2.INTER_NEAREST",
                             "formulas": "ultralytics 8.4.208 data/base.py load_image"},
                  "frame_sizes_written": size_counts, "frames_per_list": counts,
-                 "archives": "tars/<walk>.tar: the walk's frames/ and masks/ files, for copying to local disk"}
+                 "archives": "tars/<walk>.tar: the walk's frames/ and masks/ files, for copying to local disk",
+                 "extra_archives": f"{EXTRA_ARCHIVE_DIR}/<walk>.tar: frames only in {EXTRA_ONLY_LISTS}"}
     if not size_counts and (target_root / "view.yaml").exists():   # re-run that only added the archives
         view_info["frame_sizes_written"] = (yaml.safe_load((target_root / "view.yaml").read_text(encoding="utf-8"))
                                             or {}).get("frame_sizes_written", {})
@@ -217,6 +246,7 @@ def main(source_view: str = SOURCE_VIEW, image_size: int = IMAGE_SIZE, view_name
     target_view = view_name or f"{source_view}_short{image_size}"
     print(f"Resizing view '{source_view}' -> '{target_view}' at imgsz {image_size} on Volume '{VOLUME_NAME}'")
     walks: dict[str, dict[str, str]] = {}           # walk -> {frame path: mode}
+    in_main_lists: set[str] = set()                 # frames in at least one list outside EXTRA_ONLY_LISTS
     for name, mode in LISTS.items():
         try:
             text = b"".join(volume.read_file(f"{DATASET}/views/{source_view}/{name}.txt")).decode("utf-8")
@@ -228,13 +258,18 @@ def main(source_view: str = SOURCE_VIEW, image_size: int = IMAGE_SIZE, view_name
             frame_path = line.removeprefix("./../../")
             walk = Path(frame_path).stem.rsplit("_", 1)[0]
             walks.setdefault(walk, {})[frame_path] = mode
+            if name not in EXTRA_ONLY_LISTS:
+                in_main_lists.add(frame_path)
         print(f"  {name}.txt: {len(lines):,} frames ({mode} size)")
     jobs = sorted(walks.items())
     total = sum(len(items) for _, items in jobs)
-    print(f"{len(jobs)} walks, {total:,} unique frames, {MAX_CONTAINERS} walks in parallel ...", flush=True)
+    extra = sum(1 for _, items in jobs for path in items if path not in in_main_lists)
+    print(f"{len(jobs)} walks, {total:,} unique frames ({total - extra:,} -> tars/, {extra:,} -> "
+          f"{EXTRA_ARCHIVE_DIR}/), {MAX_CONTAINERS} walks in parallel ...", flush=True)
 
     start_time, failed, written, size_counts = time.time(), 0, 0, {}
-    arguments = [(walk, [[path, mode] for path, mode in sorted(items.items())], source_view, target_view, image_size)
+    arguments = [(walk, [[path, mode, "tars" if path in in_main_lists else EXTRA_ARCHIVE_DIR]
+                         for path, mode in sorted(items.items())], source_view, target_view, image_size)
                  for walk, items in jobs]
     for walk_number, result in enumerate(resize_walk.starmap(arguments, order_outputs=False,
                                                              return_exceptions=True), 1):

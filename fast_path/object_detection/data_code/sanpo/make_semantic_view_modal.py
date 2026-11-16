@@ -11,6 +11,12 @@ OUTPUT (frames are NOT copied; a view is one way of turning SANPO's labels into 
     <DATASET>/views/<VIEW_NAME>/train.txt, val.txt          image lists (training and validation walks)
     <DATASET>/views/<VIEW_NAME>/train_human.txt             training frames with HUMAN-made labels only
     <DATASET>/views/<VIEW_NAME>/test.txt, test_human.txt    official test split: all frames / human-labeled only
+    <DATASET>/views/<VIEW_NAME>/train_15fps.txt             training walks at 15 fps, frames in order per walk; the
+                                                            training code derives 5 / 10 fps from it (data.train_fps)
+                                                            (only when every training walk
+                                                            has ALL_FRAMES_INDEX_DIR/<walk>.csv, from
+                                                            download_sanpo_modal.py --all-frames)
+  Every other list holds only the 5 fps frames (index/), so it stays exactly as before the 15 fps add-on.
     <DATASET>/views/<VIEW_NAME>/data.yaml                   the Ultralytics dataset file
     <DATASET>/views/<VIEW_NAME>/view.yaml                   the settings used and the counts
 
@@ -47,13 +53,16 @@ import modal
 # SETTINGS (edit here)
 # =============================================================================
 VOLUME_NAME = "sanpo"
-DATASET = "sanpo_real_chest_5fps"  # folder made by download_sanpo_modal.py
+DATASET = "sanpo_real_chest"  # folder made by download_sanpo_modal.py
 VIEW_NAME = "semantic_v1"  # new name = new view; old views are kept (override with --view-name)
 IGNORED_CLASSES = ["unlabeled", "bus stop"]  # mapped to 255 = ignored in training and validation
 VALIDATION_WALKS_FILE = Path(__file__).resolve().parent / "validation_split" / "results" / "validation_walks.txt"
 SANPO_URL = "https://storage.googleapis.com/gresearch/sanpo_dataset/v0/sanpo-real"
 CAMERA = "chest"
-MAX_CONTAINERS = 20  # sessions processed in parallel
+ALL_FRAMES_INDEX_DIR = "index_15fps"  # the 15 fps add-on's index (download_sanpo_modal.py --all-frames)
+MAX_CONTAINERS = 50  # walks processed in parallel
+THREADS_PER_WALK = 16  # masks converted at once inside one walk
+CPU_PER_CONTAINER = 4  # cores per container (PNG decode + encode); Modal's default is a fraction of a core
 PRINT_EVERY = 50  # progress line every N frames inside a session
 # =============================================================================
 
@@ -104,16 +113,17 @@ def human_labeled_frames(dataset_root: Path, session: str) -> set[int]:
 
 
 @app.function(image=image, volumes={VOLUME_MOUNT_PATH: volume}, timeout=3 * 3600,
-              max_containers=MAX_CONTAINERS, retries=2)
+              max_containers=MAX_CONTAINERS, retries=2, cpu=CPU_PER_CONTAINER)
 def process_session(index_csv_name: str, view_name: str) -> dict:
     """Write the one-channel class-id masks of one walk, and return its frames with their split and label source.
 
     Steps:
-        1. Read the walk's index CSV (frame and mask paths, split folder).
+        1. Read the walk's index CSV (frame and mask paths, split folder): ALL_FRAMES_INDEX_DIR/<walk>.csv when it
+           exists (15 fps, a superset), else index/<walk>.csv (5 fps).
         2. Per frame: read the SANPO mask, keep the red channel (class id), write it as a one-channel PNG.
-        3. Mark which frames are human-labeled.
-    Returns {"session", "folder", "frames": [{"frame": path relative to the dataset, "frame_id": int,
-             "human": bool}], "written": masks written now, "skipped": masks that already existed}.
+        3. Mark which frames are human-labeled, and which are in the 5 fps set (index/).
+    Returns {"session", "folder", "has_15fps", "frames": [{"frame": path relative to the dataset, "frame_id": int,
+             "human": bool, "in_5fps": bool}], "written": masks written now, "skipped": masks that already existed}.
     """
     import csv
     import os
@@ -126,34 +136,53 @@ def process_session(index_csv_name: str, view_name: str) -> dict:
     session = index_csv_name.removesuffix(".csv")
     with open(dataset_root / "index" / index_csv_name, newline="") as index_file:
         frames = list(csv.DictReader(index_file))
+    five_fps_ids = {frame["frame_id"] for frame in frames}
+    all_frames_csv = dataset_root / ALL_FRAMES_INDEX_DIR / index_csv_name
+    has_15fps = all_frames_csv.exists()
+    if has_15fps:
+        with open(all_frames_csv, newline="") as index_file:
+            frames = list(csv.DictReader(index_file))
+        marked = {frame["frame_id"] for frame in frames if frame["in_5fps"] == "True"}
+        if marked != five_fps_ids:
+            raise RuntimeError(f"{session}: {ALL_FRAMES_INDEX_DIR}/ marks {len(marked)} frames as 5 fps, "
+                               f"index/ has {len(five_fps_ids)}")
     folder = frames[0]["split"]                     # the frames/ subfolder of this walk (train / val / test)
     # human_labeled_frames takes: dataset folder, walk id; returns: set of human-labeled frame numbers
     human = human_labeled_frames(dataset_root, session)
 
-    records, written, skipped, start_time = [], 0, 0, time.time()
-    for frame_number, frame in enumerate(frames, 1):
-        stem = Path(frame["frame"]).stem
-        target = view_root / "masks" / folder / f"{stem}.png"
+    (view_root / "masks" / folder).mkdir(parents=True, exist_ok=True)
+
+    def convert(frame: dict) -> bool:
+        """Write one frame's class-id mask unless it exists. Returns True if it was written now."""
+        target = view_root / "masks" / folder / f"{Path(frame['frame']).stem}.png"
         if target.exists():
-            skipped += 1
-        else:
-            sanpo_mask = cv2.imread(str(dataset_root / frame["mask"]))   # BGR: red (the class id) is index 2
-            if sanpo_mask is None:
-                raise FileNotFoundError(dataset_root / frame["mask"])
-            target.parent.mkdir(parents=True, exist_ok=True)
-            temporary = target.with_name(target.stem + ".tmp.png")
-            cv2.imwrite(str(temporary), sanpo_mask[:, :, 2])             # one channel, raw SANPO class ids
-            os.replace(temporary, target)
-            written += 1
-        records.append({"frame": frame["frame"], "frame_id": int(frame["frame_id"]),
-                        "human": int(frame["frame_id"]) in human})
-        if frame_number % PRINT_EVERY == 0 or frame_number == len(frames):
-            elapsed = time.time() - start_time
-            print(f"[{folder}] {session}: {frame_number}/{len(frames)} frames | {written} written, {skipped} existed | "
-                  f"elapsed {format_duration(elapsed)} | "
-                  f"ETA {format_duration(elapsed / frame_number * (len(frames) - frame_number))}", flush=True)
+            return False
+        sanpo_mask = cv2.imread(str(dataset_root / frame["mask"]))       # BGR: red (the class id) is index 2
+        if sanpo_mask is None:
+            raise FileNotFoundError(dataset_root / frame["mask"])
+        temporary = target.with_name(target.stem + ".tmp.png")
+        cv2.imwrite(str(temporary), sanpo_mask[:, :, 2])                 # one channel, raw SANPO class ids
+        os.replace(temporary, target)
+        return True
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    records, written, skipped, start_time = [], 0, 0, time.time()
+    # THREADS_PER_WALK frames at once (file reads wait on the volume; OpenCV releases the GIL); map keeps the order
+    with ThreadPoolExecutor(THREADS_PER_WALK) as pool:
+        for frame_number, (frame, was_written) in enumerate(zip(frames, pool.map(convert, frames)), 1):
+            written += int(was_written)
+            skipped += int(not was_written)
+            records.append({"frame": frame["frame"], "frame_id": int(frame["frame_id"]),
+                            "human": int(frame["frame_id"]) in human, "in_5fps": frame["frame_id"] in five_fps_ids})
+            if frame_number % PRINT_EVERY == 0 or frame_number == len(frames):
+                elapsed = time.time() - start_time
+                print(f"[{folder}] {session}: {frame_number}/{len(frames)} frames | {written} written, {skipped} "
+                      f"existed | elapsed {format_duration(elapsed)} | "
+                      f"ETA {format_duration(elapsed / frame_number * (len(frames) - frame_number))}", flush=True)
     volume.commit()
-    return {"session": session, "folder": folder, "frames": records, "written": written, "skipped": skipped}
+    return {"session": session, "folder": folder, "has_15fps": has_15fps, "frames": records, "written": written,
+            "skipped": skipped}
 
 
 @app.function(image=image, volumes={VOLUME_MOUNT_PATH: volume}, timeout=1800)
@@ -171,15 +200,32 @@ def write_lists_and_yaml(view_name: str, walks: list[dict], validation_walks: li
     view_root = dataset_root / "views" / view_name
     view_root.mkdir(parents=True, exist_ok=True)
     validation = set(validation_walks)
-    lists = {"train": [], "train_human": [], "val": [], "test": [], "test_human": []}
+    lists = {"train": [], "train_human": [], "val": [], "test": [], "test_human": [], "train_15fps": []}
+    training_walks, training_walks_with_15fps = 0, 0
     for walk in sorted(walks, key=lambda item: item["session"]):
         official = "test" if walk["folder"] == "test" else "train"   # our old "val" folder is official train
         split = "val" if (official == "train" and walk["session"] in validation) else official
-        for record in sorted(walk["frames"], key=lambda item: item["frame_id"]):
+        if split == "train":
+            training_walks += 1
+            training_walks_with_15fps += int(walk.get("has_15fps", False))
+        for position, record in enumerate(sorted(walk["frames"], key=lambda item: item["frame_id"])):
             line = "./../../" + record["frame"]                      # relative to the list file's folder
+            if split == "train" and walk.get("has_15fps"):
+                # position in the walk's 15 fps sequence: 0 mod 3 = the 5 fps frames (download rule all_ids[::3])
+                if (position % 3 == 0) != record["in_5fps"]:
+                    raise RuntimeError(f"{walk['session']}: frame {record['frame_id']} at position {position} "
+                                       f"breaks the every-3rd rule of the 5 fps set")
+                lists["train_15fps"].append(line)                   # every frame of the walk, in order: the
+                                                                     # training code picks 5/10 fps from it
+            if not record.get("in_5fps", True):                      # 15 fps add-on frame: only in train_15fps
+                continue
             lists[split].append(line)
             if record["human"] and split in ("train", "test"):
                 lists[f"{split}_human"].append(line)
+    if training_walks_with_15fps < training_walks:                   # a mixed 5/15 fps list would mislead
+        print(f"train_15fps.txt not written: {training_walks_with_15fps} of {training_walks} training walks have "
+              f"{ALL_FRAMES_INDEX_DIR}/ (run download_sanpo_modal.py --all-frames first)", flush=True)
+        del lists["train_15fps"]
     for name, lines in lists.items():
         (view_root / f"{name}.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
 

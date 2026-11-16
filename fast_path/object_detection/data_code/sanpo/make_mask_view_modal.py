@@ -39,7 +39,7 @@ import modal
 # SETTINGS (edit here)
 # =============================================================================
 VOLUME_NAME = "sanpo"
-DATASET = "sanpo_real_chest_5fps"  # folder made by download_sanpo_modal.py
+DATASET = "sanpo_real_chest"  # folder made by download_sanpo_modal.py
 VIEW_NAME = "masks_v1"  # new name = new view; old views are kept
 
 # Same classes as boxes_v1 (keep in sync with make_box_view_modal.py).

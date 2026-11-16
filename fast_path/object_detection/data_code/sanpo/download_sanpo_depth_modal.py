@@ -32,7 +32,7 @@ import modal
 # SETTINGS (edit here)
 # =============================================================================
 VOLUME_NAME = "sanpo"
-DATASET = "sanpo_real_chest_5fps"  # folder made by download_sanpo_modal.py
+DATASET = "sanpo_real_chest"  # folder made by download_sanpo_modal.py
 DEPTH_FOLDER = "depth_maps"  # SANPO dense depth (CREStereo); "zed_depth_maps" = sparse sensor depth
 MAX_CONTAINERS = 60  # sessions processed in parallel (146 sessions in total)
 DOWNLOAD_THREADS = 32  # files downloaded at the same time inside each container

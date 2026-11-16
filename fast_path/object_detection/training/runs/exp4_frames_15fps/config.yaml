@@ -1,0 +1,28 @@
+# exp4_frames_15fps: experiment plan step 4 (which real frames), D = every frame of the training walks at 15 fps
+# (50,540 frames, data.train_fps). Same recipe as the 5 fps run B (exp2_start_ade20k): ADE20K start, full frames,
+# lr 0.002, batch 32,
+# EQUAL STEPS (about 9,500 optimizer steps, run B's learning-rate curve and validation every 528 steps). Needs the 15 fps add-on on its session: session 3.
+model:
+  weights: yolo26n-sem-ade20k.pt
+
+data:
+  train_fps: 15
+  extra_archives: [tars_15fps_extra]
+
+ultralytics:
+  imgsz: 352
+  lr0: 0.002
+  cache: ram                 # like runs A and B: about 31 GB of decoded frames in RAM
+  epochs: 6                 # EQUAL STEPS with run B (18 x 528 = 9,504): 50,540 frames / 32 = 1,580 batches per epoch x 6 = 9,480 steps; warmup 0.67 epoch = about 1,059 steps
+  warmup_epochs: 0.67          # warmup kept at run B's about 1,056 steps
+
+schedule:
+  reference: {steps_per_epoch: 528, epochs: 18, warmup_epochs: 2}   # run B's learning-rate curve, step for step
+                             # (checked: reproduces B's logged lr at all 9,504 steps)
+
+validation:
+  every_steps: 528           # = run B's validation schedule (one 5 fps epoch at batch 32), the same for every run
+
+modal:
+  gpu: "T4"
+  memory_gb: 64              # RAM cache about 31 GB + Ultralytics' 50% safety margin (check_cache_ram) + overhead

@@ -34,7 +34,7 @@ import modal
 # SETTINGS (edit here)
 # =============================================================================
 VOLUME_NAME = "sanpo"
-DATASET = "sanpo_real_chest_5fps"  # folder inside the Volume
+DATASET = "sanpo_real_chest"  # folder inside the Volume
 ARCHIVE_SIZE_GB = 2.0  # target size of each .tar archive (changing it re-packs everything)
 PACK_CONTAINERS = 10  # archives packed in parallel on Modal
 PARALLEL_DOWNLOADS = 10  # archives downloaded at the same time on this PC

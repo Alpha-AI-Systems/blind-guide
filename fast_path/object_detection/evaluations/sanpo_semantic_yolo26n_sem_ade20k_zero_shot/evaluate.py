@@ -72,7 +72,7 @@ import evaluate_shared_code as shared  # noqa: E402
 # SETTINGS (edit here)
 # =============================================================================
 VOLUME_NAME = "sanpo"
-DATASET = "sanpo_real_chest_5fps"  # folder in the Volume (download_sanpo_modal.py)
+DATASET = "sanpo_real_chest"  # folder in the Volume (download_sanpo_modal.py)
 SPLITS = ["test"]  # SANPO official test split (the paper reports on test)
 
 WEIGHTS = "yolo26n-sem-ade20k.pt"  # official semantic model trained on ADE20K (150 classes)

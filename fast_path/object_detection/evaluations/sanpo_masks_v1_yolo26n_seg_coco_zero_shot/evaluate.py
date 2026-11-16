@@ -54,7 +54,7 @@ import evaluate_shared_code as shared  # noqa: E402
 # SETTINGS (edit here)
 # =============================================================================
 VOLUME_NAME = "sanpo"
-DATASET = "sanpo_real_chest_5fps"  # folder in the Volume (download_sanpo_modal.py)
+DATASET = "sanpo_real_chest"  # folder in the Volume (download_sanpo_modal.py)
 VIEW_NAME = "masks_v1"  # mask view (make_mask_view_modal.py): one mask per object, same objects as boxes_v1
 TASK = "segment"  # compare masks (COCO "segm" scores), not boxes
 SPLITS = ["test"]  # SANPO official test split

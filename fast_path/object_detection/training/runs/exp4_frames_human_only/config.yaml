@@ -1,0 +1,25 @@
+# exp4_frames_human_only: experiment plan step 4 (which real frames), A = only the HUMAN-labeled frames of the training
+# walks (train_human.txt, 8,468 frames: every 6th frame at 15 fps = 2.5 fps). Same recipe as the 5 fps run B
+# (exp2_start_ade20k): ADE20K start, full frames, lr 0.002, batch 32,
+# EQUAL STEPS (about 9,500 optimizer steps, run B's learning-rate curve and validation every 528 steps). Session 5.
+model:
+  weights: yolo26n-sem-ade20k.pt
+
+data:
+  train_list: train_human.txt
+
+ultralytics:
+  imgsz: 352
+  lr0: 0.002
+  epochs: 36                 # EQUAL STEPS with run B (18 x 528 = 9,504): 8,468 frames / 32 = 265 batches per epoch x 36 = 9,540 steps; warmup 4 epochs = 1,060 steps
+  warmup_epochs: 4          # warmup kept at run B's about 1,056 steps
+
+schedule:
+  reference: {steps_per_epoch: 528, epochs: 18, warmup_epochs: 2}   # run B's learning-rate curve, step for step
+                             # (checked: reproduces B's logged lr at all 9,504 steps)
+
+validation:
+  every_steps: 528           # = run B's validation schedule (one 5 fps epoch at batch 32), the same for every run
+
+modal:
+  gpu: "T4"
