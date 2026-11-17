@@ -22,7 +22,7 @@ Output (in ./results/ next to this script)
     summary.md                        the counts
 
 Run from the repo root:
-    python fast_path/object_detection/data_code/sanpo/label_source_check/check_label_source.py
+    python fast_path/object_detection/data_code/sanpo/chest/label_source_check/check_label_source.py
 """
 
 import json
@@ -35,7 +35,7 @@ from pathlib import Path
 # =============================================================================
 # SETTINGS (edit here)
 # =============================================================================
-DATASET_ROOT = Path(__file__).resolve().parents[3] / "data" / "sanpo" / "sanpo_real_chest"
+DATASET_ROOT = Path(__file__).resolve().parents[4] / "data" / "sanpo" / "sanpo_real_chest"
 RESULTS_DIRECTORY = Path(__file__).resolve().parent / "results"
 SANPO_BUCKET_URL = "https://storage.googleapis.com/gresearch/sanpo_dataset/v0/sanpo-real"
 CAMERA = "chest"

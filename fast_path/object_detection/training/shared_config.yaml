@@ -16,13 +16,13 @@ data:
   annotation_types_dir: ../../sanpo_meta/annotation_types   # SANPO's label-source files (relative to the view)
   extra_validation: {val_human: val_human.txt}   # also validated every epoch (val_human_*); best.pt still uses val
   train_list: null           # null = data.yaml's train (5 fps); train_human.txt = human-labeled only
-  train_fps: 10              # step 4 winner: 10 fps (take 2 of every 3 frames), picked from train_15fps.txt
-                             # (5 / 10 / 15 possible; the 15 fps data is on sessions 2 and 3 only)
-  extra_archives: [tars_15fps_extra]   # the 15 fps frames outside the 5 fps archives (needed for 10 and 15 fps)
+  train_fps: null            # null = data.yaml's train (5 fps). Experiments stay at 5 fps; the step 4 winner
+                             # (10 fps) is applied to the final recipe (5 / 10 / 15 possible; 15 fps data on sessions 2, 3)
+  extra_archives: []         # [tars_15fps_extra] for 10 / 15 fps
 
 ultralytics:
-  epochs: 9                  # 10 fps: 1,054 batches x 9 = 9,486 steps = the step budget of the 5 fps runs
-                             # (18 x 528); steps 2-3 used 18 epochs at 5 fps, the lr sweep 25
+  epochs: 18                 # 5 fps: 528 batches x 18 = 9,504 steps (all lr 0.002 runs peaked at epoch 8-19);
+                             # the lr sweep used 25. Other frame rates: keep the steps (10 fps: 9 epochs)
   batch: 32
   nbs: 32                    # nominal batch size; = batch: no gradient accumulation (Ultralytics' default nbs=64 would accumulate 2 batches)
   imgsz: 352                 # training sets the SHORT side: frames scaled to 626x352 (multiple of 32; the phone runs 640x352)
@@ -30,7 +30,7 @@ ultralytics:
   lr0: 0.002                 # step 1 winner (chosen on val); exp1 runs set their own
   lrf: 0.01                  # cosine down to 1% of the peak
   cos_lr: true
-  warmup_epochs: 1           # about 1,056 steps (overridden by schedule.reference anyway)
+  warmup_epochs: 2           # 1,056 steps at 5 fps
   mosaic: 0.05
   close_mosaic: 15           # mosaic only in the first 10 of 25 epochs
   scale: 0.25
@@ -55,11 +55,11 @@ dataloader:                  # built by the trainer subclass, so every setting i
   cap_workers_at_cpu_count: false   # true = never more workers than os.cpu_count()
 
 schedule:
-  reference: {steps_per_epoch: 528, epochs: 18, warmup_epochs: 2}   # the 5 fps runs' learning-rate curve,
-                             # step for step, so runs of any epoch length share one curve (step 4)
+  reference: null            # null = Ultralytics' own per-epoch curve (at 5 fps = the reference curve). Runs
+                             # with other epoch lengths: {steps_per_epoch: 528, epochs: 18, warmup_epochs: 2}
 
 validation:
-  every_steps: 528           # = the 5 fps runs' validation schedule (one 5 fps epoch at batch 32)
+  every_steps: null          # null = every epoch (at 5 fps = every 528 steps); other epoch lengths: 528
 
 logging:
   # extra validation scores: classes merged into groups, IoU per group + their mean, logged in val_log.csv
@@ -96,8 +96,8 @@ modal:
   timeout_hours: 8
   cpu: 4                     # physical CPU cores reserved on Modal = half of ultralytics.workers (1 core = 2 vCPUs)
                              # ($0.0473 per core per hour)
-  memory_gb: 48              # RAM reserved on Modal; the 10 fps RAM cache needs about 21 GB + Ultralytics' 50%
-                             # margin ($0.008 per GB per hour)
+  memory_gb: 32              # RAM reserved on Modal; the 5 fps RAM cache needs about 11 GB (10 fps: 48)
+                             # ($0.008 per GB per hour)
   sync_checkpoints: true     # also download weights/best.pt and last.pt when the results sync home
   runs_volume: "blind-guide-runs"
   data_volume: "sanpo"

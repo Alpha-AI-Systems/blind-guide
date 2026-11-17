@@ -21,7 +21,7 @@ OUTPUT (frames are NOT copied; a view is one way of turning SANPO's labels into 
     <DATASET>/views/<VIEW_NAME>/view.yaml                   the settings used and the counts
 
 Decisions (md_files/decisions_for_training_yolo.md):
-  - Splits: SANPO's official train split minus the 12 validation walks (validation_split/results/
+  - Splits: SANPO's official train split minus the 12 validation walks (chest/validation_split/results/
     validation_walks.txt) = train; those 12 walks = val; SANPO's official test split = test.
   - Classes: 29. "unlabeled" (id 0) and "bus stop" (id 25, no pixels in the chest data) map to 255,
     Ultralytics' ignore label. The mapping from raw SANPO ids to training ids is written into data.yaml
@@ -39,8 +39,8 @@ Resumable: a mask that already exists is not written again; lists and YAML are r
 
 Run from the repo root (PowerShell):
     $env:MODAL_CONFIG_PATH = "$HOME\\.modal_session1.toml"
-    python -m modal run fast_path/object_detection/data_code/sanpo/make_semantic_view_modal.py --max-sessions 2 --view-name semantic_smoke   # quick test
-    python -m modal run fast_path/object_detection/data_code/sanpo/make_semantic_view_modal.py                                                 # full view
+    python -m modal run fast_path/object_detection/data_code/sanpo/chest/make_semantic_view_modal.py --max-sessions 2 --view-name semantic_smoke   # quick test
+    python -m modal run fast_path/object_detection/data_code/sanpo/chest/make_semantic_view_modal.py                                                 # full view
 """
 
 from __future__ import annotations

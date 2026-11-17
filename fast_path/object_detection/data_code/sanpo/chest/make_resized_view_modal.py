@@ -32,8 +32,8 @@ Resumable: an output file that already exists is not written again; lists and YA
 
 Run from the repo root (PowerShell):
     $env:MODAL_CONFIG_PATH = "$HOME\\.modal_session2.toml"
-    python -m modal run fast_path/object_detection/data_code/sanpo/make_resized_view_modal.py
-    python -m modal run fast_path/object_detection/data_code/sanpo/make_resized_view_modal.py --source-view semantic_smoke   # quick test
+    python -m modal run fast_path/object_detection/data_code/sanpo/chest/make_resized_view_modal.py
+    python -m modal run fast_path/object_detection/data_code/sanpo/chest/make_resized_view_modal.py --source-view semantic_smoke   # quick test
 """
 
 from __future__ import annotations

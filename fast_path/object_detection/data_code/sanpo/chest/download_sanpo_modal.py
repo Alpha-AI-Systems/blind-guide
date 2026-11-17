@@ -30,14 +30,14 @@ Output on the Modal Volume VOLUME_NAME, under OUTPUT_SUBDIR:
 
 Run from the repo root (PowerShell). First a small test (2 sessions per split):
     $env:MODAL_CONFIG_PATH = "$HOME\\.modal_session1.toml"
-    modal run fast_path/object_detection/data_code/sanpo/download_sanpo_modal.py --max-sessions 2
+    modal run fast_path/object_detection/data_code/sanpo/chest/download_sanpo_modal.py --max-sessions 2
 Then the full run:
-    modal run fast_path/object_detection/data_code/sanpo/download_sanpo_modal.py
+    modal run fast_path/object_detection/data_code/sanpo/chest/download_sanpo_modal.py
 Re-running skips frames that already exist.
 
 ALL FRAMES (15 fps) ADD-ON, for the "which real frames" experiment (step 4C), run once:
-    modal run fast_path/object_detection/data_code/sanpo/download_sanpo_modal.py --all-frames --max-sessions 2   # test
-    modal run fast_path/object_detection/data_code/sanpo/download_sanpo_modal.py --all-frames
+    modal run fast_path/object_detection/data_code/sanpo/chest/download_sanpo_modal.py --all-frames --max-sessions 2   # test
+    modal run fast_path/object_detection/data_code/sanpo/chest/download_sanpo_modal.py --all-frames
   - Only the TRAINING walks (official train minus the 12 validation walks): validation and test stay at 5 fps.
   - Every annotated frame (stride 1). The 5 fps frames already on the volume are kept, not downloaded again; the
     new frames go into the same frames/ and masks/ folders.

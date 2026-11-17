@@ -250,3 +250,6 @@ fast_path/object_detection/training/runs/*/results/train/.run_ids/
 # debug images: only the first one of each launch (step 1) is pushed; the rest stay local
 fast_path/object_detection/training/runs/*/results/train/debug/*
 !fast_path/object_detection/training/runs/*/results/train/debug/*_step000001_*
+
+# SANPO-Synthetic exploration cache (49 MB; explore_sanpo_synthetic.ipynb recomputes it on Modal)
+fast_path/object_detection/data_code/sanpo/synthetic/results/

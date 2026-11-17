@@ -27,8 +27,8 @@ Resumable: a session whose JSON exists is skipped; files are written atomically.
 
 Run from the repo root (PowerShell):
     $env:MODAL_CONFIG_PATH = "$HOME\\.modal_session1.toml"
-    python -m modal run fast_path/object_detection/data_code/sanpo/make_mask_view_modal.py --max-sessions 2   # quick test
-    python -m modal run fast_path/object_detection/data_code/sanpo/make_mask_view_modal.py                    # all sessions
+    python -m modal run fast_path/object_detection/data_code/sanpo/chest/make_mask_view_modal.py --max-sessions 2   # quick test
+    python -m modal run fast_path/object_detection/data_code/sanpo/chest/make_mask_view_modal.py                    # all sessions
 """
 
 from __future__ import annotations

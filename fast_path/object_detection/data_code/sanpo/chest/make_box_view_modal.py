@@ -28,8 +28,8 @@ atomically (temp file, then rename).
 
 Run from the repo root (PowerShell):
     $env:MODAL_CONFIG_PATH = "$HOME\\.modal_session1.toml"
-    modal run fast_path/object_detection/data_code/sanpo/make_box_view_modal.py --max-sessions 2   # quick test
-    modal run --detach fast_path/object_detection/data_code/sanpo/make_box_view_modal.py           # all sessions
+    modal run fast_path/object_detection/data_code/sanpo/chest/make_box_view_modal.py --max-sessions 2   # quick test
+    modal run --detach fast_path/object_detection/data_code/sanpo/chest/make_box_view_modal.py           # all sessions
 """
 
 from __future__ import annotations

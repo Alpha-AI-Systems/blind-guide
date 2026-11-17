@@ -20,8 +20,8 @@ the Volume is committed regularly; a finished session writes a small done-marker
 
 Run from the repo root (PowerShell):
     $env:MODAL_CONFIG_PATH = "$HOME\\.modal_session1.toml"
-    python -m modal run fast_path/object_detection/data_code/sanpo/download_sanpo_depth_modal.py --max-sessions 2   # quick test
-    python -m modal run fast_path/object_detection/data_code/sanpo/download_sanpo_depth_modal.py                    # all sessions
+    python -m modal run fast_path/object_detection/data_code/sanpo/chest/download_sanpo_depth_modal.py --max-sessions 2   # quick test
+    python -m modal run fast_path/object_detection/data_code/sanpo/chest/download_sanpo_depth_modal.py                    # all sessions
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 # Head dataset analysis and validation split (local 5 FPS)
 
-This directory is new and does not modify the teammate's `validation_split/` for Chest.
+This directory is new and does not modify the teammate's `chest/validation_split/` for Chest.
 
 1. Verify branch is `feat/local-sanpo-workflow`.
 2. Extract the ZIP **only on that branch**.
@@ -13,7 +13,7 @@ This directory is new and does not modify the teammate's `validation_split/` for
 
 Requirements in venv: `python -m pip install numpy pandas matplotlib opencv-python ipykernel` (most likely already installed).
 
-**Safety:** the notebook writes only its own new `head_validation_split/results/` directory. It never touches original downloaded JPG/PNG, Chest files, existing team notebooks, Git branches, or experiment weights. It reads the Chest validation list and Chest index to check session overlap. An already published Head validation list is not overwritten.
+**Safety:** the notebook writes only its own new `head/validation_split/results/` directory. It never touches original downloaded JPG/PNG, Chest files, existing team notebooks, Git branches, or experiment weights. It reads the Chest validation list and Chest index to check session overlap. An already published Head validation list is not overwritten.
 
 **Design notes:**
 - This adaptation retains the friend's selection concept: official train only, whole walks, class coverage, class pixels, class frames, environments, weather, 5th percentile sharpness, human/machine source, crowd proportion, normalized similarity and iterative walk swaps.

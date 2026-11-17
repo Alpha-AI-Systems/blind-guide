@@ -25,7 +25,7 @@ Output (in ./results/ next to this script)
     example_sheets/        band_01_... (most blurry) to band_08_... (sharpest)
 
 Run from the repo root:
-    python fast_path/object_detection/data_code/sanpo/blur_analysis/measure_blur.py
+    python fast_path/object_detection/data_code/sanpo/chest/blur_analysis/measure_blur.py
 """
 
 import csv
@@ -37,7 +37,7 @@ from pathlib import Path
 # =============================================================================
 # SETTINGS (edit here)
 # =============================================================================
-DATASET_ROOT = Path(__file__).resolve().parents[3] / "data" / "sanpo" / "sanpo_real_chest"
+DATASET_ROOT = Path(__file__).resolve().parents[4] / "data" / "sanpo" / "sanpo_real_chest"
 RESULTS_DIRECTORY = Path(__file__).resolve().parent / "results"
 SCORE_WIDTH = 640  # frames are resized to this width before scoring (same scale for every frame, and fast)
 WORKER_THREADS = max(1, (os.cpu_count() or 4) - 2)  # frames scored in parallel (OpenCV releases the Python lock)

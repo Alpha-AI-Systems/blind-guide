@@ -25,3 +25,6 @@ validation:
 modal:
   gpu: "A10G"                # tested: 116 img/s, 8.2 GB peak (T4: 52 img/s); cheaper overall than a T4
   memory_gb: 48              # RAM cache about 21 GB + Ultralytics' 50% safety margin (check_cache_ram) + overhead
+
+test:
+  batch: 64                  # small model: about 2x the activations of nano; 128 may not fit the T4 (batch does not change scores)

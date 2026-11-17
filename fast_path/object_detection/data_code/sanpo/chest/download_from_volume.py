@@ -23,7 +23,7 @@ _archives/<DATASET> on the Volume and run again.
 
 Run from the repo root (PowerShell):
     $env:MODAL_CONFIG_PATH = "$HOME\\.modal_session1.toml"
-    python fast_path/object_detection/data_code/sanpo/download_from_volume.py
+    python fast_path/object_detection/data_code/sanpo/chest/download_from_volume.py
 """
 
 from __future__ import annotations
@@ -203,7 +203,7 @@ def stage2_download(manifest: dict) -> bool:
     from concurrent.futures import ThreadPoolExecutor, as_completed
     from pathlib import Path
 
-    local_root = Path(__file__).resolve().parents[2] / "data" / "sanpo"  # fast_path/object_detection/data/sanpo
+    local_root = Path(__file__).resolve().parents[3] / "data" / "sanpo"  # fast_path/object_detection/data/sanpo
     archive_dir = local_root / "_archives" / DATASET
     archive_dir.mkdir(parents=True, exist_ok=True)
 
