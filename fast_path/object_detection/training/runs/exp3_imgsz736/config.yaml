@@ -5,7 +5,7 @@ model:
   weights: yolo26n-sem-ade20k.pt
 
 data:
-  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest_5fps/views/semantic_v1_short736/data.yaml"
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest/views/semantic_v1_short736/data.yaml"
 
 ultralytics:
   imgsz: 736
@@ -18,7 +18,7 @@ modal:
   cpu: 6                     # = workers / 2
   memory_gb: 32
   path_remap:
-    data.yaml: "/data/sanpo_real_chest_5fps/views/semantic_v1_short736/data.yaml"
+    data.yaml: "/data/sanpo_real_chest/views/semantic_v1_short736/data.yaml"
 
 test:
   batch: 32                  # test batch 128 ran out of GPU memory at 1312x736 on the T4

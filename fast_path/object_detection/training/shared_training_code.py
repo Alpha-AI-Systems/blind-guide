@@ -318,6 +318,28 @@ data:
                              # the view folder on the volume (<walk>.json: frame number -> HUMAN_ANNOTATED / ...)
   extra_validation: {val_human: val_human.txt}   # also validated after every epoch (logged as val_human_mIoU,
                              # val_human_pixel_acc, val_human_group_...); best.pt is still chosen on data.yaml's val
+  train_list: null           # image list to TRAIN on, in the view folder (null = data.yaml's train, the 5 FPS frames):
+                             # train_human.txt = human-labeled frames only, train_15fps.txt = all frames at 15 FPS.
+                             # A copy of data.yaml with only "train" changed is written next to it; val stays the same
+  train_fps: null            # 5 / 10 / 15: train on the training walks at this frame rate, picked at the start of the
+                             # run from all_frames_list (null = use train_list). Needs extra_archives for 10 and 15
+  all_frames_list: train_15fps.txt   # every frame of the training walks at 15 fps, in order per walk
+  fps_positions: {5: [0], 10: [0, 1], 15: [0, 1, 2]}   # per walk, frame position mod 3 kept for each train_fps:
+                             # 5 = 0,3,6,... (= train.txt); 10 = 0,1,3,4,6,7,... (take 2, skip 1); 15 = all
+  extra_archives: []         # extra archive folders of the view copied to local disk besides tars/
+                             # (tars_15fps_extra = the 15 FPS frames that are not in the 5 FPS set)
+
+schedule:
+  reference: null            # {steps_per_epoch: N, epochs: E, warmup_epochs: W} of a reference run: every optimizer
+                             # step gets the learning rate (and momentum) that run had at the same step, so runs with
+                             # different epoch lengths share one curve (null = Ultralytics' own per-epoch schedule)
+
+validation:
+  every_steps: null         # null = validate once per epoch (Ultralytics' default). A number N = validate every N
+                             # optimizer steps instead (in the middle of epochs too) and save best.pt right then;
+                             # Ultralytics' per-epoch validation is turned off (val=False) except after the last epoch,
+                             # and best.pt is still re-validated at the end. Same N for runs of different epoch lengths
+                             # = the same validation schedule (e.g. 528 = one epoch of the 5 fps run at batch 32)
 
 ultralytics:                 # passed as-is to Ultralytics model.train(...); see docs.ultralytics.com/modes/train
   epochs: 25
@@ -450,7 +472,7 @@ test:                        # runs/<run>/test.py: scores the run's checkpoints 
 
 resume: auto                 # auto = continue Ultralytics' last.pt if the run is unfinished | false = start fresh
 resume_force: false          # resume even though guarded settings changed
-resume_guard: [model.weights, data.yaml, ultralytics.epochs, ultralytics.batch, ultralytics.imgsz,
+resume_guard: [model.weights, data.yaml, data.train_list, data.train_fps, validation.every_steps, schedule.reference, ultralytics.epochs, ultralytics.batch, ultralytics.imgsz,
                ultralytics.optimizer, ultralytics.lr0, ultralytics.lrf, ultralytics.cos_lr, ultralytics.nbs]
 """
 DEFAULTS = yaml.safe_load(DEFAULTS_YAML)
@@ -1432,6 +1454,50 @@ def make_dataset_class(config: dict):
     return MaskPathSemanticDataset
 
 
+def reference_learning_rate(step_index: int, initial_rate: float, is_bias: bool, reference: dict,
+                            arguments) -> tuple[float, float]:
+    """(lr, momentum) that Ultralytics 8.4.208 used at 0-based optimizer step step_index in the REFERENCE run.
+
+    reference: {"steps_per_epoch", "epochs", "warmup_epochs"} of that run (accumulate 1). Ultralytics' rules
+    (engine/trainer.py): the cosine (cos_lr) or linear factor lf(epoch) changes once per epoch; during warmup
+    (step <= warmup steps, warmup = min(warmup_epochs, epochs - 1) x steps per epoch) lr goes linearly from
+    warmup_bias_lr (bias groups) or 0 to initial_rate x lf(epoch), momentum from warmup_momentum to momentum.
+    """
+    steps_per_epoch = int(reference["steps_per_epoch"])
+    epochs = int(reference["epochs"])
+    warmup_steps = round(min(float(reference["warmup_epochs"]), max(epochs - 1, 0)) * steps_per_epoch)
+    epoch = step_index // steps_per_epoch
+    lrf = float(arguments.lrf)
+    if arguments.cos_lr:
+        factor = ((1 - math.cos(epoch * math.pi / epochs)) / 2) * (lrf - 1) + 1     # torch_utils.one_cycle(1, lrf)
+    else:
+        factor = max(1 - epoch / epochs, 0) * (1.0 - lrf) + lrf
+    target = initial_rate * factor
+    if warmup_steps and step_index <= warmup_steps:
+        start = float(arguments.warmup_bias_lr) if is_bias else 0.0
+        rate = float(np.interp(step_index, [0, warmup_steps], [start, target]))
+        momentum = float(np.interp(step_index, [0, warmup_steps], [float(arguments.warmup_momentum),
+                                                                     float(arguments.momentum)]))
+        return rate, momentum
+    return target, float(arguments.momentum)
+
+
+def apply_reference_schedule(config: dict, trainer, step_index: int) -> None:
+    """schedule.reference: give this step the learning rate (and momentum) of the reference run at the same step.
+
+    Runs of different epoch lengths then share ONE learning-rate curve over the optimizer steps (Ultralytics changes
+    the rate once per epoch, so with its own schedule a run with 3x longer epochs would get 3x coarser steps).
+    Called right before each optimizer step, after Ultralytics' own warmup and scheduler, so this value is used.
+    """
+    reference = config_get(config, "schedule.reference")
+    for group in trainer.optimizer.param_groups:
+        rate, momentum = reference_learning_rate(step_index, float(group["initial_lr"]),
+                                                 group.get("param_group") == "bias", reference, trainer.args)
+        group["lr"] = rate
+        if "momentum" in group:
+            group["momentum"] = momentum
+
+
 def make_trainer_class(monitor):
     """An Ultralytics semantic trainer that (1) finds masks with the dataset YAML's own path rule and
     (2) reports every optimizer step (gradient norm, update-to-weight ratio) to the monitor.
@@ -1552,6 +1618,10 @@ def make_trainer_class(monitor):
             except Exception:
                 gradient_norm = None
             monitor.before_optimizer_step(self)
+            if config_get(monitor.config, "schedule.reference"):
+                # apply_reference_schedule takes: the config, the trainer, this step's 0-based index;
+                # sets every parameter group's lr (and momentum) to the reference run's value at this step
+                apply_reference_schedule(monitor.config, self, monitor.step)
             super().optimizer_step()
             monitor.after_optimizer_step(self, gradient_norm)
 
@@ -1826,6 +1896,37 @@ class TrainingMonitor:
             return
         step_info, self.pending_step = self.pending_step, None
         self._log_step(trainer, step_info, now)
+        every = int(config_get(self.config, "validation.every_steps") or 0)
+        # the very last step is left to Ultralytics' own validation after the last epoch
+        if every and self.step % every == 0 and self.step < (self.total_steps or 0):
+            self._step_validation(trainer)
+
+    def _step_validation(self, trainer):
+        """Validate in the middle of training (validation.every_steps) and save best.pt when the score improves.
+
+        Uses Ultralytics' own trainer.validate() (the EMA model, the same validator and data loader as its
+        per-epoch validation; the training model is not touched). best.pt is written by Ultralytics' save_model
+        with last.pt pointed elsewhere for that call: a mid-epoch last.pt would make a resume skip the rest of the
+        epoch. Afterwards trainer.fitness is cleared, so the end of the epoch (val=False) neither overwrites best.pt
+        with later weights nor feeds a stale score to early stopping (Ultralytics treats None as "not validated").
+        """
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        metrics, fitness = trainer.validate()          # also raises trainer.best_fitness when it improved
+        trainer.metrics, trainer.fitness = metrics or {}, fitness
+        if fitness is not None and trainer.best_fitness == fitness:
+            real_last = trainer.last
+            trainer.last = Path(trainer.wdir) / "mid_epoch_unused.pt"
+            try:
+                trainer.save_model()                       # writes best.pt (and the throwaway file)
+            finally:
+                trainer.last.unlink(missing_ok=True)
+                trainer.last = real_last
+            self.on_model_save(trainer)
+        self._record_validation(trainer, "step")
+        trainer.fitness = None
+        now = time.perf_counter()                      # validation time is not training throughput
+        self.window["wall_start"], self.last_batch_end = now, now
 
     def _log_step(self, trainer, step_info, now):
         window = self.window
@@ -1962,14 +2063,25 @@ class TrainingMonitor:
 
     # ---- validation, checkpoints, end ------------------------------------------------------------------
     def on_fit_epoch_end(self, trainer):
-        metrics = dict(trainer.metrics or {})
-        if not metrics:
+        if not dict(trainer.metrics or {}):
             return
-        # Ultralytics calls this once more after training, for the final validation of best.pt, with
+        final = trainer.epoch + 1 > trainer.epochs
+        if config_get(self.config, "validation.every_steps") and not final and trainer.fitness is None:
+            return                                     # no validation at this epoch end (val=False): nothing new
+        self._record_validation(trainer, "epoch")
+
+    def _record_validation(self, trainer, trigger: str):
+        """Log, print and track one validation (trigger "epoch" at an epoch end, "step" in the middle of training;
+        a validation after the last epoch's end with trainer.epoch one past the end is "final_best")."""
+        metrics = dict(trainer.metrics or {})
+        # Ultralytics calls on_fit_epoch_end once more after training, for the final validation of best.pt, with
         # trainer.epoch temporarily one past the last epoch: logged as trigger "final_best"
         final = trainer.epoch + 1 > trainer.epochs
-        row = {"epoch": min(trainer.epoch + 1, trainer.epochs), "step": self.step,
-               "trigger": "final_best" if final else "epoch"}
+        if trigger == "step":                          # where in training: epochs done, as a fraction
+            epoch_value = round(self.step / max(self.steps_per_epoch or 1, 1), 2)
+        else:
+            epoch_value = min(trainer.epoch + 1, trainer.epochs)
+        row = {"epoch": epoch_value, "step": self.step, "trigger": "final_best" if final else trigger}
         for key, value in metrics.items():
             try:
                 row["val_" + key.split("/")[-1]] = round(float(value), 6)
@@ -2003,7 +2115,7 @@ class TrainingMonitor:
         row["epoch_time_s"] = round(float(getattr(trainer, "epoch_time", 0.0) or 0.0), 1)
         row["elapsed_s"] = round(time.time() - self.start_wall, 1)
         if not final and fitness is not None and (self.best is None or fitness > self.best):
-            self.best, self.best_epoch = fitness, trainer.epoch + 1
+            self.best, self.best_epoch = fitness, epoch_value
         row["best_fitness"] = self.best
         previous = self.history[-1] if self.history else None
         self.history.append(row)
@@ -2028,9 +2140,9 @@ class TrainingMonitor:
         elif final:
             print(f"     🏁 best.pt (epoch {self.best_epoch}) re-validated: mIoU {current:.4f}")
         elif self.best_epoch == row["epoch"]:
-            print(f"     ⭐ NEW BEST mIoU {current:.4f} at this epoch ({row['epoch']}) -> saved as best.pt")
+            print(f"     ⭐ NEW BEST mIoU {current:.4f} at epoch {row['epoch']} (step {self.step}) -> saved as best.pt")
         else:
-            since = row["epoch"] - self.best_epoch
+            since = round(row["epoch"] - self.best_epoch, 2)
             print(f"     ⚠️  NO IMPROVEMENT: mIoU {current:.4f} is {self.best - current:.4f} below the best "
                   f"{self.best:.4f} from epoch {self.best_epoch} ({since} epoch{'s' if since != 1 else ''} ago); "
                   f"best.pt stays epoch {self.best_epoch}")
@@ -2131,6 +2243,73 @@ class TrainingMonitor:
 # =============================================================================
 # the entry point: run_training
 # =============================================================================
+def make_fps_list(config: dict, view_dir: Path) -> str:
+    """Write the training list for data.train_fps next to the view's lists; return its file name.
+
+    From data.all_frames_list (every frame of each training walk at 15 fps, in order), keep per walk the frames whose
+    position mod 3 is in data.fps_positions[train_fps]. Position 0 mod 3 is exactly the 5 fps set (the download kept
+    every 3rd frame), so 5 fps reproduces train.txt; this is checked and printed.
+    """
+    fps = int(config_get(config, "data.train_fps"))
+    positions = {int(key): value for key, value in (config_get(config, "data.fps_positions") or {}).items()}
+    if fps not in positions:
+        raise SystemExit(f"  ❌ data.train_fps {fps}: no entry in data.fps_positions {positions}")
+    source = view_dir / str(config_get(config, "data.all_frames_list"))
+    if not source.exists():
+        raise SystemExit(f"  ❌ data.train_fps needs {source.name} in {view_dir} (15 fps frames on this session?)")
+    kept, position, previous_walk = [], 0, None
+    lines = source.read_text(encoding="utf-8").split()
+    for line in lines:
+        walk = Path(line).stem.rsplit("_", 1)[0]
+        position = position + 1 if walk == previous_walk else 0
+        previous_walk = walk
+        if position % 3 in positions[fps]:
+            kept.append(line)
+    name = f"train_{fps}fps_picked.txt"
+    (view_dir / name).write_text("\n".join(kept) + "\n", encoding="utf-8")
+    five_fps = view_dir / "train.txt"
+    check = ""
+    if fps == 5 and five_fps.exists():
+        same = set(kept) == set(five_fps.read_text(encoding="utf-8").split())
+        check = f" | identical to train.txt: {same}"
+    print(f"  🎞️  train_fps {fps}: kept positions {positions[fps]} of every 3 -> {len(kept):,} of {len(lines):,} "
+          f"frames of {source.name} ({name}){check}")
+    return name
+
+
+def apply_train_list(config: dict) -> str:
+    """Point training at another image list of the same view (data.train_list); return the data.yaml to use.
+
+    Writes data_<list name>.yaml next to data.yaml: the same file with only "train" changed, so Ultralytics resolves
+    every path exactly as before and validation is untouched. Every frame of the list must exist (on the local copy:
+    data.extra_archives must hold the archives of frames outside tars/), otherwise this stops with the count missing.
+    """
+    train_list = config_get(config, "data.train_list")
+    data_yaml = Path(config["data"]["yaml"])
+    if config_get(config, "data.train_fps"):
+        if train_list:
+            raise SystemExit("  ❌ set data.train_list OR data.train_fps, not both")
+        # make_fps_list takes: the config, the view folder; returns: the file name of the list it wrote
+        train_list = make_fps_list(config, data_yaml.parent)
+    if not train_list:
+        return str(data_yaml)
+    list_path = data_yaml.parent / str(train_list)
+    if not list_path.exists():
+        raise SystemExit(f"  ❌ data.train_list {train_list} not found in {data_yaml.parent}")
+    lines = list_path.read_text(encoding="utf-8").split()
+    missing = [line for line in lines if not (list_path.parent / line).exists()]
+    if missing:
+        raise SystemExit(f"  ❌ {len(missing):,} of {len(lines):,} frames of {train_list} are missing (first: "
+                         f"{missing[0]}). Are their archives in data.extra_archives?")
+    data = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
+    print(f"  🗂️  training list: {train_list} ({len(lines):,} frames) instead of {data['train']}")
+    data["train"] = str(train_list)
+    target = data_yaml.parent / f"data_{Path(str(train_list)).stem}.yaml"
+    header = f"# {data_yaml.name} with train = {train_list} (made by apply_train_list, data.train_list)\n"
+    target.write_text(header + yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    return str(target)
+
+
 def run_training(config: dict, run_dir, extra_callbacks: dict | None = None, persist_function=None):
     """Train one run: capture the console, print everything, train with Ultralytics, log, plot, flush.
 
@@ -2255,6 +2434,9 @@ def _run_training(config: dict, run_dir: Path, results_dir: Path, extra_callback
         for function in (functions if isinstance(functions, (list, tuple)) else [functions]):
             model.add_callback(event, function)
 
+    # apply_train_list takes: the config; returns: the data.yaml to train with (a copy with another train list,
+    # or the same file when data.train_list is null). Also written on resume: the checkpoint points to it.
+    config["data"]["yaml"] = apply_train_list(config)
     if state == "resume":
         # Ultralytics restores every setting from the checkpoint; only resume=True is passed
         arguments = {"resume": True}
@@ -2262,6 +2444,11 @@ def _run_training(config: dict, run_dir: Path, results_dir: Path, extra_callback
         arguments = dict(config["ultralytics"])
         arguments.update(data=str(config["data"]["yaml"]), project=str(results_dir),
                          name=config["output"]["ultralytics_dir"], exist_ok=True)
+        if config_get(config, "validation.every_steps"):
+            # validation every N steps by the TrainingMonitor; Ultralytics still validates after the last epoch
+            arguments["val"] = False
+            print(f"  🔎 validation every {int(config_get(config, 'validation.every_steps'))} optimizer steps "
+                  f"(validation.every_steps); Ultralytics' per-epoch validation off (val=False) except the last epoch")
     _kv("Ultralytics train arguments", sorted(arguments.items()), "\U0001F3CB️")
 
     status = "crashed"
@@ -2301,7 +2488,7 @@ def _print_final_summary(config: dict, monitor: TrainingMonitor, results_dir: Pa
           f"{len(monitor.history)} validations, {monitor.images_done:,} {monitor.unit}s)")
     if monitor.best is not None:
         print(f"  ⭐ best val mIoU      : {monitor.best:.4f}  @ epoch {monitor.best_epoch}")
-        best_row = next((row for row in monitor.history if row.get("trigger") == "epoch"
+        best_row = next((row for row in monitor.history if row.get("trigger") in ("epoch", "step")
                          and row.get("epoch") == monitor.best_epoch), None)
         if best_row:
             print(f"  \U0001F4CF pixel accuracy   : {best_row.get('val_pixel_acc')}")
@@ -2402,7 +2589,7 @@ def launch_run_id(config: dict, run_dir) -> str:
     return run_id
 
 
-def copy_view_to_local_disk(data_yaml, local_root, quiet: bool = False) -> str:
+def copy_view_to_local_disk(data_yaml, local_root, quiet: bool = False, extra_archive_dirs=()) -> str:
     """Copy a dataset view from the Modal Volume to the container's local disk; return the local data.yaml.
 
     A Modal Volume reads many small files slowly (Ultralytics warned "read: 1.3 MB/s"; Modal advises fewer than
@@ -2410,10 +2597,15 @@ def copy_view_to_local_disk(data_yaml, local_root, quiet: bool = False) -> str:
     into <view>/tars/<walk>.tar; here every archive is extracted (several in parallel) into
     <local_root>/<view name>/, and the image lists (*.txt) and data.yaml are copied next to them. The lists
     hold paths relative to their own folder, so the same data.yaml works there unchanged.
+    extra_archive_dirs: more archive folders of the view to extract too (data.extra_archives, e.g. tars_15fps_extra).
     Without a tars/ folder nothing is copied and the volume path is returned.
     """
     view_dir = Path(data_yaml).parent
     archives = sorted((view_dir / "tars").glob("*.tar")) if (view_dir / "tars").is_dir() else []
+    for folder in extra_archive_dirs or ():
+        if not (view_dir / folder).is_dir():
+            raise SystemExit(f"  ❌ data.extra_archives: {view_dir / folder} not found")
+        archives += sorted((view_dir / folder).glob("*.tar"))
     if not archives:
         print(f"  ⚠️  {view_dir} has no tars/ folder: training reads the frames straight from the volume (slow)")
         return str(data_yaml)
@@ -2505,11 +2697,12 @@ def modal_train(config: dict, run_dir, run_id: str = "", volumes: dict | None = 
         # downloaded once into the runs volume instead
         config_set(remote, "model.weights_dir", str(Path(remote["modal"]["runs_mount"]) / "_weights"))
     if remote["modal"].get("local_data_copy", True):
-        # copy_view_to_local_disk takes: the data.yaml path on the volume, the local folder;
+        # copy_view_to_local_disk takes: the data.yaml path on the volume, the local folder, extra archive folders;
         # returns: the local data.yaml path (or the same path when the view has no tars/ folder)
         volume_yaml = remote["data"]["yaml"]
         config_set(remote, "data.yaml", copy_view_to_local_disk(volume_yaml,
-                                                                remote["modal"].get("local_data_dir", "/tmp/local_data")))
+                                                                remote["modal"].get("local_data_dir", "/tmp/local_data"),
+                                                                extra_archive_dirs=config_get(remote, "data.extra_archives")))
         # make_human_lists takes: config, local data.yaml, data.yaml on the volume; returns: the lists written
         make_human_lists(remote, remote["data"]["yaml"], volume_yaml)
     try:
@@ -2555,7 +2748,15 @@ def write_run_report(config: dict, results_dir) -> Path | None:
         training = pd.read_csv(train_path) if train_path.exists() else pd.DataFrame()
         summary_path = results_dir / output["summary_json"]
         summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else {}
-        epochs = validation[validation["trigger"] == "epoch"].drop_duplicates("epoch", keep="last").sort_values("epoch")
+        # every validation during training: at epoch ends ("epoch") and every validation.every_steps ("step",
+        # epoch = a fraction); a resumed launch repeats an epoch, the last row wins
+        epochs = validation[validation["trigger"].isin(["epoch", "step"])].drop_duplicates("epoch", keep="last") \
+            .sort_values("epoch")
+
+        def epoch_text(value) -> str:
+            """3.0 -> "3", 3.95 -> "3.95"."""
+            value = float(value)
+            return str(int(value)) if value.is_integer() else f"{value:.2f}"
         final = validation[validation["trigger"] == "final_best"]
         if epochs.empty:
             return None
@@ -2568,7 +2769,8 @@ def write_run_report(config: dict, results_dir) -> Path | None:
                 return ""
 
         best_row = epochs.loc[epochs["val_mIoU"].idxmax()]
-        best_epoch = int(best_row["epoch"])
+        best_epoch = epoch_text(best_row["epoch"]) + (f", step {int(best_row['step'])}"
+                                                       if "step" in best_row and pd.notna(best_row["step"]) else "")
         planned_epochs = config_get(config, "ultralytics.epochs")
         launches = sorted(set(training["run_id"])) if "run_id" in training else sorted(set(validation["run_id"]))
         training_seconds = (float(training.groupby("run_id")["elapsed_s"].max().sum())
@@ -2587,7 +2789,8 @@ def write_run_report(config: dict, results_dir) -> Path | None:
         group_means = [column for column in group_columns if column.endswith("_mIoU")]
         human_columns = ["val_human_mIoU"] if "val_human_mIoU" in epochs.columns else []
         status = summary.get("status", "unknown")
-        done = int(epochs["epoch"].max())
+        done = (int(training["epoch"].max()) if "epoch" in training and not training.empty
+                else int(math.floor(float(epochs["epoch"].max()))))
 
         lines = [f"# {config['experiment']['name']}", ""]
         lines += [f"**{status}** · {done}/{planned_epochs} epochs · launches {', '.join(launches)} · "
@@ -2601,11 +2804,16 @@ def write_run_report(config: dict, results_dir) -> Path | None:
             lines.append(f"| val_human mIoU (best epoch, human-labeled frames) | {number(best_row.get('val_human_mIoU'))} |")
         for column in group_means:
             lines.append(f"| {column[len('val_group_'):-len('_mIoU')]} mIoU (best epoch) | {number(best_row[column])} |")
-        lines.append(f"| Last epoch mIoU | {number(epochs.iloc[-1]['val_mIoU'])} (epoch {done}) |")
+        lines.append(f"| Last validation mIoU | {number(epochs.iloc[-1]['val_mIoU'])} "
+                     f"(epoch {epoch_text(epochs.iloc[-1]['epoch'])}) |")
         lines += ["", "> Validation set (data.yaml 'val') at Ultralytics' validation size. The paper score comes "
                       "from the separate test evaluation (human-labeled frames, full resolution).", ""]
 
-        settings = [("weights", config_get(config, "model.weights")), ("data", Path(str(config_get(config, "data.yaml"))).parent.name)]
+        settings = [("weights", config_get(config, "model.weights")), ("data", Path(str(config_get(config, "data.yaml"))).parent.name),
+                    # train_frames_label takes: the config; returns: which training frames ("5 fps", "human (5 fps)", ...)
+                    ("train frames", train_frames_label(config)),
+                    ("validation", f"every {config_get(config, 'validation.every_steps')} steps"
+                     if config_get(config, "validation.every_steps") else "every epoch")]
         for key in ("epochs", "batch", "imgsz", "optimizer", "lr0", "lrf", "warmup_epochs", "mosaic", "close_mosaic",
                     "scale", "degrees", "fliplr", "seed", "deterministic", "amp"):
             settings.append((key, config_get(config, f"ultralytics.{key}")))
@@ -2638,20 +2846,31 @@ def write_run_report(config: dict, results_dir) -> Path | None:
         table_columns = ["epoch", "val_mIoU", "val_pixel_acc", "val_ce_loss", "val_dice_loss"] + human_columns + group_means
         headers = ["Epoch", "mIoU", "Pixel acc", "CE loss", "Dice loss"] + ["val_human mIoU"] * len(human_columns) + [
             column[len("val_group_"):-len("_mIoU")] + " mIoU" for column in group_means]
+        has_steps = "step" in epochs and "global_step" in training and not training.empty
         if not training.empty and "loss" in training:
+            # train loss = mean over the steps since the previous validation (or over the epoch, for old logs)
             train_loss = training.groupby("epoch")["loss"].mean()
             headers.insert(1, "Train loss")
-        lines += ["## Validation per epoch", "", "| " + " | ".join(headers) + " |",
+        if has_steps:
+            headers.insert(1, "Step")
+        lines += ["## Validation during training", "", "| " + " | ".join(headers) + " |",
                   "|" + "---|" * len(headers)]
-        running_best = None
+        running_best, previous_step = None, 0
         for _, row in epochs.iterrows():
-            epoch = int(row["epoch"])
             marker = ""
             if running_best is None or row["val_mIoU"] > running_best:
                 running_best, marker = row["val_mIoU"], " ⭐"
-            cells = [f"{epoch}{marker}"]
+            cells = [f"{epoch_text(row['epoch'])}{marker}"]
+            step = int(row["step"]) if has_steps and pd.notna(row["step"]) else None
+            if has_steps:
+                cells.append(str(step) if step is not None else "")
             if "Train loss" in headers:
-                cells.append(number(train_loss.get(epoch)))
+                if step is not None:
+                    window = training[(training["global_step"] > previous_step) & (training["global_step"] <= step)]
+                    cells.append(number(window["loss"].mean()) if not window.empty else "")
+                    previous_step = step
+                else:
+                    cells.append(number(train_loss.get(int(float(row["epoch"])))))
             cells += [number(row.get(column)) for column in table_columns[1:]]
             lines.append("| " + " | ".join(cells) + " |")
         lines += ["", "⭐ = new best at that epoch.", ""]
@@ -3523,6 +3742,17 @@ def write_test_results(config: dict, run_dir, result: dict, quiet: bool = False)
     return folder
 
 
+def train_frames_label(config: dict) -> str:
+    """Which frames of the training walks a run trained on, in a few words (leaderboard and run report)."""
+    fps = config_get(config, "data.train_fps")
+    train_list = config_get(config, "data.train_list")
+    if fps:
+        return f"{int(fps)} fps"
+    if not train_list:
+        return "5 fps"
+    return {"train_human.txt": "human (5 fps)", "train.txt": "5 fps"}.get(str(train_list), str(train_list))
+
+
 def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
     """runs/leaderboard.md: every tested checkpoint of every run, sorted by the test.leaderboard_split mIoU."""
     runs_dir = Path(runs_dir)
@@ -3553,22 +3783,26 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
                          "lr0": result["settings"]["lr0"], "start": Path(str(result["settings"]["weights_start"])).stem,
                          "parameters": cost.get("parameters") or result["settings"].get("parameters"),
                          # what the model saw in training: the whole frame (ultralytics.rect) or Ultralytics' centered square
-                         "train_input": "full frame" if config_get(config, "ultralytics.rect", False) else "center square"})
+                         "train_input": "full frame" if config_get(config, "ultralytics.rect", False) else "center square",
+                         # train_frames_label takes: the config; returns: which training frames ("5 fps", "human", ...)
+                         "train_frames": train_frames_label(config)})
     rows.sort(key=lambda row: -(row["main"] if row["main"] is not None else -1))
     show = lambda value: "" if value is None else f"{value:.4f}"
     lines = ["# Leaderboard", "",
              f"Sorted by test mIoU on the human-labeled test frames (SANPO paper's protocol). Written by runs/<run>/test.py, "
              f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.", "",
              "| # | Run | Ckpt | **Test mIoU** (human) | Test mIoU (all) | Test 3-class | Val mIoU | Val mIoU (human) | imgsz | "
-             "Train input | lr0 | Start | Params |",
-             "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+             "Train input | Train frames | lr0 | Start | Params |",
+             "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for rank, row in enumerate(rows, 1):
         parameters = f"{row['parameters'] / 1e6:.2f} M" if row["parameters"] else ""
         lines.append(f"| {rank} | {row['run']} | {row['checkpoint']} | **{show(row['test_human'])}** | {show(row['test_all'])} | "
                      f"{show(row['group'])} | {show(row['val'])} | {show(row['val_human'])} | {row['imgsz']} | "
-                     f"{row['train_input']} | {row['lr0']} | {row['start']} | {parameters} |")
+                     f"{row['train_input']} | {row['train_frames']} | {row['lr0']} | {row['start']} | {parameters} |")
     lines += ["", "Train input: **center square** = Ultralytics' default, training saw a centered imgsz x imgsz square of "
-                  "each frame; **full frame** = the whole 16:9 frame (ultralytics.rect)."]
+                  "each frame; **full frame** = the whole 16:9 frame (ultralytics.rect).",
+              "", "Train frames: the training walks' frames used: **5 fps** (train.txt), **10 fps** / **15 fps** "
+                  "(data.train_fps, picked from train_15fps.txt), **human** (only human-labeled frames, train_human.txt)."]
     if untested:
         lines += ["", "Not tested yet: " + ", ".join(untested)]
     if excluded:
@@ -3640,7 +3874,7 @@ def leaderboard(runs_dir) -> pd.DataFrame:
                 continue
             index = log["val_mIoU"].idxmax()
             rows.append({"run": run_dir.name, "best": float(log.loc[index, "val_mIoU"]),
-                         "epoch": int(log.loc[index, "epoch"]), "validations": len(log),
+                         "epoch": float(log.loc[index, "epoch"]), "validations": len(log),
                          "launches": log["run_id"].nunique() if "run_id" in log.columns else 1})
         except Exception as error:
             print(f"  ⚠️  {run_dir.name}: {type(error).__name__}: {error}")

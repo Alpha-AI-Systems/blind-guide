@@ -10,11 +10,15 @@ model:
 data:
   # Ultralytics dataset YAML of the SANPO semantic view (chest camera, 5 fps, official train split minus
   # the 12 validation walks; validation = the 12 walks). Made by data_code/sanpo/ (semantic view).
-  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest_5fps/views/semantic_v1_short352/data.yaml"
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest/views/semantic_v1_short352/data.yaml"
   validate_at_training_scale: true   # validate at the training scale (626x352), not Ultralytics' 352x198
   human_lists: {val_human.txt: val.txt}   # made after the data copy: the human-labeled frames of val.txt only
   annotation_types_dir: ../../sanpo_meta/annotation_types   # SANPO's label-source files (relative to the view)
   extra_validation: {val_human: val_human.txt}   # also validated every epoch (val_human_*); best.pt still uses val
+  train_list: null           # null = data.yaml's train (5 fps); train_human.txt = human-labeled only
+  train_fps: null            # 5 / 10 / 15: frames picked from train_15fps.txt at the start of the run
+                             # (10 and 15 need extra_archives: [tars_15fps_extra]; 15 fps data is on session 1 only)
+  extra_archives: []         # archive folders copied to local disk besides tars/
 
 ultralytics:
   epochs: 18                 # from step 2 on (all lr 0.002 runs peaked at epoch 8-19); the lr sweep used 25
@@ -90,4 +94,4 @@ modal:
   data_volume: "sanpo"
   data_mount: "/data"
   path_remap:
-    data.yaml: "/data/sanpo_real_chest_5fps/views/semantic_v1_short352/data.yaml"
+    data.yaml: "/data/sanpo_real_chest/views/semantic_v1_short352/data.yaml"

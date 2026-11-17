@@ -35,7 +35,7 @@ from pathlib import Path
 # =============================================================================
 # SETTINGS (edit here)
 # =============================================================================
-DATASET_ROOT = Path(__file__).resolve().parents[3] / "data" / "sanpo" / "sanpo_real_chest_5fps"
+DATASET_ROOT = Path(__file__).resolve().parents[3] / "data" / "sanpo" / "sanpo_real_chest"
 RESULTS_DIRECTORY = Path(__file__).resolve().parent / "results"
 SANPO_BUCKET_URL = "https://storage.googleapis.com/gresearch/sanpo_dataset/v0/sanpo-real"
 CAMERA = "chest"
