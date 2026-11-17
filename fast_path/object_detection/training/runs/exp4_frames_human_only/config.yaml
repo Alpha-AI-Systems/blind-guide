@@ -6,6 +6,8 @@ model:
   weights: yolo26n-sem-ade20k.pt
 
 data:
+  train_fps: null   # pinned (old default)
+  extra_archives: []   # pinned (old default)
   train_list: train_human.txt
 
 ultralytics:
@@ -22,4 +24,5 @@ validation:
   every_steps: 528           # = run B's validation schedule (one 5 fps epoch at batch 32), the same for every run
 
 modal:
+  memory_gb: 32   # pinned (old default)
   gpu: "T4"

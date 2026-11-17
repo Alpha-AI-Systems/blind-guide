@@ -5,8 +5,21 @@ model:
   weights: yolo26n-sem.pt
 
 ultralytics:
+  epochs: 18   # pinned (old default)
+  warmup_epochs: 2   # pinned (old default)
   imgsz: 352
   lr0: 0.002
 
 modal:
+  memory_gb: 32   # pinned (old default)
   gpu: "T4"            # 6.7 GB of GPU memory measured at batch 32 (full frames 640x352)
+
+# Pinned when the shared default became the 10 fps recipe (exp4_frames_10fps), so this run stays
+# reproducible with the settings it was trained with:
+data:
+  train_fps: null   # pinned (old default)
+  extra_archives: []   # pinned (old default)
+schedule:
+  reference: null   # pinned (old default)
+validation:
+  every_steps: null   # pinned (old default)
