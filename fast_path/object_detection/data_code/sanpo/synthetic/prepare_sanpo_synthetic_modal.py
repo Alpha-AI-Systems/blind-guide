@@ -61,6 +61,10 @@ IMAGE_SIZES = [352]                    # one training view per size (short side,
 VIEW_PREFIX = "semantic_v1"            # view folder name: <VIEW_PREFIX>_short<size>
 IGNORED_CLASSES = ["unlabeled", "bus stop"]   # -> 255 (ignored), same 29 classes as the real chest views
 VALIDATION_WALKS_FILE = "validation_split/results/validation_walks.txt"  # next to this script; made by the notebook
+TARGET_FPS = 5.0                       # the *_5fps lists keep every round(fps / TARGET_FPS)-th frame of each walk
+EFFECTIVE_FPS = {"Batch_3_5_18_2023": 5.0}   # render batch -> frame rate used instead of its description.json label:
+                                       # Batch_3 says 20 FPS but moves 10 m/s at 20 FPS (2.5 m/s at 5 FPS; every
+                                       # other batch walks at about 1.9 m/s); the SANPO paper lists only 5/14.28/33.33
 MAX_CONTAINERS = 20                    # walks processed in parallel (50 made the v1 Volume's commits fail)
 COMMIT_RETRIES = 8                     # a failed volume commit is retried this many times (growing random wait)
 THREADS_PER_WALK = 16                  # frames processed at once inside one walk (downloads wait on the network)
@@ -168,6 +172,20 @@ def commit_with_retry() -> None:
             print(f"  commit failed ({type(error).__name__}), retry {attempt + 1}/{COMMIT_RETRIES - 1} in {wait:.0f}s",
                   flush=True)
             time.sleep(wait)
+
+
+def walk_frame_rate(walk: str) -> float:
+    """Frame rate used for one synthetic walk: description.json's fps, unless the walk's render batch (named in the
+    original Parallel Domain path inside left/temp/histogram-000000.json) is in EFFECTIVE_FPS."""
+    import json
+    import re
+
+    description = json.loads(bucket_file(f"sanpo-synthetic/{walk}/description.json"))
+    fps = float(description["session_camera_details"][0]["fps"])
+    camera = description["session_camera_location"][0]                    # e.g. "camera_chest"
+    source = json.loads(bucket_file(f"sanpo-synthetic/{walk}/{camera}/left/temp/histogram-000000.json"))["filename"]
+    match = re.search(r"/pd/([^/]+)/", source)
+    return EFFECTIVE_FPS.get(match.group(1) if match else "", fps)
 
 
 # ----------------------------------------------------------------------------- Modal functions
@@ -317,8 +335,10 @@ def save_metadata(settings: dict, split_lists: dict) -> dict:
 
 
 @app.function(image=image, volumes={VOLUME_MOUNT_PATH: volume}, timeout=1800)
-def write_lists(validation_walks: list[str], names: list[str], label_mapping: dict) -> dict:
+def write_lists(validation_walks: list[str], names: list[str], label_mapping: dict, walk_fps: dict) -> dict:
     """Write each view's image lists, data.yaml (only with validation walks) and view.yaml from all index CSVs.
+    walk_fps: {walk: frame rate used} for the *_5fps lists (every round(fps / TARGET_FPS)-th frame per walk).
+    data.yaml uses the 5 fps lists (our experiments run at 5 fps); the full lists stay for other choices.
     Returns {view: {list: frames}}."""
     import csv
     from datetime import datetime, timezone
@@ -337,9 +357,13 @@ def write_lists(validation_walks: list[str], names: list[str], label_mapping: di
             continue
         part = "val" if rows[0]["session"] in validation else "train"
         camera = rows[0]["camera"]
-        for row in sorted(rows, key=lambda item: item["frame_id"]):
+        stride = max(1, round(walk_fps[rows[0]["session"]] / TARGET_FPS))
+        for position, row in enumerate(sorted(rows, key=lambda item: item["frame_id"])):
             line = f"./frames/{row['split']}/{Path(row['frame']).stem}.png"
-            for name in (part, f"{part}_{camera}"):
+            names_here = [part, f"{part}_{camera}"]
+            if position % stride == 0:                                 # the thinned (about 5 fps) lists
+                names_here += [f"{part}_5fps", f"{part}_{camera}_5fps"]
+            for name in names_here:
                 lists.setdefault(name, []).append(line)
                 walks_per_list.setdefault(name, set()).add(rows[0]["session"])
     missing = validation - {walk for walks in walks_per_list.values() for walk in walks}
@@ -350,7 +374,7 @@ def write_lists(validation_walks: list[str], names: list[str], label_mapping: di
         for name, lines in lists.items():
             (view / f"{name}.txt").write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
         if lists["val"]:
-            data = {"train": "train.txt", "val": "val.txt", "image_dir_name": "frames", "masks_dir": "masks",
+            data = {"train": "train_5fps.txt", "val": "val_5fps.txt", "image_dir_name": "frames", "masks_dir": "masks",
                     "nc": len(names), "names": dict(enumerate(names)),
                     "label_mapping": dict(sorted({int(k): v for k, v in label_mapping.items()}.items())),
                     "image_size": size}
@@ -365,6 +389,8 @@ def write_lists(validation_walks: list[str], names: list[str], label_mapping: di
                 "cameras": CAMERAS, "splits": SPLITS, "image_size": size, "jpeg_quality": JPEG_QUALITY,
                 "resize": "short side = image_size, frames cv2.INTER_LINEAR (from the saved JPG), masks INTER_NEAREST",
                 "ignored_classes": IGNORED_CLASSES, "validation_walks": sorted(validation),
+                "5fps_lists": f"every round(fps / {TARGET_FPS})-th frame per walk; fps from description.json, "
+                              f"except {EFFECTIVE_FPS}",
                 "validation_walks_not_found": sorted(missing),
                 "walks_per_list": {name: len(walks) for name, walks in walks_per_list.items()},
                 "frames_per_list": counts[view_name(size)]}
@@ -435,8 +461,14 @@ def main(max_walks: int = 0):
     validation_walks = validation_file.read_text(encoding="utf-8").split() if validation_file.exists() else []
     print(f"validation walks: {len(validation_walks)}" + ("" if validation_walks else
           f" ({validation_file} not found: only train lists, no data.yaml; run again after the validation split)"))
-    # write_lists takes: the validation walks, the class names, the label mapping; returns: frames per list per view
-    result = write_lists.remote(validation_walks, metadata["names"], metadata["label_mapping"])
+    print("reading each walk's frame rate and render batch from the bucket (about a minute) ...", flush=True)
+    walks_done = [walk for walk, _ in jobs]
+    with ThreadPoolExecutor(32) as pool:
+        # walk_frame_rate takes: a walk id; returns: the frame rate to use (description.json, EFFECTIVE_FPS)
+        walk_fps = dict(zip(walks_done, pool.map(walk_frame_rate, walks_done)))
+    print("frame rates used:", {fps: list(walk_fps.values()).count(fps) for fps in sorted(set(walk_fps.values()))})
+    # write_lists takes: validation walks, class names, label mapping, frame rate per walk; returns: frames per list
+    result = write_lists.remote(validation_walks, metadata["names"], metadata["label_mapping"], walk_fps)
     if result["validation_walks_not_found"]:
         print(f"WARNING: validation walks not prepared here: {result['validation_walks_not_found'][:5]} ...")
     print(f"DONE in {format_duration(time.time() - start)}: {frames:,} frames | lists: {result['counts']}")

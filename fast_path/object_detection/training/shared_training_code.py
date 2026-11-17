@@ -302,6 +302,8 @@ experiment:
 
 model:
   weights: yolo26n-sem-ade20k.pt   # starting weights (Ultralytics downloads official ones by name)
+  weights_from: null         # multi-stage experiments: the name of a SIBLING stage folder (e.g. stage1_synthetic_head)
+                             # whose best.pt this stage starts from (replaces weights; the stage must have finished)
   weights_dir: null          # folder official weights are downloaded into (null = the current folder;
                              # on Modal: <runs volume>/_weights, so they are downloaded only once)
   task: semantic
@@ -321,7 +323,9 @@ data:
   train_list: null           # image list to TRAIN on, in the view folder (null = data.yaml's train, the 5 FPS frames):
                              # train_human.txt = human-labeled frames only, train_15fps.txt = all frames at 15 FPS.
                              # A copy of data.yaml with only "train" changed is written next to it; val stays the same
-  train_fps: null            # 5 / 10 / 15: train on the training walks at this frame rate, picked at the start of the
+  val_list: null             # image list to VALIDATE on, in the view folder (null = data.yaml's val); best.pt is chosen
+                             # on it (e.g. val_head_5fps.txt: the synthetic head walks only)
+  train_fps: null           # 5 / 10 / 15: train on the training walks at this frame rate, picked at the start of the
                              # run from all_frames_list (null = use train_list). Needs extra_archives for 10 and 15
   all_frames_list: train_15fps.txt   # every frame of the training walks at 15 fps, in order per walk
   fps_positions: {5: [0], 10: [0, 1], 15: [0, 1, 2]}   # per walk, frame position mod 3 kept for each train_fps:
@@ -333,6 +337,9 @@ schedule:
   reference: null            # {steps_per_epoch: N, epochs: E, warmup_epochs: W} of a reference run: every optimizer
                              # step gets the learning rate (and momentum) that run had at the same step, so runs with
                              # different epoch lengths share one curve (null = Ultralytics' own per-epoch schedule)
+  max_steps: null            # stop training after this many optimizer steps (null = after ultralytics.epochs), with
+                             # Ultralytics' usual last validation, best.pt and final re-validation; set ultralytics.epochs
+                             # high enough to reach it (e.g. a stage matched to another stage's step count)
 
 validation:
   every_steps: null         # null = validate once per epoch (Ultralytics' default). A number N = validate every N
@@ -472,7 +479,7 @@ test:                        # runs/<run>/test.py: scores the run's checkpoints 
 
 resume: auto                 # auto = continue Ultralytics' last.pt if the run is unfinished | false = start fresh
 resume_force: false          # resume even though guarded settings changed
-resume_guard: [model.weights, data.yaml, data.train_list, data.train_fps, validation.every_steps, schedule.reference, ultralytics.epochs, ultralytics.batch, ultralytics.imgsz,
+resume_guard: [model.weights, model.weights_from, data.yaml, data.train_list, data.val_list, data.train_fps, validation.every_steps, schedule.reference, schedule.max_steps, ultralytics.epochs, ultralytics.batch, ultralytics.imgsz,
                ultralytics.optimizer, ultralytics.lr0, ultralytics.lrf, ultralytics.cos_lr, ultralytics.nbs]
 """
 DEFAULTS = yaml.safe_load(DEFAULTS_YAML)
@@ -504,24 +511,48 @@ def config_set(config: dict, dotted: str, value) -> None:
     node[keys[-1]] = value
 
 
+def runs_root_of(run_dir) -> Path:
+    """The runs/ folder a run folder lives in (runs/<run> or, for a multi-stage experiment, runs/<experiment>/<stage>)."""
+    run_dir = Path(run_dir)
+    for folder in (run_dir, *run_dir.parents):
+        if folder.name == "runs":
+            return folder
+    return run_dir.parent
+
+
+def app_name(config: dict) -> str:
+    """The Modal app name of a run: its name with "/" (a stage of a multi-stage experiment) turned into "-"."""
+    return str(config["experiment"]["name"]).replace("/", "-")
+
+
 def load_config(run_dir, config_name: str = "config.yaml", shared_name: str = "shared_config.yaml",
                 verbose: bool = False, overrides: dict | None = None) -> dict:
-    """DEFAULTS < training/shared_config.yaml < runs/<run>/config.yaml < overrides.
+    """DEFAULTS < training/shared_config.yaml < every config.yaml between runs/ and the run < the run's config.yaml
+    < overrides.
 
-    run_dir is the run folder (training/runs/<run name>); the shared file sits two levels up, beside this
-    file. The run name defaults to the folder name, which is also what the Modal app is called.
+    run_dir is the run folder: training/runs/<run>, or training/runs/<experiment>/<stage> for a multi-stage
+    experiment, whose experiment-level config.yaml (settings shared by its stages) is merged in between.
+    The run name defaults to the path below runs/ ("exp2_start_ade20k" or "exp6_x/stage1_y"); it also names the
+    run's folder on the runs volume, and (with "/" turned into "-", app_name) its Modal app.
     """
     run_dir = Path(run_dir)
-    shared_path = run_dir.parent.parent / shared_name
+    runs_root = runs_root_of(run_dir)
+    shared_path = runs_root.parent / shared_name
     shared = yaml.safe_load(shared_path.read_text(encoding="utf-8")) if shared_path.exists() else {}
-    own_path = run_dir / config_name
-    own = yaml.safe_load(own_path.read_text(encoding="utf-8")) if own_path.exists() else {}
-    config = _deep_merge(_deep_merge(DEFAULTS, shared or {}), own or {})
+    config = _deep_merge(DEFAULTS, shared or {})
+    folders = [run_dir]
+    if runs_root in run_dir.parents:
+        folders = [folder for folder in reversed(run_dir.parents) if runs_root in folder.parents] + [run_dir]
+    for folder in folders:                                   # outer experiment folders first, the run itself last
+        path = folder / config_name
+        if path.exists():
+            config = _deep_merge(config, yaml.safe_load(path.read_text(encoding="utf-8")) or {})
     if overrides:
         config = _deep_merge(config, overrides)
     _coerce_scientific(config)
     if not config["experiment"].get("name"):
-        config["experiment"]["name"] = run_dir.name
+        config["experiment"]["name"] = (run_dir.relative_to(runs_root).as_posix() if runs_root in run_dir.parents
+                                        else run_dir.name)
     if verbose:
         print_config(config)
     return config
@@ -1765,6 +1796,15 @@ class TrainingMonitor:
         batches_per_epoch = len(trainer.train_loader)
         self.steps_per_epoch = max(1, -(-batches_per_epoch // max(int(trainer.accumulate), 1)))
         self.total_steps = self.steps_per_epoch * int(trainer.epochs)
+        max_steps = int(config_get(self.config, "schedule.max_steps") or 0)
+        if max_steps:
+            if max_steps > self.total_steps:
+                raise SystemExit(f"  ❌ schedule.max_steps {max_steps:,} > {trainer.epochs} epochs x {self.steps_per_epoch:,} "
+                                 f"steps = {self.total_steps:,}: raise ultralytics.epochs to "
+                                 f"{-(-max_steps // self.steps_per_epoch)}")
+            self.total_steps = max_steps
+            print(f"[setup] training stops after {max_steps:,} optimizer steps (schedule.max_steps) = "
+                  f"{max_steps / self.steps_per_epoch:.2f} epochs of {self.steps_per_epoch:,} steps")
         self.step = self.steps_per_epoch * int(trainer.start_epoch)       # a resumed run continues the count
         every = int(self.config["logging"].get("diagnostics_every") or 0)
         model = getattr(trainer.model, "module", trainer.model)
@@ -1900,6 +1940,14 @@ class TrainingMonitor:
         # the very last step is left to Ultralytics' own validation after the last epoch
         if every and self.step % every == 0 and self.step < (self.total_steps or 0):
             self._step_validation(trainer)
+        max_steps = int(config_get(self.config, "schedule.max_steps") or 0)
+        if max_steps and self.step >= max_steps and not trainer.stop:
+            # Ultralytics' own stop: it leaves the epoch, validates (self.stop), saves best.pt / last.pt and
+            # re-validates best.pt, exactly as after a last epoch
+            trainer.stop = True
+            self.max_steps_validations = 0                # validations since the stop: 1 = the stop's, 2 = best.pt's
+            print(f"\n  🛑 schedule.max_steps reached: {self.step:,} optimizer steps "
+                  f"({self.step / max(self.steps_per_epoch or 1, 1):.2f} epochs) -> last validation and stop", flush=True)
 
     def _step_validation(self, trainer):
         """Validate in the middle of training (validation.every_steps) and save best.pt when the score improves.
@@ -2077,7 +2125,14 @@ class TrainingMonitor:
         # Ultralytics calls on_fit_epoch_end once more after training, for the final validation of best.pt, with
         # trainer.epoch temporarily one past the last epoch: logged as trigger "final_best"
         final = trainer.epoch + 1 > trainer.epochs
-        if trigger == "step":                          # where in training: epochs done, as a fraction
+        if getattr(self, "max_steps_validations", None) is not None and trigger == "epoch":
+            # a schedule.max_steps stop ends inside an epoch, so final_eval's epoch + 1 does not pass the last epoch:
+            # the first validation after the stop is the stop's own, the second is the re-validation of best.pt
+            self.max_steps_validations += 1
+            final = final or self.max_steps_validations >= 2
+        stopped_mid_epoch = (not final and trigger == "epoch" and self.steps_per_epoch
+                             and self.step % self.steps_per_epoch != 0)      # schedule.max_steps ended the run
+        if trigger == "step" or stopped_mid_epoch:     # where in training: epochs done, as a fraction
             epoch_value = round(self.step / max(self.steps_per_epoch or 1, 1), 2)
         else:
             epoch_value = min(trainer.epoch + 1, trainer.epochs)
@@ -2277,35 +2332,106 @@ def make_fps_list(config: dict, view_dir: Path) -> str:
     return name
 
 
-def apply_train_list(config: dict) -> str:
-    """Point training at another image list of the same view (data.train_list); return the data.yaml to use.
+def stage_result(config: dict, run_dir) -> dict:
+    """What a finished (or running) run folder achieved, from its own logs: status, best validation (epoch, step,
+    val mIoU), last validation, final re-validation of best.pt, steps and training time, and the best.pt path.
+    Empty values when a log is missing. Used to report a stage and to start the next stage from it."""
+    output = config["output"]
+    results_dir = Path(run_dir) / output["run_dir"]
+    result = {"run": config["experiment"]["name"], "status": "not started", "best_pt": None, "best": None, "last": None,
+              "final_best": None, "steps": None, "training_seconds": None}
+    best_pt = results_dir / output["ultralytics_dir"] / "weights" / "best.pt"
+    result["best_pt"] = str(best_pt) if best_pt.exists() else None
+    summary_path = results_dir / output["summary_json"]
+    if summary_path.exists():
+        try:
+            result["status"] = json.loads(summary_path.read_text(encoding="utf-8")).get("status", "unknown")
+        except Exception:
+            result["status"] = "unknown"
+    validation_path = results_dir / output["val_log_csv"]
+    if validation_path.exists():
+        log = pd.read_csv(validation_path)
+        during = log[log["trigger"].isin(["epoch", "step"])]
+        if not during.empty:
+            best = during.loc[during["val_mIoU"].idxmax()]
+            last = during.iloc[-1]
+            result["best"] = {"epoch": float(best["epoch"]), "step": int(best["step"]), "val_mIoU": float(best["val_mIoU"])}
+            result["last"] = {"epoch": float(last["epoch"]), "step": int(last["step"]), "val_mIoU": float(last["val_mIoU"])}
+        final = log[log["trigger"] == "final_best"]
+        if not final.empty:
+            result["final_best"] = float(final.iloc[-1]["val_mIoU"])
+    train_path = results_dir / output["train_log_csv"]
+    if train_path.exists():
+        train = pd.read_csv(train_path, usecols=lambda column: column in ("run_id", "global_step", "elapsed_s"))
+        if not train.empty:
+            result["steps"] = int(train["global_step"].max())
+            result["training_seconds"] = float(train.groupby("run_id")["elapsed_s"].max().sum())
+    return result
 
-    Writes data_<list name>.yaml next to data.yaml: the same file with only "train" changed, so Ultralytics resolves
-    every path exactly as before and validation is untouched. Every frame of the list must exist (on the local copy:
-    data.extra_archives must hold the archives of frames outside tars/), otherwise this stops with the count missing.
+
+def stage_start_weights(config: dict, run_dir) -> str:
+    """model.weights_from: the best.pt of a SIBLING stage folder this stage starts from. Prints where it comes from
+    (that stage's best epoch, step and val mIoU) and stops if that stage has not finished. Returns the path."""
+    source_name = str(config_get(config, "model.weights_from"))
+    source_dir = Path(run_dir).parent / source_name
+    source_config = load_config(source_dir) if (source_dir / "config.yaml").exists() else config
+    # stage_result takes: the earlier stage's config and folder; returns: its status, best and last validation
+    source = stage_result(source_config, source_dir)
+    if not source["best_pt"]:
+        raise SystemExit(f"  ❌ model.weights_from: {source_dir} has no best.pt yet: run that stage first")
+    if source["status"] != "finished":
+        raise SystemExit(f"  ❌ model.weights_from: stage {source_name} is '{source['status']}', not finished: "
+                         f"finish it first (its train.py, or the experiment's train_all.py)")
+    best, last = source["best"] or {}, source["last"] or {}
+    print("\n" + "▶" * WIDTH)
+    print(f"  ▶ THIS STAGE STARTS FROM AN EARLIER STAGE'S best.pt")
+    print(f"     this stage   : {config['experiment']['name']}")
+    print(f"     starts from  : {source_name}/best.pt = its best validation: epoch {best.get('epoch')}, "
+          f"step {best.get('step')}, val mIoU {best.get('val_mIoU', float('nan')):.4f}")
+    print(f"     (that stage ended at step {last.get('step')}, last val mIoU {last.get('val_mIoU', float('nan')):.4f}; "
+          f"best.pt re-validated {source['final_best'] if source['final_best'] is not None else '?'})")
+    print(f"     file         : {source['best_pt']}")
+    print("     new optimizer and learning-rate schedule (fine-tuning start); the weights are that best.pt")
+    print("▶" * WIDTH + "\n", flush=True)
+    return source["best_pt"]
+
+
+def apply_train_list(config: dict) -> str:
+    """Point training at other image lists of the same view (data.train_list, data.val_list); return the data.yaml.
+
+    Writes data_<train list>[__<val list>].yaml next to data.yaml: the same file with only "train" (and "val")
+    changed, so Ultralytics resolves every path exactly as before. Every frame of the lists must exist (on the local
+    copy: data.extra_archives must hold the archives of frames outside tars/), otherwise this stops with the count.
     """
     train_list = config_get(config, "data.train_list")
+    val_list = config_get(config, "data.val_list")
     data_yaml = Path(config["data"]["yaml"])
     if config_get(config, "data.train_fps"):
         if train_list:
             raise SystemExit("  ❌ set data.train_list OR data.train_fps, not both")
         # make_fps_list takes: the config, the view folder; returns: the file name of the list it wrote
         train_list = make_fps_list(config, data_yaml.parent)
-    if not train_list:
+    if not train_list and not val_list:
         return str(data_yaml)
-    list_path = data_yaml.parent / str(train_list)
-    if not list_path.exists():
-        raise SystemExit(f"  ❌ data.train_list {train_list} not found in {data_yaml.parent}")
-    lines = list_path.read_text(encoding="utf-8").split()
-    missing = [line for line in lines if not (list_path.parent / line).exists()]
-    if missing:
-        raise SystemExit(f"  ❌ {len(missing):,} of {len(lines):,} frames of {train_list} are missing (first: "
-                         f"{missing[0]}). Are their archives in data.extra_archives?")
     data = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
-    print(f"  🗂️  training list: {train_list} ({len(lines):,} frames) instead of {data['train']}")
-    data["train"] = str(train_list)
-    target = data_yaml.parent / f"data_{Path(str(train_list)).stem}.yaml"
-    header = f"# {data_yaml.name} with train = {train_list} (made by apply_train_list, data.train_list)\n"
+    for key, list_name, setting in (("train", train_list, "data.train_list"), ("val", val_list, "data.val_list")):
+        if not list_name:
+            continue
+        list_path = data_yaml.parent / str(list_name)
+        if not list_path.exists():
+            raise SystemExit(f"  ❌ {setting} {list_name} not found in {data_yaml.parent}")
+        lines = list_path.read_text(encoding="utf-8").split()
+        missing = [line for line in lines if not (list_path.parent / line).exists()]
+        if missing:
+            raise SystemExit(f"  ❌ {len(missing):,} of {len(lines):,} frames of {list_name} are missing (first: "
+                             f"{missing[0]}). Are their archives in data.extra_archives?")
+        print(f"  🗂️  {'training' if key == 'train' else 'validation'} list: {list_name} ({len(lines):,} frames) "
+              f"instead of {data[key]}")
+        data[key] = str(list_name)
+    stem = Path(str(train_list or data["train"])).stem + (f"__{Path(str(val_list)).stem}" if val_list else "")
+    target = data_yaml.parent / f"data_{stem}.yaml"
+    header = (f"# {data_yaml.name} with train = {data['train']}, val = {data['val']} "
+              f"(made by apply_train_list: data.train_list, data.val_list)\n")
     target.write_text(header + yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
     return str(target)
 
@@ -2420,6 +2546,9 @@ def _run_training(config: dict, run_dir: Path, results_dir: Path, extra_callback
                                       config["modal"]["runs_volume"])
     monitor = TrainingMonitor(config, results_dir, run_id, persist, uploader)
 
+    if config_get(config, "model.weights_from") and state == "fresh":
+        # stage_start_weights takes: config, this run's folder; returns: the earlier stage's best.pt (and prints it)
+        config["model"]["weights"] = stage_start_weights(config, run_dir)
     weights_dir = config_get(config, "model.weights_dir")
     previous_directory = os.getcwd()
     if weights_dir and state == "fresh":          # Ultralytics downloads official weights into the current folder
@@ -2595,7 +2724,7 @@ def copy_view_to_local_disk(data_yaml, local_root, quiet: bool = False, extra_ar
     A Modal Volume reads many small files slowly (Ultralytics warned "read: 1.3 MB/s"; Modal advises fewer than
     50,000 files per volume) but big files fast. make_resized_view_modal.py packs each walk's frames and masks
     into <view>/tars/<walk>.tar; here every archive is extracted (several in parallel) into
-    <local_root>/<view name>/, and the image lists (*.txt) and data.yaml are copied next to them. The lists
+    <local_root>/<dataset folder>/<view name>/, and the image lists (*.txt) and data.yaml are copied next to them. The lists
     hold paths relative to their own folder, so the same data.yaml works there unchanged.
     extra_archive_dirs: more archive folders of the view to extract too (data.extra_archives, e.g. tars_15fps_extra).
     Without a tars/ folder nothing is copied and the volume path is returned.
@@ -2609,7 +2738,9 @@ def copy_view_to_local_disk(data_yaml, local_root, quiet: bool = False, extra_ar
     if not archives:
         print(f"  ⚠️  {view_dir} has no tars/ folder: training reads the frames straight from the volume (slow)")
         return str(data_yaml)
-    target = Path(local_root) / view_dir.name
+    # <local_root>/<dataset folder>/<view>: several datasets have a view of the same name (semantic_v1_short352 of
+    # the real chest, real head and synthetic data), and the stages of one container must not share a copy
+    target = Path(local_root) / view_dir.parent.parent.name / view_dir.name
     done_marker = target / ".copy_complete"
     if done_marker.exists():
         return str(target / Path(data_yaml).name)
@@ -2953,6 +3084,96 @@ def modal_launch(config: dict, run_dir, remote_function) -> None:
         sync_back(config, run_dir, status)
 
 
+def _stage_line(result: dict) -> str:
+    """One line about a stage's outcome: best validation (epoch, step, val mIoU), last validation, re-validation."""
+    best, last = result.get("best") or {}, result.get("last") or {}
+    if not best:
+        return "no validation logged"
+    final = result.get("final_best")
+    return (f"best.pt = epoch {best['epoch']:g}, step {best['step']:,}, val mIoU {best['val_mIoU']:.4f} | last validation "
+            f"step {last['step']:,}, val mIoU {last['val_mIoU']:.4f}"
+            + (f" | best.pt re-validated {final:.4f}" if final is not None else ""))
+
+
+def modal_train_stages(stage_dirs: list, run_ids: list, volumes: dict | None = None) -> list:
+    """The body of a multi-stage experiment's Modal function (train_all.py): train the stages in order in THIS
+    container. Each stage is an ordinary run (its own folder, logs, plots, summary.md, best.pt) whose
+    model.weights_from names the stage before it. A finished stage is skipped (resumable). Between stages: a
+    FINISHED block (best epoch, step, val mIoU) and which best.pt the next stage starts from.
+    Returns stage_result(...) of every stage."""
+    import gc
+
+    results, start = [], time.time()
+    total = len(stage_dirs)
+    for number, (stage_dir, run_id) in enumerate(zip(stage_dirs, run_ids), start=1):
+        config = load_config(stage_dir)
+        name = config["experiment"]["name"]
+        print("\n" + "█" * WIDTH)
+        print(f"█  STAGE {number} of {total} STARTS: {name}")
+        print(f"█  starts from: {config_get(config, 'model.weights_from') or config_get(config, 'model.weights')}"
+              f"{' (its best.pt)' if config_get(config, 'model.weights_from') else ''}")
+        print("█" * WIDTH + "\n", flush=True)
+        # modal_train takes: the stage config, its folder, run id, volumes; trains (or skips a finished stage)
+        modal_train(config, stage_dir, run_id=run_id, volumes=volumes)
+        gc.collect()                                     # free the stage's cached frames before the next stage
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        remote = remote_config(config)
+        # stage_result takes: the stage's config and its folder on the runs volume; returns: status, best, last
+        result = stage_result(remote, Path(remote["modal"]["runs_mount"]) / name)
+        results.append(result)
+        print("\n" + "█" * WIDTH)
+        print(f"█  STAGE {number} of {total} FINISHED: {name}  ({result['status']})")
+        print(f"█  {_stage_line(result)}")
+        print(f"█  steps {result['steps'] or 0:,} | training time "
+              f"{format_duration(result['training_seconds'] or 0)} | experiment so far {format_duration(time.time() - start)}")
+        if number < total:
+            next_name = load_config(stage_dirs[number])["experiment"]["name"]
+            best = result.get("best") or {}
+            print(f"█  -> STAGE {number + 1} of {total} ({next_name}) starts from THIS stage's best.pt "
+                  f"(epoch {best.get('epoch', '?')}, step {best.get('step', '?')})")
+        print("█" * WIDTH + "\n", flush=True)
+    print("\n" + "=" * WIDTH)
+    print(f"  ALL {total} STAGES FINISHED in {format_duration(time.time() - start)}")
+    for number, result in enumerate(results, start=1):
+        print(f"  {number}. {result['run']}: {_stage_line(result)}")
+    print("=" * WIDTH + "\n", flush=True)
+    return results
+
+
+def modal_launch_stages(experiment_config: dict, stage_dirs: list, remote_function) -> None:
+    """The local entrypoint of train_all.py: allocate each stage's run id, run all stages in one container, then
+    pull every stage's results home (finished, crashed or Ctrl+C)."""
+    import signal
+
+    stage_configs = [load_config(stage_dir) for stage_dir in stage_dirs]
+    run_ids = [launch_run_id(config, stage_dir) for config, stage_dir in zip(stage_configs, stage_dirs)]
+
+    def sync_all(status: str) -> None:
+        for config, stage_dir in zip(stage_configs, stage_dirs):
+            # sync_back takes: a stage config, its folder, status; pulls its results and draws its plots
+            sync_back(config, stage_dir, status, once=False)
+
+    def on_interrupt(signal_number, frame):
+        print("\n  ⏹️  interrupted - stopping the container, then pulling every stage's results", flush=True)
+        app_id = stop_running_app(experiment_config)
+        print(f"     container {'stopped: ' + app_id if app_id else 'not found (already down?)'}", flush=True)
+        sync_all("interrupted")
+        signal.signal(signal_number, signal.SIG_DFL)
+        os.kill(os.getpid(), signal_number)
+
+    try:
+        signal.signal(signal.SIGINT, on_interrupt)
+    except Exception:
+        pass
+    status = "crashed"
+    try:
+        remote_function.remote(run_ids)
+        status = "finished"
+    finally:
+        sync_all(status)
+
+
 def stop_running_app(config: dict, timeout: int = 90) -> str | None:
     """Stop this run's Modal app, so the GPU stops billing BEFORE time is spent syncing.
 
@@ -2962,7 +3183,7 @@ def stop_running_app(config: dict, timeout: int = 90) -> str | None:
     """
     import subprocess
 
-    name = config.get("experiment", {}).get("name")
+    name = app_name(config) if config.get("experiment", {}).get("name") else None
     if not name:
         return None
     environment = dict(os.environ, PYTHONIOENCODING="utf-8")
@@ -3678,7 +3899,10 @@ def evaluate_checkpoint(config: dict, checkpoint: str, weights: bytes) -> dict:
               "settings": {"image_size": image_size, "data": remote["data"]["yaml"], "batch": test["batch"],
                            "validate_at_training_scale": config_get(config, "data.validate_at_training_scale", True),
                            "lr0": config["ultralytics"]["lr0"], "epochs": config["ultralytics"]["epochs"],
-                           "weights_start": config["model"]["weights"], "gpu": test["gpu"], "parameters": parameters},
+                           # a later stage of a multi-stage experiment starts from an earlier stage's best.pt
+                           "weights_start": (f"{config_get(config, 'model.weights_from')}_best"
+                                             if config_get(config, "model.weights_from") else config["model"]["weights"]),
+                           "gpu": test["gpu"], "parameters": parameters},
               "splits": {}}
     for split, list_name in test["splits"].items():
         list_path = local_yaml.parent / list_name
@@ -3757,17 +3981,24 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
     """runs/leaderboard.md: every tested checkpoint of every run, sorted by the test.leaderboard_split mIoU."""
     runs_dir = Path(runs_dir)
     rows, untested, excluded, main_split = [], [], [], "test_human"
-    for run_dir in sorted(path for path in runs_dir.iterdir() if path.is_dir() and (path / "config.yaml").exists()):
-        if run_dir.name.startswith("smoke"):              # smoke tests never appear on the leaderboard
-            continue
+    entries = []                                          # (name shown, run folder)
+    for folder in sorted(path for path in runs_dir.iterdir() if path.is_dir() and not path.name.startswith("smoke")):
+        stages = sorted(path for path in folder.iterdir() if path.is_dir() and (path / "config.yaml").exists())
+        if stages:
+            # a multi-stage experiment: ONE row, under the experiment's name, for its final stage (the one with test.py)
+            final = [stage for stage in stages if (stage / "test.py").exists()] or stages[-1:]
+            entries.append((folder.name, final[-1]))
+        elif (folder / "config.yaml").exists():
+            entries.append((folder.name, folder))
+    for shown_name, run_dir in entries:
         config = load_config(run_dir)
         if not config["test"].get("in_leaderboard", True):
-            excluded.append(f"{run_dir.name} ({config['test'].get('leaderboard_note') or 'excluded in its config.yaml'})")
+            excluded.append(f"{shown_name} ({config['test'].get('leaderboard_note') or 'excluded in its config.yaml'})")
             continue
         wanted = config["test"].get("leaderboard_checkpoint", "best")
         tested = sorted((run_dir / "results" / "test").glob(f"{wanted}/metrics.json"))
         if not tested:
-            untested.append(run_dir.name)
+            untested.append(shown_name)
             continue
         main_split = config["test"]["leaderboard_split"]
         summary_path = run_dir / config["output"]["run_dir"] / config["output"]["summary_json"]
@@ -3777,7 +4008,7 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
             splits = result["splits"]
             group = next((value for key, value in ((splits.get(main_split) or {}).get("groups") or {}).items()
                           if key.endswith("_mIoU")), None)
-            rows.append({"run": run_dir.name, "checkpoint": result["checkpoint"], "group": group,
+            rows.append({"run": shown_name, "checkpoint": result["checkpoint"], "group": group,
                          **{split: (splits.get(split) or {}).get("mIoU") for split in ("test_human", "test_all", "val", "val_human")},
                          "main": (splits.get(main_split) or {}).get("mIoU"), "imgsz": result["settings"]["image_size"],
                          "lr0": result["settings"]["lr0"], "start": Path(str(result["settings"]["weights_start"])).stem,
@@ -3852,7 +4083,7 @@ def modal_test_launch(config: dict, run_dir, remote_function, checkpoints: str =
     print("\n  files written:")
     for result in results:
         print(f"    {write_test_results(config, run_dir, result, quiet=True) / 'summary.md'}")
-    print(f"    {write_leaderboard(Path(run_dir).parent, quiet=True)}\n", flush=True)
+    print(f"    {write_leaderboard(runs_root_of(run_dir), quiet=True)}\n", flush=True)
 
 
 # =============================================================================

@@ -1,0 +1,32 @@
+# exp6 stage 3 of 4: SYNTHETIC CHEST. SANPO-Synthetic chest-camera walks at about 5 fps, from stage 2's best.pt.
+# train: train_chest_5fps.txt = 34,012 frames (1,063 batches of 32 per epoch)
+# val:   val_chest_5fps.txt   =  3,814 frames (the chest walks of the 155 synthetic validation walks); best.pt on it
+# Length: 9,504 optimizer steps = stage 4's length (18 epochs x 528 batches), with stage 4's learning-rate curve
+# (schedule.reference) and validation every 528 steps (= stage 4's per-epoch validation).
+model:
+  weights_from: stage2_real_head
+
+data:
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_synthetic/views/semantic_v1_short352/data.yaml"
+  train_list: train_chest_5fps.txt
+  val_list: val_chest_5fps.txt
+  train_fps: null
+  extra_archives: []
+  human_lists: null          # synthetic labels are all exact
+  extra_validation: null
+
+ultralytics:
+  epochs: 9                  # 9 x 1,063 = 9,567 >= 9,504: training STOPS at schedule.max_steps (8.94 epochs)
+  warmup_epochs: 0.9934      # Ultralytics' own warmup: round(0.9934 x 1,063) = 1,056 steps = stage 4's 2 x 528
+                             # (the reference curve below sets lr and momentum at every step anyway)
+
+schedule:
+  reference: {steps_per_epoch: 528, epochs: 18, warmup_epochs: 2}   # stage 4's curve, step for step
+  max_steps: 9504            # = stage 4: 18 epochs x 528 steps
+
+validation:
+  every_steps: 528           # = stage 4's validation schedule (one real-chest epoch)
+
+modal:
+  path_remap:
+    data.yaml: "/data/sanpo_synthetic/views/semantic_v1_short352/data.yaml"
