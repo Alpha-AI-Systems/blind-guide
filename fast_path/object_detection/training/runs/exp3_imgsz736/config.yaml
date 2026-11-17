@@ -5,9 +5,13 @@ model:
   weights: yolo26n-sem-ade20k.pt
 
 data:
+  train_fps: null   # pinned (old default)
+  extra_archives: []   # pinned (old default)
   yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest/views/semantic_v1_short736/data.yaml"
 
 ultralytics:
+  epochs: 18   # pinned (old default)
+  warmup_epochs: 2   # pinned (old default)
   imgsz: 736
   lr0: 0.002
   workers: 12
@@ -22,3 +26,10 @@ modal:
 
 test:
   batch: 32                  # test batch 128 ran out of GPU memory at 1312x736 on the T4
+
+# Pinned when the shared default became the 10 fps recipe (exp4_frames_10fps), so this run stays
+# reproducible with the settings it was trained with:
+schedule:
+  reference: null   # pinned (old default)
+validation:
+  every_steps: null   # pinned (old default)

@@ -1,0 +1,27 @@
+# exp4_frames_10fps_yolo26s: side experiment, MODEL SIZE. Identical to exp4_frames_10fps (10 fps, equal steps,
+# run B's learning-rate curve, validation every 528 steps, RAM cache) except the starting weights: YOLO26s-sem
+# (ADE20K, 6.5 M parameters, about 3.9x the compute of nano) instead of YOLO26n-sem. Needs the 15 fps add-on: session 2 or 3.
+model:
+  weights: yolo26s-sem-ade20k.pt
+
+data:
+  train_fps: 10
+  extra_archives: [tars_15fps_extra]
+
+ultralytics:
+  imgsz: 352
+  lr0: 0.002
+  cache: ram                 # like runs A and B: about 21 GB of decoded frames in RAM
+  epochs: 9                 # EQUAL STEPS with run B (18 x 528 = 9,504): 33,728 frames / 32 = 1,054 batches per epoch x 9 = 9,486 steps; warmup 1 epoch = 1,054 steps
+  warmup_epochs: 1          # warmup kept at run B's about 1,056 steps
+
+schedule:
+  reference: {steps_per_epoch: 528, epochs: 18, warmup_epochs: 2}   # run B's learning-rate curve, step for step
+                             # (checked: reproduces B's logged lr at all 9,504 steps)
+
+validation:
+  every_steps: 528           # = run B's validation schedule (one 5 fps epoch at batch 32), the same for every run
+
+modal:
+  gpu: "A10G"                # tested: 116 img/s, 8.2 GB peak (T4: 52 img/s); cheaper overall than a T4
+  memory_gb: 48              # RAM cache about 21 GB + Ultralytics' 50% safety margin (check_cache_ram) + overhead

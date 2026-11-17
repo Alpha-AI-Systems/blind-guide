@@ -5,9 +5,13 @@ model:
   weights: yolo26n-sem-ade20k.pt
 
 data:
+  train_fps: null   # pinned (old default)
+  extra_archives: []   # pinned (old default)
   yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest/views/semantic_v1_short544/data.yaml"
 
 ultralytics:
+  epochs: 18   # pinned (old default)
+  warmup_epochs: 2   # pinned (old default)
   imgsz: 544
   lr0: 0.002
   workers: 12
@@ -18,3 +22,10 @@ modal:
   memory_gb: 48
   path_remap:
     data.yaml: "/data/sanpo_real_chest/views/semantic_v1_short544/data.yaml"
+
+# Pinned when the shared default became the 10 fps recipe (exp4_frames_10fps), so this run stays
+# reproducible with the settings it was trained with:
+schedule:
+  reference: null   # pinned (old default)
+validation:
+  every_steps: null   # pinned (old default)

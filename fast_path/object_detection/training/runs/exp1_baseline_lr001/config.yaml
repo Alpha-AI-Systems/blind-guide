@@ -1,6 +1,7 @@
 # exp1_baseline_lr001: experiment plan step 1 (baseline), learning rate 0.001.
 # Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
 ultralytics:
+  warmup_epochs: 2   # pinned (old default)
   lr0: 0.001
   rect: false                # this run trained on Ultralytics' centered square (before full frames)
   epochs: 25                 # this run trained for 25 epochs (before the 18-epoch default)
@@ -8,3 +9,15 @@ ultralytics:
 test:
   in_leaderboard: false
   leaderboard_note: "learning-rate sweep, not chosen on val (exp1_baseline_lr002 was)"
+
+# Pinned when the shared default became the 10 fps recipe (exp4_frames_10fps), so this run stays
+# reproducible with the settings it was trained with:
+data:
+  train_fps: null   # pinned (old default)
+  extra_archives: []   # pinned (old default)
+modal:
+  memory_gb: 32   # pinned (old default)
+schedule:
+  reference: null   # pinned (old default)
+validation:
+  every_steps: null   # pinned (old default)
