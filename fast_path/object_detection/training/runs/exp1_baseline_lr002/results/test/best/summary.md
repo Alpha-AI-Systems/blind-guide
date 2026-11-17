@@ -1,6 +1,6 @@
 # Test: exp1_baseline_lr002 / best.pt
 
-2026-11-15 11:03:43 UTC · imgsz 352 (training scale) · trained from yolo26n-sem-ade20k.pt, lr0 0.002
+2026-11-17 21:41:35 UTC · imgsz 352 (training scale) · trained from yolo26n-sem-ade20k.pt, lr0 0.002
 
 | Split | Frames | mIoU | Pixel acc | sanpo3 mIoU |
 |---|---|---|---|---|
@@ -8,6 +8,10 @@
 | val_human | 935 | **0.3091** | 0.7226 | 0.6364 |
 | test_human | 2,561 | **0.3276** | 0.7281 | 0.7487 |
 | test_all | 5,107 | **0.3338** | 0.7329 | 0.7547 |
+| test_head_human | 1,289 | **0.2924** | 0.6755 | 0.6887 |
+| test_head_all | 2,603 | **0.2999** | 0.6805 | 0.6930 |
+| test_paper_human | 3,850 | **0.3237** | 0.7104 | 0.7303 |
+| test_paper_all | 7,710 | **0.3304** | 0.7151 | 0.7354 |
 
 ## IoU per class (test_human)
 

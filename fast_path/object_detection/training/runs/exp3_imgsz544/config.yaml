@@ -22,6 +22,8 @@ modal:
   memory_gb: 48
   path_remap:
     data.yaml: "/data/sanpo_real_chest/views/semantic_v1_short544/data.yaml"
+    test.views.head: "/data/sanpo_real_head/views/semantic_v1_short544/data.yaml"   # head test frames at this size
+                             # (made with prepare_sanpo_real_head_modal.py --image-sizes 544, on session 6)
 
 # Pinned when the shared default became the 10 fps recipe (exp4_frames_10fps), so this run stays
 # reproducible with the settings it was trained with:

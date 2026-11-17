@@ -1,6 +1,6 @@
 # Test: exp4_frames_10fps_yolo26s / best.pt
 
-2026-11-17 10:10:25 UTC · imgsz 352 (training scale) · trained from yolo26s-sem-ade20k.pt, lr0 0.002
+2026-11-17 21:34:59 UTC · imgsz 352 (training scale) · trained from yolo26s-sem-ade20k.pt, lr0 0.002
 
 | Split | Frames | mIoU | Pixel acc | sanpo3 mIoU |
 |---|---|---|---|---|
@@ -8,6 +8,10 @@
 | val_human | 935 | **0.3435** | 0.7350 | 0.6451 |
 | test_human | 2,561 | **0.3897** | 0.7475 | 0.7593 |
 | test_all | 5,107 | **0.3957** | 0.7528 | 0.7660 |
+| test_head_human | 1,289 | **0.3460** | 0.7176 | 0.7338 |
+| test_head_all | 2,603 | **0.3530** | 0.7221 | 0.7373 |
+| test_paper_human | 3,850 | **0.3946** | 0.7374 | 0.7577 |
+| test_paper_all | 7,710 | **0.4016** | 0.7424 | 0.7632 |
 
 ## IoU per class (test_human)
 

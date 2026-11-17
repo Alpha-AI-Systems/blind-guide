@@ -50,10 +50,14 @@ import modal
 CAMERA = "head"                        # "head" or "chest": the camera whose labeled walks are prepared
 VOLUME_NAME = "sanpo"                  # Modal Volume (one per Modal session/workspace)
 OUTPUT_DIR = f"sanpo_real_{CAMERA}"    # folder inside the volume: everything goes here
-SPLITS = ["train"]                     # official splits to prepare ("train"; add "test" to evaluate on this camera)
+SPLITS = ["train", "test"]             # official splits to prepare: "test" = the head camera's official test walks
+                                       # (scored by every test.py as test_head_* and, with the chest, test_paper_*).
+                                       # Re-running skips every finished walk and only rewrites the lists
 VALIDATION_FILE = "validation_split/results/validation_walks.txt"   # next to this script (this camera's split)
 JPEG_QUALITY = 95                      # full-size frames: PNG -> JPG at this quality (as the real chest data)
 IMAGE_SIZES = [352]                    # one training view per size (short side, multiple of 32); e.g. [352, 544]
+                                       # (command line --image-sizes 544,736 makes other sizes once: a walk is then
+                                       # re-read for the missing size only, its frames and index stay the same)
 VIEW_PREFIX = "semantic_v1"            # view folder name: <VIEW_PREFIX>_short<size>
 IGNORED_CLASSES = ["unlabeled", "bus stop"]   # -> 255 (ignored): the same 29 classes as every other dataset
 MAX_CONTAINERS = 20                    # walks processed in parallel (a v1 Volume allows only a few commits at once)
@@ -161,9 +165,10 @@ def commit_with_retry() -> None:
 
 @app.function(image=image, volumes={VOLUME_MOUNT_PATH: volume}, timeout=3 * 3600, max_containers=MAX_CONTAINERS,
               retries=2, cpu=CPU_PER_CONTAINER, memory=MEMORY_MB_PER_CONTAINER)
-def prepare_walk(walk: str, split: str) -> dict:
+def prepare_walk(walk: str, split: str, sizes: list | None = None) -> dict:
     """Download, convert, resize and pack ONE walk of CAMERA (every labeled frame). Returns a summary dict.
-    walk: session id; split: official split folder ("train" / "test")."""
+    walk: session id; split: official split folder ("train" / "test"); sizes: image sizes (default IMAGE_SIZES)."""
+    sizes = list(sizes or IMAGE_SIZES)
     import csv
     import io
     import json
@@ -179,7 +184,7 @@ def prepare_walk(walk: str, split: str) -> dict:
 
     root = Path(VOLUME_MOUNT_PATH) / OUTPUT_DIR
     index_path = root / "index" / f"{walk}.csv"
-    tar_paths = {size: root / "views" / view_name(size) / "tars" / f"{walk}.tar" for size in IMAGE_SIZES}
+    tar_paths = {size: root / "views" / view_name(size) / "tars" / f"{walk}.tar" for size in sizes}
     if index_path.exists() and all(path.exists() for path in tar_paths.values()):
         with open(index_path, newline="") as handle:
             frames_done = sum(1 for _ in csv.DictReader(handle))
@@ -238,7 +243,7 @@ def prepare_walk(walk: str, split: str) -> dict:
         frame = cv2.imdecode(jpg, cv2.IMREAD_COLOR)          # the views start from the saved JPG, like the chest views
         class_ids = np.ascontiguousarray(mask[:, :, 2])      # one channel: raw SANPO class ids
         resized = {}
-        for size in IMAGE_SIZES:
+        for size in sizes:
             width, height = training_size(frame.shape[0], frame.shape[1], size)
             small_frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_LINEAR)
             small_mask = cv2.resize(class_ids, (width, height), interpolation=cv2.INTER_NEAREST)
@@ -314,9 +319,10 @@ def save_metadata(settings: dict, split_lists: dict) -> dict:
 
 
 @app.function(image=image, volumes={VOLUME_MOUNT_PATH: volume}, timeout=1800)
-def write_lists(validation_walks: list[str], names: list[str], label_mapping: dict) -> dict:
+def write_lists(validation_walks: list[str], names: list[str], label_mapping: dict, sizes: list | None = None) -> dict:
     """Write each view's image lists, data.yaml (only with validation walks) and view.yaml from all index CSVs.
-    Returns {view: {list: frames}} and the validation walks that were not found."""
+    sizes: the views to write (default IMAGE_SIZES). Returns {view: {list: frames}} and the validation walks not found."""
+    sizes = list(sizes or IMAGE_SIZES)
     import csv
     from datetime import datetime, timezone
     from pathlib import Path
@@ -347,7 +353,7 @@ def write_lists(validation_walks: list[str], names: list[str], label_mapping: di
                 lists[f"{part}_human"].append(line)
     missing = sorted(validation - walks_seen)
     counts = {}
-    for size in IMAGE_SIZES:
+    for size in sizes:
         view = root / "views" / view_name(size)
         view.mkdir(parents=True, exist_ok=True)
         for name, lines in lists.items():
@@ -379,13 +385,15 @@ def write_lists(validation_walks: list[str], names: list[str], label_mapping: di
 
 
 @app.local_entrypoint()
-def main(max_walks: int = 0):
-    """max_walks > 0 = quick test: that many walks per split."""
+def main(max_walks: int = 0, image_sizes: str = ""):
+    """max_walks > 0 = quick test: that many walks per split. image_sizes "544,736" = make these sizes instead of
+    IMAGE_SIZES (e.g. the head test frames at a run's larger training size)."""
     import time
     from concurrent.futures import ThreadPoolExecutor
     from pathlib import Path
 
-    print(f"SANPO-Real {CAMERA} -> Volume '{VOLUME_NAME}' / {OUTPUT_DIR} | splits {SPLITS} | sizes {IMAGE_SIZES} | "
+    sizes = [int(size) for size in image_sizes.split(",") if size.strip()] or list(IMAGE_SIZES)
+    print(f"SANPO-Real {CAMERA} -> Volume '{VOLUME_NAME}' / {OUTPUT_DIR} | splits {SPLITS} | sizes {sizes} | "
           f"JPG quality {JPEG_QUALITY}")
     split_lists = {split: sorted(bucket_file(f"sanpo-real/splits/{split}_session_ids.txt").decode().split())
                    for split in ("train", "test")}
@@ -399,7 +407,7 @@ def main(max_walks: int = 0):
         with ThreadPoolExecutor(32) as pool:
             labeled = [walk for walk, ok in zip(split_lists[split], pool.map(has_labels, split_lists[split])) if ok]
         print(f"  {split}: {len(labeled)} of {len(split_lists[split])} walks have {CAMERA} labels")
-        jobs += [(walk, split) for walk in (labeled[:max_walks] if max_walks > 0 else labeled)]
+        jobs += [(walk, split, sizes) for walk in (labeled[:max_walks] if max_walks > 0 else labeled)]
     if max_walks > 0:
         print(f"TEST RUN: {max_walks} walk(s) per split")
 
@@ -407,7 +415,7 @@ def main(max_walks: int = 0):
     validation_walks = validation_file.read_text(encoding="utf-8").split() if validation_file.exists() else []
     print(f"validation walks ({CAMERA}): {len(validation_walks)} from {validation_file}"
           + ("" if validation_walks else " (NOT FOUND: no val list and no data.yaml)"))
-    settings = {"camera": CAMERA, "splits": SPLITS, "jpeg_quality": JPEG_QUALITY, "image_sizes": IMAGE_SIZES,
+    settings = {"camera": CAMERA, "splits": SPLITS, "jpeg_quality": JPEG_QUALITY, "image_sizes": sizes,
                 "view_prefix": VIEW_PREFIX, "ignored_classes": IGNORED_CLASSES, "max_walks": max_walks,
                 "validation_file": VALIDATION_FILE}
     # save_metadata takes: settings, official split lists; returns: the label mapping and the 29 class names
@@ -432,7 +440,7 @@ def main(max_walks: int = 0):
         print(f"{failed} walk(s) failed: lists NOT written. Run the same command again (finished walks are skipped).")
         return
     # write_lists takes: the validation walks, the class names, the label mapping; returns: frames per list per view
-    result = write_lists.remote(validation_walks, metadata["names"], metadata["label_mapping"])
+    result = write_lists.remote(validation_walks, metadata["names"], metadata["label_mapping"], sizes)
     if result["validation_walks_not_found"]:
         print(f"WARNING: validation walks not prepared here: {result['validation_walks_not_found'][:5]} ...")
     print(f"DONE in {format_duration(time.time() - start)}: {frames:,} frames | lists: {result['counts']}")

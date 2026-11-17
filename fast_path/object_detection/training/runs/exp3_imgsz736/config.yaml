@@ -23,6 +23,8 @@ modal:
   memory_gb: 32
   path_remap:
     data.yaml: "/data/sanpo_real_chest/views/semantic_v1_short736/data.yaml"
+    test.views.head: "/data/sanpo_real_head/views/semantic_v1_short736/data.yaml"   # head test frames at this size
+                             # (made with prepare_sanpo_real_head_modal.py --image-sizes 736, on session 2)
 
 test:
   batch: 32                  # test batch 128 ran out of GPU memory at 1312x736 on the T4

@@ -1,6 +1,6 @@
 # Test: local_chest_from_head_ade20k / best.pt
 
-2026-11-17 19:11:40 UTC · imgsz 352 (training scale) · trained from stage1_real_head_best, lr0 0.002
+2026-11-17 21:40:59 UTC · imgsz 352 (training scale) · trained from stage1_real_head_best, lr0 0.002
 
 | Split | Frames | mIoU | Pixel acc | sanpo3 mIoU |
 |---|---|---|---|---|
@@ -8,6 +8,10 @@
 | val_human | 935 | **0.3239** | 0.7352 | 0.6491 |
 | test_human | 2,561 | **0.3815** | 0.7426 | 0.7614 |
 | test_all | 5,107 | **0.3872** | 0.7473 | 0.7671 |
+| test_head_human | 1,289 | **0.3237** | 0.7035 | 0.7155 |
+| test_head_all | 2,603 | **0.3297** | 0.7099 | 0.7203 |
+| test_paper_human | 3,850 | **0.3809** | 0.7294 | 0.7509 |
+| test_paper_all | 7,710 | **0.3870** | 0.7347 | 0.7562 |
 
 ## IoU per class (test_human)
 

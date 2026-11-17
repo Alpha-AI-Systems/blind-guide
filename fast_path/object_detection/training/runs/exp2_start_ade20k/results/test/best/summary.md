@@ -1,6 +1,6 @@
 # Test: exp2_start_ade20k / best.pt
 
-2026-11-15 19:20:31 UTC · imgsz 352 (training scale) · trained from yolo26n-sem-ade20k.pt, lr0 0.002
+2026-11-17 21:24:37 UTC · imgsz 352 (training scale) · trained from yolo26n-sem-ade20k.pt, lr0 0.002
 
 | Split | Frames | mIoU | Pixel acc | sanpo3 mIoU |
 |---|---|---|---|---|
@@ -8,6 +8,10 @@
 | val_human | 935 | **0.3178** | 0.7210 | 0.6323 |
 | test_human | 2,561 | **0.3483** | 0.7239 | 0.7407 |
 | test_all | 5,107 | **0.3556** | 0.7288 | 0.7471 |
+| test_head_human | 1,289 | **0.3159** | 0.6890 | 0.7225 |
+| test_head_all | 2,603 | **0.3180** | 0.6938 | 0.7266 |
+| test_paper_human | 3,850 | **0.3491** | 0.7122 | 0.7414 |
+| test_paper_all | 7,710 | **0.3566** | 0.7170 | 0.7470 |
 
 ## IoU per class (test_human)
 

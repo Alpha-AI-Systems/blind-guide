@@ -473,6 +473,11 @@ modal:
 
 test:                        # runs/<run>/test.py: scores the run's checkpoints on these splits (same code as validation)
   splits: {val: val.txt, val_human: val_human.txt, test_human: test_human.txt, test_all: test.txt}   # split -> image list
+                             # in the run's view; "<view>:<list>" = a list of another view of test.views; "a+b" = the
+                             # frames of both lists scored together (one confusion matrix), e.g.
+                             # "test_human.txt+head:test_human.txt" = the chest and head human-labeled test frames
+  views: {}                  # other dataset views for test splits: {name: data.yaml} (same classes, label mapping and
+                             # mask rule required; on Modal remap with modal.path_remap "test.views.<name>")
   leaderboard_split: test_human   # runs/leaderboard.md is sorted by this split's mIoU (the SANPO paper's protocol)
   checkpoints: [best]        # only best.pt (chosen on val): never choose a checkpoint on the test set
   leaderboard_checkpoint: best   # only this checkpoint of each run appears in runs/leaderboard.md
@@ -4150,7 +4155,7 @@ def evaluate_checkpoint(config: dict, checkpoint: str, weights: bytes) -> dict:
         f"{format_duration(time.time() - start)}")
     # make_human_lists takes: config, local data.yaml, data.yaml on the volume; returns: the lists written
     make_human_lists(remote, local_yaml, remote["data"]["yaml"])
-    weights_path = Path("/tmp") / f"{config['experiment']['name']}_{checkpoint}.pt"
+    weights_path = Path("/tmp") / f"{app_name(config)}_{checkpoint}.pt"   # no "/" (a stage's name has one)
     weights_path.write_bytes(weights)
     model = YOLO(str(weights_path), task="semantic")
     parameters = sum(parameter.numel() for parameter in model.model.parameters())
@@ -4169,10 +4174,56 @@ def evaluate_checkpoint(config: dict, checkpoint: str, weights: bytes) -> dict:
                                              if config_get(config, "model.weights_from") else config["model"]["weights"]),
                            "gpu": test["gpu"], "parameters": parameters},
               "splits": {}}
+    local_views = {}                                 # test.views copied to local disk when a split first needs them
+
+    def view_folder(view: str) -> Path | None:
+        """The local folder of a test view (copied once); None when the view is not configured or not prepared."""
+        if view not in local_views:
+            volume_yaml = config_get(remote, f"test.views.{view}")
+            if not volume_yaml or not Path(volume_yaml).exists():
+                local_views[view] = None
+            else:
+                view_start = time.time()
+                copied = Path(copy_view_to_local_disk(volume_yaml, remote["modal"].get("local_data_dir", "/tmp/local_data"),
+                                                      quiet=True))
+                other = yaml.safe_load(copied.read_text(encoding="utf-8"))
+                for key in ("names", "label_mapping", "image_dir_name", "masks_dir"):
+                    first, second = data.get(key), other.get(key)
+                    if isinstance(first, dict):
+                        first = {str(name): value for name, value in first.items()}
+                        second = {str(name): value for name, value in (second or {}).items()}
+                    if first != second:
+                        raise SystemExit(f"  ❌ test view '{view}': '{key}' differs from the run's data.yaml")
+                say(f"view {view:<6} {Path(volume_yaml).parent.parent.parent.name} copied to local disk in "
+                    f"{format_duration(time.time() - view_start)}")
+                local_views[view] = copied.parent
+        return local_views[view]
+
+    def split_list(split: str, spec: str) -> Path | None:
+        """test.splits entry -> one image list file: "<list>" (the run's view), "<view>:<list>" (a test view), or
+        "a+b" (the frames of every part, as absolute paths). None when a part is missing or empty."""
+        parts = [part.strip() for part in str(spec).split("+")]
+        if len(parts) == 1 and ":" not in parts[0]:
+            path = local_yaml.parent / parts[0]
+            return path if path.exists() and path.read_text(encoding="utf-8").strip() else None
+        lines = []
+        for part in parts:
+            view, _, name = part.rpartition(":")
+            folder = view_folder(view) if view else local_yaml.parent
+            path = folder / name if folder is not None else None
+            if path is None or not path.exists() or not path.read_text(encoding="utf-8").strip():
+                return None
+            lines += [os.path.normpath(str(path.parent / (line[2:] if line.startswith("./") else line)))
+                      for line in path.read_text(encoding="utf-8").split()]
+        combined = local_yaml.parent / f"test_split_{split}.txt"
+        combined.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return combined
+
     for split, list_name in test["splits"].items():
-        list_path = local_yaml.parent / list_name
-        if not list_path.exists() or not list_path.read_text(encoding="utf-8").strip():
-            say(f"{split:<11} skipped ({list_name} missing or empty)")
+        # split_list takes: the split name and its test.splits entry; returns: one image list (or None)
+        list_path = split_list(split, list_name)
+        if list_path is None:
+            say(f"{split:<11} skipped ({list_name}: missing or empty)")
             continue
         split_yaml = local_yaml.parent / f"data_{split}.yaml"          # the same dataset, val = this list
         split_yaml.write_text(yaml.safe_dump({**data, "val": str(list_path)}, sort_keys=False), encoding="utf-8")
@@ -4281,7 +4332,7 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
             group = next((value for key, value in ((splits.get(main_split) or {}).get("groups") or {}).items()
                           if key.endswith("_mIoU")), None)
             rows.append({"run": shown_name, "checkpoint": result["checkpoint"], "group": group,
-                         **{split: (splits.get(split) or {}).get("mIoU") for split in ("test_human", "test_all", "val", "val_human")},
+                         **{split: (splits.get(split) or {}).get("mIoU") for split in ("test_human", "test_all", "test_head_human", "test_paper_human", "val", "val_human")},
                          "main": (splits.get(main_split) or {}).get("mIoU"), "imgsz": result["settings"]["image_size"],
                          "lr0": result["settings"]["lr0"], "start": Path(str(result["settings"]["weights_start"])).stem,
                          "parameters": cost.get("parameters") or result["settings"].get("parameters"),
@@ -4294,14 +4345,19 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
     lines = ["# Leaderboard", "",
              f"Sorted by test mIoU on the human-labeled test frames (SANPO paper's protocol). Written by runs/<run>/test.py, "
              f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.", "",
-             "| # | Run | Ckpt | **Test mIoU** (human) | Test mIoU (all) | Test 3-class | Val mIoU | Val mIoU (human) | imgsz | "
+             "| # | Run | Ckpt | **Test mIoU** (human) | Test mIoU (all) | Test 3-class | Test head (human) | "
+             "Test paper: chest + head (human) | Val mIoU | Val mIoU (human) | imgsz | "
              "Train input | Train frames | lr0 | Start | Params |",
-             "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
+             "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for rank, row in enumerate(rows, 1):
         parameters = f"{row['parameters'] / 1e6:.2f} M" if row["parameters"] else ""
         lines.append(f"| {rank} | {row['run']} | {row['checkpoint']} | **{show(row['test_human'])}** | {show(row['test_all'])} | "
-                     f"{show(row['group'])} | {show(row['val'])} | {show(row['val_human'])} | {row['imgsz']} | "
+                     f"{show(row['group'])} | {show(row['test_head_human'])} | {show(row['test_paper_human'])} | "
+                     f"{show(row['val'])} | {show(row['val_human'])} | {row['imgsz']} | "
                      f"{row['train_input']} | {row['train_frames']} | {row['lr0']} | {row['start']} | {parameters} |")
+    lines += ["", "Test columns: **Test mIoU** = chest camera, human-labeled frames of SANPO's official test walks (our main "
+                  "score); **Test head** = the head camera's official test walks; **Test paper** = both cameras together, "
+                  "the SANPO paper's test set (human-labeled frames of SANPO-Real test)."]
     lines += ["", "Train input: **center square** = Ultralytics' default, training saw a centered imgsz x imgsz square of "
                   "each frame; **full frame** = the whole 16:9 frame (ultralytics.rect).",
               "", "Train frames: the training walks' frames used: **5 fps** (train.txt), **10 fps** / **15 fps** "
