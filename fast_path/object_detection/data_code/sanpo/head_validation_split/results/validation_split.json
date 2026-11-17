@@ -1,0 +1,55 @@
+{
+  "validation_walks": [
+    "8bWymqLVx34nEZhZek77q8WqIEvRucxE",
+    "FeJgoz6tfxhlDqiesDGIZdbM3VoE_HMZ",
+    "R0zL2no8ujqRzo45_vBv-ca8HSh_6vxo",
+    "TccwLbeRW-z_NPDDJsr1S3IC-iUzaJI3",
+    "hkerfVO2smIEaljAGTK7hi_FxLt4mAmH",
+    "j5QOrc58fUSYWM7vbUAn0g4NIRwfOhBg",
+    "n3XL5R4agzVZ7DKs-j8dfEBkmqznu_Ck"
+  ],
+  "validation_frames": 1120,
+  "train_frames": 10098,
+  "distances": {
+    "class pixels": 0.12363,
+    "class frames": 0.06015,
+    "environments": 0.07143,
+    "weather": 0.05339,
+    "blurry": 0.00557,
+    "human-labeled": 0.00249,
+    "size": 0.00016
+  },
+  "candidates_tried": null,
+  "candidates_kept": null,
+  "settings": {
+    "VALIDATION_WALKS": 7,
+    "FRAME_SHARE_RANGE": [
+      0.08,
+      0.12
+    ],
+    "REQUIRED_CLASS_MIN_WALKS": 30,
+    "MIN_FRAMES_IN_VALIDATION": 10,
+    "MAX_SHARE_OF_CLASS_WALKS": 0.3333333333333333,
+    "MIN_RELATIVE_FRAME_SHARE": 0.25,
+    "MAX_RELATIVE_FRAME_SHARE": 4.0,
+    "SWAP_STARTS": 10,
+    "NORMALIZATION_CANDIDATES": 20000,
+    "HEAVY_TRAFFIC_WALKS": 1,
+    "IGNORED_CLASSES": [
+      "unlabeled",
+      "bus stop"
+    ],
+    "BLURRY_PERCENTILE": 5,
+    "SEED": 42,
+    "FIXED_VALIDATION_WALKS": [
+      "8bWymqLVx34nEZhZek77q8WqIEvRucxE",
+      "FeJgoz6tfxhlDqiesDGIZdbM3VoE_HMZ",
+      "R0zL2no8ujqRzo45_vBv-ca8HSh_6vxo",
+      "TccwLbeRW-z_NPDDJsr1S3IC-iUzaJI3",
+      "hkerfVO2smIEaljAGTK7hi_FxLt4mAmH",
+      "j5QOrc58fUSYWM7vbUAn0g4NIRwfOhBg",
+      "n3XL5R4agzVZ7DKs-j8dfEBkmqznu_Ck"
+    ]
+  },
+  "selection_note": "Final 7-walk split includes road junction, moderate traffic, stairs, hand rail and traffic sign."
+}
