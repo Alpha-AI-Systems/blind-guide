@@ -1,0 +1,8 @@
+# exp5_real_head_then_chest: experiment plan step 5, REAL HEAD THEN REAL CHEST (trained locally by the partner,
+# RTX 4060 Ti, merged from PR #15; the folders were local_head_pretrain_ade20k and local_chest_from_head_ade20k):
+#   1. stage1_real_head    SANPO-Real head camera, 25 epochs (7,900 steps) <- yolo26n-sem-ade20k.pt
+#   2. stage2_real_chest   SANPO-Real chest camera, 18 epochs (9,504 steps) <- stage 1 best.pt
+# Recipe = exp2_start_ade20k (lr0 0.002, cosine to 1%, warmup 2 epochs, batch 32); each stage's config.yaml is the
+# partner's frozen full config. No launch scripts or weights are in the repo: the stage 2 best.pt is still needed
+# to score exp5 on the test set. exp6_synthetic_then_real adds a synthetic stage before each of these 2 stages.
+# This file holds no settings: every stage config is complete on its own.
