@@ -1,0 +1,399 @@
+experiment:
+  name: local_head_pretrain_ade20k
+  run_id: run001
+  notes: User-approved full Head25 pretraining from verified ADE20K nano; Chest requires
+    separate approval
+model:
+  weights: C:\Projects\blind-guide\weights\yolo26n-sem-ade20k.pt
+  weights_dir: C:\Projects\blind-guide\weights
+  task: semantic
+data:
+  yaml: C:\Projects\blind-guide\fast_path\object_detection\training\runs\local_head_pretrain_ade20k\results\inputs\data.yaml
+  image_dir_name: frames
+  masks_dir: masks
+  validate_at_training_scale: true
+  extra_validation:
+    val_human: C:\Projects\blind-guide\fast_path\object_detection\training\runs\local_head_pretrain_ade20k\results\inputs\val_human.txt
+  label_cache_dir: C:\Projects\blind-guide\fast_path\object_detection\training\runs\local_head_pretrain_ade20k\results\label_cache
+ultralytics:
+  epochs: 25
+  batch: 32
+  imgsz: 352
+  optimizer: MuSGD
+  lr0: 0.002
+  lrf: 0.01
+  cos_lr: true
+  warmup_epochs: 2
+  momentum: 0.9
+  weight_decay: 0.0005
+  nbs: 32
+  mosaic: 0.05
+  close_mosaic: 15
+  fliplr: 0.5
+  flipud: 0.0
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  scale: 0.25
+  translate: 0.1
+  degrees: 3.0
+  shear: 0.0
+  perspective: 0.0
+  mixup: 0.0
+  cutmix: 0.0
+  copy_paste: 0.0
+  cls_pw: 0.0
+  patience: 100
+  seed: 42
+  deterministic: false
+  amp: true
+  workers: 0
+  cache: false
+  save_period: -1
+  val: true
+  plots: true
+  verbose: true
+  task: semantic
+  mode: train
+  time: null
+  save: true
+  device: 0
+  exist_ok: true
+  pretrained: true
+  cls_remap: true
+  single_cls: false
+  rect: true
+  resume: false
+  fraction: 1.0
+  profile: false
+  freeze: null
+  multi_scale: 0.0
+  compile: false
+  channels_last: null
+  overlap_mask: true
+  mask_ratio: 4
+  dropout: 0.0
+  split: val
+  save_json: false
+  conf: null
+  iou: null
+  max_det: 300
+  quantize: null
+  dnn: false
+  nms: null
+  tile: false
+  source: null
+  vid_stride: 1
+  stream_buffer: false
+  visualize: false
+  augment: false
+  agnostic_nms: false
+  classes: null
+  retina_masks: false
+  embed: null
+  show: false
+  save_frames: false
+  save_txt: false
+  save_conf: false
+  save_crop: false
+  show_labels: true
+  show_conf: true
+  show_boxes: true
+  line_width: null
+  format: torchscript
+  optimize: false
+  dynamic: false
+  simplify: true
+  opset: null
+  workspace: null
+  warmup_momentum: 0.8
+  warmup_bias_lr: 0.1
+  distill_model: null
+  dis: 6.0
+  box: 7.5
+  cls: 0.5
+  dfl: 1.5
+  pose: 12.0
+  kobj: 1.0
+  rle: 1.0
+  angle: 1.0
+  dlog: 1.0
+  dgrad: 0.5
+  dlam: 1.0
+  bgr: 0.0
+  copy_paste_mode: flip
+  auto_augment: randaugment
+  erasing: 0.4
+  cfg: null
+  tracker: tracktrack.yaml
+dataloader:
+  val_workers: 0
+  prefetch_factor: 4
+  val_prefetch_factor: 2
+  pin_memory: 1
+  drop_last: 0
+  cap_workers_at_cpu_count: 0
+  val_batch_size: 32
+logging:
+  disable_integrations:
+  - mlflow
+  - comet
+  - clearml
+  - dvc
+  - neptune
+  - raytune
+  - wandb
+  - tensorboard
+  - hub
+  unit: img
+  console_log_every: 20
+  diagnostics_every: 200
+  debug_images_every: 500
+  debug_images_per_save: 4
+  flops_probe: 1
+  print:
+    config: 1
+    raw_config: 1
+    environment: 1
+    model: 1
+    step_line: 1
+    throughput: 1
+    compute: 1
+    ud_ratio: 1
+    scale_probe: 1
+    per_class_eval: 1
+    final_summary: 1
+  class_groups:
+    sanpo3:
+      safe:
+      - sidewalk
+      - crosswalk
+      - paved trail
+      - stairs
+      - other walkable surface
+      - terrain
+      not_safe:
+      - road
+      - curb
+      - water body
+      - inaccessible surface
+      - railway track
+      - sky
+      obstacle:
+      - guard rail/road barrier
+      - building
+      - wall/fence
+      - hand rail
+      - opening-door
+      - opening-gate
+      - pedestrian
+      - rider
+      - animal
+      - obstacle
+      - vehicle
+      - traffic sign
+      - traffic light
+      - pole
+      - bike rack
+      - tree
+      - vegetation
+  ultralytics_progress_bars: 0
+output:
+  run_dir: results/train
+  ultralytics_dir: ultralytics
+  train_log_csv: train_log.csv
+  val_log_csv: val_log.csv
+  summary_json: training_summary.json
+  console_capture_dir: train_config
+  commit_every_steps: 50
+  make_plots: 1
+  plots_dir: plots
+  debug_dir: debug
+  upload_checkpoints: null
+modal:
+  gpu: T4
+  timeout_hours: 8
+  cpu: 4
+  memory_gb: 32
+  scaledown_window: 2
+  python_version: '3.12'
+  pip:
+  - ultralytics==8.4.208
+  - numpy
+  - pandas
+  - pyyaml
+  - matplotlib
+  - psutil
+  - nvidia-ml-py
+  extra_pip: []
+  apt:
+  - libgl1
+  - libglib2.0-0
+  runs_volume: blind-guide-runs
+  runs_mount: /runs
+  data_volume: sanpo
+  data_mount: /data
+  path_remap:
+    data.yaml: /data/sanpo_real_chest_5fps/views/semantic_v1_short352/data.yaml
+  local_data_copy: true
+  local_data_dir: /tmp/local_data
+  secrets: []
+  sync_checkpoints: true
+  prices_per_hour:
+    gpu:
+      B200: 6.25
+      H200: 4.54
+      H100: 3.95
+      A100-80GB: 2.5
+      A100: 2.1
+      L40S: 1.95
+      A10: 1.1
+      L4: 0.8
+      T4: 0.59
+    cpu_core: 0.0473
+    memory_gb: 0.008
+test:
+  splits:
+    val: val.txt
+  leaderboard_split: val
+  checkpoints:
+  - best
+  leaderboard_checkpoint: best
+  in_leaderboard: false
+  validation_only: true
+  leaderboard_note: ''
+  batch: 32
+  gpu: RTX 4060 Ti (local)
+  cpu: 1
+  memory_gb: 32
+resume: auto
+resume_force: false
+resume_guard:
+- model.weights
+- data.yaml
+- data.validate_at_training_scale
+- ultralytics.task
+- ultralytics.mode
+- ultralytics.epochs
+- ultralytics.time
+- ultralytics.patience
+- ultralytics.batch
+- ultralytics.imgsz
+- ultralytics.save
+- ultralytics.save_period
+- ultralytics.cache
+- ultralytics.device
+- ultralytics.workers
+- ultralytics.exist_ok
+- ultralytics.pretrained
+- ultralytics.cls_remap
+- ultralytics.optimizer
+- ultralytics.verbose
+- ultralytics.seed
+- ultralytics.deterministic
+- ultralytics.single_cls
+- ultralytics.rect
+- ultralytics.cos_lr
+- ultralytics.close_mosaic
+- ultralytics.resume
+- ultralytics.amp
+- ultralytics.fraction
+- ultralytics.profile
+- ultralytics.freeze
+- ultralytics.multi_scale
+- ultralytics.compile
+- ultralytics.channels_last
+- ultralytics.overlap_mask
+- ultralytics.mask_ratio
+- ultralytics.dropout
+- ultralytics.val
+- ultralytics.split
+- ultralytics.save_json
+- ultralytics.conf
+- ultralytics.iou
+- ultralytics.max_det
+- ultralytics.quantize
+- ultralytics.dnn
+- ultralytics.plots
+- ultralytics.nms
+- ultralytics.tile
+- ultralytics.source
+- ultralytics.vid_stride
+- ultralytics.stream_buffer
+- ultralytics.visualize
+- ultralytics.augment
+- ultralytics.agnostic_nms
+- ultralytics.classes
+- ultralytics.retina_masks
+- ultralytics.embed
+- ultralytics.show
+- ultralytics.save_frames
+- ultralytics.save_txt
+- ultralytics.save_conf
+- ultralytics.save_crop
+- ultralytics.show_labels
+- ultralytics.show_conf
+- ultralytics.show_boxes
+- ultralytics.line_width
+- ultralytics.format
+- ultralytics.optimize
+- ultralytics.dynamic
+- ultralytics.simplify
+- ultralytics.opset
+- ultralytics.workspace
+- ultralytics.lr0
+- ultralytics.lrf
+- ultralytics.momentum
+- ultralytics.weight_decay
+- ultralytics.warmup_epochs
+- ultralytics.warmup_momentum
+- ultralytics.warmup_bias_lr
+- ultralytics.distill_model
+- ultralytics.dis
+- ultralytics.box
+- ultralytics.cls
+- ultralytics.cls_pw
+- ultralytics.dfl
+- ultralytics.pose
+- ultralytics.kobj
+- ultralytics.rle
+- ultralytics.angle
+- ultralytics.dlog
+- ultralytics.dgrad
+- ultralytics.dlam
+- ultralytics.nbs
+- ultralytics.hsv_h
+- ultralytics.hsv_s
+- ultralytics.hsv_v
+- ultralytics.degrees
+- ultralytics.translate
+- ultralytics.scale
+- ultralytics.shear
+- ultralytics.perspective
+- ultralytics.flipud
+- ultralytics.fliplr
+- ultralytics.bgr
+- ultralytics.mosaic
+- ultralytics.mixup
+- ultralytics.cutmix
+- ultralytics.copy_paste
+- ultralytics.copy_paste_mode
+- ultralytics.auto_augment
+- ultralytics.erasing
+- ultralytics.cfg
+- ultralytics.tracker
+local_protocol:
+  schema: 1
+  stage: head
+  camera: head
+  execution_approved: true
+  reference_commit: 51c5348d8ec62f6826e5e56287234bd3b8ff9ed5
+  original_reference:
+    path: C:\Projects\blind-guide\weights\yolo26n-sem-ade20k.pt
+    sha256: 68ac71bef2868c987fff7cd7c49cb656922f6d8447ad21af3893305577435000
+  head_epoch_budget: 25
+  head_budget_approved: true
+  head_budget_reason: User-approved fixed initial 25-epoch full-Head budget; Chest
+    remains 18 epochs.
+  probe_approved: true
+  probe_batches: 32
