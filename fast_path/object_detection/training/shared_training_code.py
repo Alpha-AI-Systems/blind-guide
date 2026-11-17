@@ -332,6 +332,12 @@ data:
                              # 5 = 0,3,6,... (= train.txt); 10 = 0,1,3,4,6,7,... (take 2, skip 1); 15 = all
   extra_archives: []         # extra archive folders of the view copied to local disk besides tars/
                              # (tars_15fps_extra = the 15 FPS frames that are not in the 5 FPS set)
+  mix: null                  # MIXED BATCHES (null = off), e.g. {yaml: <second dataset's data.yaml>, train_list:
+                             # train_head_5fps.txt, per_batch: 16}: every training batch holds exactly
+                             # (ultralytics.batch - per_batch) frames of this data.yaml's train list and per_batch frames of
+                             # the second dataset's list (same classes and label_mapping required). One epoch = one pass
+                             # over the FIRST list; both lists are drawn as endless streams of fresh shuffles (seeded,
+                             # resumable). Validation stays on this data.yaml's val. On Modal, path_remap data.mix.yaml
 
 schedule:
   reference: null            # {steps_per_epoch: N, epochs: E, warmup_epochs: W} of a reference run: every optimizer
@@ -479,7 +485,7 @@ test:                        # runs/<run>/test.py: scores the run's checkpoints 
 
 resume: auto                 # auto = continue Ultralytics' last.pt if the run is unfinished | false = start fresh
 resume_force: false          # resume even though guarded settings changed
-resume_guard: [model.weights, model.weights_from, data.yaml, data.train_list, data.val_list, data.train_fps, validation.every_steps, schedule.reference, schedule.max_steps, ultralytics.epochs, ultralytics.batch, ultralytics.imgsz,
+resume_guard: [model.weights, model.weights_from, data.yaml, data.train_list, data.val_list, data.train_fps, data.mix, validation.every_steps, schedule.reference, schedule.max_steps, ultralytics.epochs, ultralytics.batch, ultralytics.imgsz,
                ultralytics.optimizer, ultralytics.lr0, ultralytics.lrf, ultralytics.cos_lr, ultralytics.nbs]
 """
 DEFAULTS = yaml.safe_load(DEFAULTS_YAML)
@@ -513,7 +519,9 @@ def config_set(config: dict, dotted: str, value) -> None:
 
 def runs_root_of(run_dir) -> Path:
     """The runs/ folder a run folder lives in (runs/<run> or, for a multi-stage experiment, runs/<experiment>/<stage>)."""
-    run_dir = Path(run_dir)
+    # absolute (a relative "exp2" or "." would hide the runs/ folder above it), but symlinks NOT followed: on Modal
+    # /runs is a link to /__modal/volumes/..., which would hide the name "runs"
+    run_dir = Path(os.path.abspath(run_dir))
     for folder in (run_dir, *run_dir.parents):
         if folder.name == "runs":
             return folder
@@ -535,7 +543,7 @@ def load_config(run_dir, config_name: str = "config.yaml", shared_name: str = "s
     The run name defaults to the path below runs/ ("exp2_start_ade20k" or "exp6_x/stage1_y"); it also names the
     run's folder on the runs volume, and (with "/" turned into "-", app_name) its Modal app.
     """
-    run_dir = Path(run_dir)
+    run_dir = Path(os.path.abspath(run_dir))      # absolute, like runs_root_of (symlinks not followed)
     runs_root = runs_root_of(run_dir)
     shared_path = runs_root.parent / shared_name
     shared = yaml.safe_load(shared_path.read_text(encoding="utf-8")) if shared_path.exists() else {}
@@ -553,6 +561,12 @@ def load_config(run_dir, config_name: str = "config.yaml", shared_name: str = "s
     if not config["experiment"].get("name"):
         config["experiment"]["name"] = (run_dir.relative_to(runs_root).as_posix() if runs_root in run_dir.parents
                                         else run_dir.name)
+    stage_number = re.match(r"stage(\d+)_", run_dir.name)
+    if stage_number and run_dir.parent != runs_root and run_dir.parent.is_dir():
+        # a stage of a multi-stage experiment: "n/total" (printed with every step line), from its sibling stage folders
+        siblings = [folder for folder in run_dir.parent.iterdir()
+                    if folder.is_dir() and re.match(r"stage\d+_", folder.name) and (folder / config_name).exists()]
+        config["experiment"]["stage"] = f"{int(stage_number.group(1))}/{len(siblings)}"
     if verbose:
         print_config(config)
     return config
@@ -1625,12 +1639,104 @@ def make_trainer_class(monitor):
                 print(f"  ⚠️  the dataset view was resized for imgsz {view_size} but training uses imgsz "
                       f"{self.args.imgsz}: Ultralytics resizes the frames a second time (use a view made "
                       f"for imgsz {self.args.imgsz})")
+            if training and config_get(monitor.config, "data.mix"):
+                # mix_loader takes: the dataset and the loader settings; returns: a loader whose every batch is
+                # (batch - per_batch) frames of the first dataset + per_batch of the second (MixedBatchSampler)
+                return self.mix_loader(dataset, batch, workers, prefetch, pin_memory, generator)
             return InfiniteDataLoader(dataset=dataset, batch_size=batch, shuffle=shuffle, num_workers=workers,
                                       prefetch_factor=prefetch if workers > 0 else None, pin_memory=pin_memory,
                                       collate_fn=getattr(dataset, "collate_fn", None), worker_init_fn=seed_worker,
                                       generator=generator, drop_last=drop_last)
 
+        def mix_loader(self, dataset, batch, workers, prefetch, pin_memory, generator):
+            """data.mix: the training loader with MixedBatchSampler (see apply_mix and MixedBatchSampler)."""
+            from ultralytics.data.build import InfiniteDataLoader, seed_worker
+
+            per_batch = int(config_get(monitor.config, "data.mix.per_batch"))
+            if getattr(dataset, "rect", False) and not np.all(dataset.batch_shapes == dataset.batch_shapes[0]):
+                # rect: Ultralytics gives each frame the shape of its batch in ITS sorted order; mixed batches are only
+                # right when every batch has the same shape (all frames of both datasets 16:9)
+                raise SystemExit("  ❌ data.mix with ultralytics.rect needs frames of ONE aspect ratio in both datasets: "
+                                 f"batch shapes found {sorted({tuple(shape) for shape in dataset.batch_shapes.tolist()})}")
+            root = mix_second_root(monitor.config) + os.sep
+            second = [index for index, path in enumerate(dataset.im_files) if os.path.normpath(path).startswith(root)]
+            second_set = set(second)
+            first = [index for index in range(len(dataset.im_files)) if index not in second_set]
+            start_epoch = int(getattr(self, "epoch", 0) or 0)      # 0 at the first build; the current epoch after an
+            sampler = MixedBatchSampler(first, second, batch - per_batch, per_batch,    # OOM rebuild
+                                        seed=int(self.args.seed), start_epoch=start_epoch)
+            self.mix_sampler = sampler
+            self.mix_second_root = root
+            self.mix_counts = {"epoch": None}
+            print(f"[data] mixed batches (data.mix): {len(first):,} frames of the first dataset ({batch - per_batch} per "
+                  f"batch) + {len(second):,} of {root.rstrip(os.sep)} ({per_batch} per batch); {len(sampler):,} batches "
+                  f"per epoch (one pass over the first dataset), seed {self.args.seed}")
+            loader = InfiniteDataLoader(dataset=dataset, batch_sampler=sampler, num_workers=workers,
+                                        prefetch_factor=prefetch if workers > 0 else None, pin_memory=pin_memory,
+                                        collate_fn=getattr(dataset, "collate_fn", None), worker_init_fn=seed_worker,
+                                        generator=generator)
+            # with a batch_sampler torch leaves batch_size None, but Ultralytics reads it (its last-batch check);
+            # torch's DataLoader refuses normal assignment after init, as in Ultralytics' own InfiniteDataLoader
+            object.__setattr__(loader, "batch_size", batch)
+            return loader
+
+        def _setup_train(self):
+            super()._setup_train()
+            if getattr(self, "mix_sampler", None) is not None:
+                # a resumed run starts at start_epoch: the mixed batches continue exactly where that epoch begins
+                self.mix_sampler.restart(self.start_epoch)
+
+        def _close_dataloader_mosaic(self):
+            super()._close_dataloader_mosaic()
+            if getattr(self, "mix_sampler", None) is not None:
+                # Ultralytics rebuilds the loader's iterator right after this (train_loader.reset()), dropping the
+                # batches prefetched ahead: the new iterator must start at THIS epoch's first batch
+                self.mix_sampler.restart(self.epoch)
+
+        def count_mix(self, batch):
+            """data.mix: count the frames of each dataset in this batch; report the epoch's totals when it ends."""
+            files = batch.get("im_file") if isinstance(batch, dict) else None
+            if files is None:
+                return
+            if self.mix_counts.get("epoch") != self.epoch:
+                self.report_mix()
+                self.mix_counts = {"epoch": self.epoch, "batches": 0, "first": 0, "second": 0, "other_batches": 0}
+            second = sum(os.path.normpath(path).startswith(self.mix_second_root) for path in files)
+            per_batch = int(config_get(monitor.config, "data.mix.per_batch"))
+            counts = self.mix_counts
+            counts["batches"] += 1
+            counts["second"] += second
+            counts["first"] += len(files) - second
+            counts["other_batches"] += int(second != per_batch or len(files) != int(self.args.batch))
+
+        def report_mix(self):
+            """Print the finished epoch's mix and add it to results/mix_counts.json (one entry per epoch)."""
+            counts = getattr(self, "mix_counts", None) or {}
+            if counts.get("epoch") is None or not counts.get("batches"):
+                return
+            per_batch = int(config_get(monitor.config, "data.mix.per_batch"))
+            exact = counts["other_batches"] == 0
+            print(f"  🔀 mix, epoch {counts['epoch'] + 1}: {counts['batches']:,} batches = {counts['first']:,} frames of the "
+                  f"first dataset + {counts['second']:,} of the second; every batch {int(self.args.batch) - per_batch} + "
+                  f"{per_batch}: {'yes' if exact else 'NO (' + str(counts['other_batches']) + ' batches differ)'}",
+                  flush=True)
+            path = monitor.results_dir / "mix_counts.json"
+            try:
+                history = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+                history = [entry for entry in history if entry.get("epoch") != counts["epoch"] + 1]
+                history.append({**counts, "epoch": counts["epoch"] + 1, "run_id": monitor.run_id})
+                path.write_text(json.dumps(sorted(history, key=lambda entry: entry["epoch"]), indent=1), encoding="utf-8")
+            except Exception as error:                   # a count file must never stop training
+                print(f"  ⚠️  mix_counts.json not written: {type(error).__name__}: {error}")
+
+        def final_eval(self):
+            if getattr(self, "mix_sampler", None) is not None:
+                self.report_mix()                        # the last epoch (count_mix reports an epoch when the next starts)
+            return super().final_eval()
+
         def preprocess_batch(self, batch):
+            if getattr(self, "mix_sampler", None) is not None:
+                self.count_mix(batch)
             batch = super().preprocess_batch(batch)
             monitor.note_batch(self, batch)
             return batch
@@ -1834,6 +1940,31 @@ class TrainingMonitor:
         self.batch_start = now
         if self.probe is not None:
             self.probe.arm(self.step + 1)
+
+    def position_text(self, trainer, epoch_step: int) -> str:
+        """Where training is: "stage 1/2" (multi-stage experiments), the epoch and the step in it, the global step.
+
+        With data.mix, each dataset has its OWN epochs: the real (first) one = Ultralytics' epochs (one pass over it),
+        the synthetic (second) one = passes over its own list, which runs on independently (it is not restarted when a
+        real epoch ends). Its step in the current pass is counted in batches of its per_batch frames."""
+        stage = config_get(self.config, "experiment.stage")
+        parts = [f"stage {stage}"] if stage else []
+        total_epochs = f"{trainer.epochs}"
+        max_steps = int(config_get(self.config, "schedule.max_steps") or 0)
+        if max_steps and self.steps_per_epoch:      # stops inside an epoch: say where
+            total_epochs += f" (stops at {self.total_steps / self.steps_per_epoch:.2f})"
+        sampler = getattr(trainer, "mix_sampler", None)
+        name = "real epoch" if sampler is not None else "epoch"
+        parts.append(f"{name} {trainer.epoch + 1}/{total_epochs}  epoch_step: {epoch_step:,}/{self.steps_per_epoch:,}")
+        if sampler is not None:
+            frames, per_batch = len(sampler.groups[1][0]), sampler.groups[1][1]
+            used = self.step * per_batch                       # synthetic frames drawn so far, this batch included
+            synthetic_epoch = (used - 1) // frames + 1 if used else 1
+            synthetic_step = ((used - 1) % frames) // per_batch + 1 if used else 0
+            parts.append(f"synthetic epoch {synthetic_epoch}/{(self.total_steps or 0) * per_batch / frames:.2f}  "
+                         f"epoch_step: {synthetic_step:,}/{math.ceil(frames / per_batch):,}")
+        parts.append(f"global_step: {self.step:,}/{self.total_steps:,}")
+        return "  " + "  |  ".join(parts)
 
     def note_batch(self, trainer, batch):
         images = batch.get("img") if isinstance(batch, dict) else None
@@ -2082,8 +2213,8 @@ class TrainingMonitor:
             self.last_print = (elapsed, self.step)
             parts = "  ".join(f"{key[5:]}={value:.4f}" for key, value in losses.items())
             print("\n" + "─" * 70)             # the newline ends Ultralytics' progress bar line first
-            print(f"  epoch {trainer.epoch + 1}/{trainer.epochs}  epoch_step: {epoch_step}/{self.steps_per_epoch}"
-                  f"  global_step: {self.step}/{self.total_steps}")
+            # position_text takes: the trainer, the step in this epoch; returns: stage, epoch(s) and global step
+            print(self.position_text(trainer, epoch_step))
             print(f"     loss={loss_value:.4f}{delta}  [{parts}]  {learning_rate_text}{gradient_text}\n")
             print(f"     elapsed={format_duration(elapsed)}  ETA={format_duration(eta)}"
                   + (f"  gpu_mem(peak)={memory:.2f}GB" if torch.cuda.is_available() else "") + since)
@@ -2396,6 +2527,133 @@ def stage_start_weights(config: dict, run_dir) -> str:
     return source["best_pt"]
 
 
+class MixedBatchSampler:
+    """A batch sampler (an iterable of index lists with a length, what torch's DataLoader takes as batch_sampler; a plain
+    class because the PC that launches a Modal run may have no torch). data.mix: every batch = first_per_batch indices of the FIRST group + second_per_batch of the SECOND group.
+
+    Each group is an endless stream of shuffles: pass p of a group is a permutation seeded by (seed, group, p), and
+    the next pass starts where the last one ended, so every frame of a group is used once per pass, the composition
+    of every batch is exact, and the same epoch always gets the same batches (resumable). One epoch = the batches
+    needed for one pass over the FIRST group: ceil(first frames / first_per_batch).
+    The data loader asks for the next epoch's batches ahead of time (prefetch), so whenever Ultralytics rebuilds the
+    loader's iterator (resume, close_mosaic) restart(epoch) must say which epoch comes next.
+    """
+
+    def __init__(self, first_indices, second_indices, first_per_batch: int, second_per_batch: int, seed: int,
+                 start_epoch: int = 0):
+        self.groups = [(np.asarray(first_indices, dtype=np.int64), int(first_per_batch)),
+                       (np.asarray(second_indices, dtype=np.int64), int(second_per_batch))]
+        if min(len(indices) for indices, _ in self.groups) == 0:
+            raise SystemExit("  ❌ data.mix: one of the two groups has no frames")
+        self.batches_per_epoch = math.ceil(len(self.groups[0][0]) / self.groups[0][1])
+        self.seed = int(seed)
+        self.next_epoch = int(start_epoch)
+        self._shuffles = {}
+
+    def __len__(self) -> int:
+        return self.batches_per_epoch
+
+    def restart(self, epoch: int) -> None:
+        """The next __iter__ yields the batches of this epoch (called when the loader's iterator is rebuilt)."""
+        self.next_epoch = int(epoch)
+
+    def _shuffle(self, group: int, pass_number: int) -> np.ndarray:
+        key = (group, pass_number)
+        if key not in self._shuffles:
+            generator = np.random.default_rng([self.seed, group, pass_number])
+            self._shuffles[key] = generator.permutation(len(self.groups[group][0]))
+            for old in [old for old in self._shuffles if old[0] == group and old[1] < pass_number - 1]:
+                del self._shuffles[old]                 # keep only the current and the previous pass
+        return self._shuffles[key]
+
+    def batch(self, epoch: int, batch_number: int) -> list:
+        """The dataset indices of one batch (first group, then second group)."""
+        indices = []
+        for group, (group_indices, per_batch) in enumerate(self.groups):
+            start = (epoch * self.batches_per_epoch + batch_number) * per_batch   # position in the group's stream
+            for position in range(start, start + per_batch):
+                pass_number, offset = divmod(position, len(group_indices))
+                indices.append(int(group_indices[self._shuffle(group, pass_number)[offset]]))
+        return indices
+
+    def __iter__(self):
+        epoch = self.next_epoch
+        self.next_epoch += 1
+        for batch_number in range(self.batches_per_epoch):
+            yield self.batch(epoch, batch_number)
+
+
+def mix_second_root(config: dict) -> str | None:
+    """data.mix: the folder of the second dataset's view (its frames' paths start with it), or None without a mix."""
+    mix = config_get(config, "data.mix")
+    return os.path.normpath(str(Path(mix["yaml"]).parent)) if mix else None
+
+
+def apply_mix(config: dict) -> str:
+    """data.mix: write ONE training list with the frames of both datasets and a data.yaml that trains on it.
+
+    The first group is data.yaml's train list (after data.train_list), the second is data.mix.train_list of the
+    data.yaml in data.mix.yaml. Lines are written as absolute paths (both views keep their own folders; Ultralytics
+    takes absolute lines as they are), first group first. Masks are found by the same rule for both (image_dir_name /
+    masks_dir), so both data.yaml files must agree on it, on the class names and on label_mapping (checked here).
+    Returns the data.yaml to train with (data.yaml unchanged when data.mix is null).
+    """
+    mix = config_get(config, "data.mix")
+    data_yaml = Path(config["data"]["yaml"])
+    if not mix:
+        return str(data_yaml)
+    batch, per_batch = int(config["ultralytics"]["batch"]), int(mix["per_batch"])
+    if not 0 < per_batch < batch:
+        raise SystemExit(f"  ❌ data.mix.per_batch {per_batch} must be between 1 and ultralytics.batch - 1 ({batch - 1})")
+    data = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
+    second_yaml = Path(mix["yaml"])
+    second_data = yaml.safe_load(second_yaml.read_text(encoding="utf-8"))
+    for key in ("names", "label_mapping", "image_dir_name", "masks_dir"):
+        first_value, second_value = data.get(key), second_data.get(key)
+        if isinstance(first_value, dict):                  # YAML keys may be int or str: compare as str
+            first_value = {str(name): value for name, value in first_value.items()}
+            second_value = {str(name): value for name, value in (second_value or {}).items()}
+        if first_value != second_value:
+            raise SystemExit(f"  ❌ data.mix: '{key}' differs between {data_yaml} and {second_yaml}: the two datasets "
+                             f"cannot share one training (same classes, label mapping and mask rule needed)")
+
+    def absolute_lines(list_path: Path) -> list:
+        if not list_path.exists():
+            raise SystemExit(f"  ❌ data.mix: image list {list_path} not found")
+        lines = [os.path.normpath(str(list_path.parent / (line[2:] if line.startswith("./") else line)))
+                 for line in list_path.read_text(encoding="utf-8").split()]
+        missing = [line for line in lines if not os.path.exists(line)]
+        if missing:
+            raise SystemExit(f"  ❌ data.mix: {len(missing):,} of {len(lines):,} frames of {list_path.name} are missing "
+                             f"(first: {missing[0]})")
+        return lines
+
+    first_list, second_list = data_yaml.parent / str(data["train"]), second_yaml.parent / str(mix["train_list"])
+    first, second = absolute_lines(first_list), absolute_lines(second_list)
+    stem = f"mix__{first_list.stem}__{second_list.stem}"
+    combined = data_yaml.parent / f"train_{stem}.txt"
+    combined.write_text("\n".join(first + second) + "\n", encoding="utf-8")
+    data["train"] = combined.name
+    target = data_yaml.parent / f"data_{stem}__{Path(str(data['val'])).stem}.yaml"
+    header = (f"# {data_yaml.name} with train = {combined.name}: {first_list.name} ({len(first):,}) + "
+              f"{second_list.name} of {second_yaml.parent} ({len(second):,}) (made by apply_mix, data.mix)\n")
+    target.write_text(header + yaml.safe_dump(data, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    first_per_batch = batch - per_batch
+    batches = math.ceil(len(first) / first_per_batch)
+    epochs = int(config["ultralytics"]["epochs"])
+    _kv("mixed batches (data.mix)", [
+        ("first group", f"{first_list.name}: {len(first):,} frames, {first_per_batch} per batch"),
+        ("second group", f"{second_list.name} of {second_yaml.parent.parent.parent.name}: {len(second):,} frames, "
+                         f"{per_batch} per batch"),
+        ("one epoch", f"{batches:,} batches of {batch} (one pass over the first group)"),
+        ("whole run", f"{epochs} epochs = {batches * epochs:,} steps: first group {batches * epochs * first_per_batch:,} "
+                      f"samples ({batches * epochs * first_per_batch / len(first):.2f} passes), second group "
+                      f"{batches * epochs * per_batch:,} samples ({batches * epochs * per_batch / len(second):.2f} passes)"),
+        ("validation", f"{data['val']} of the first dataset (best.pt chosen on it)"),
+    ], "\U0001F500")
+    return str(target)
+
+
 def apply_train_list(config: dict) -> str:
     """Point training at other image lists of the same view (data.train_list, data.val_list); return the data.yaml.
 
@@ -2566,6 +2824,9 @@ def _run_training(config: dict, run_dir: Path, results_dir: Path, extra_callback
     # apply_train_list takes: the config; returns: the data.yaml to train with (a copy with another train list,
     # or the same file when data.train_list is null). Also written on resume: the checkpoint points to it.
     config["data"]["yaml"] = apply_train_list(config)
+    # apply_mix takes: the config; returns: the data.yaml training on one list of both datasets (data.mix), or the
+    # same file without data.mix. The batches themselves are composed by MixedBatchSampler in the trainer.
+    config["data"]["yaml"] = apply_mix(config)
     if state == "resume":
         # Ultralytics restores every setting from the checkpoint; only resume=True is passed
         arguments = {"resume": True}
@@ -2836,6 +3097,10 @@ def modal_train(config: dict, run_dir, run_id: str = "", volumes: dict | None = 
                                                                 extra_archive_dirs=config_get(remote, "data.extra_archives")))
         # make_human_lists takes: config, local data.yaml, data.yaml on the volume; returns: the lists written
         make_human_lists(remote, remote["data"]["yaml"], volume_yaml)
+        if config_get(remote, "data.mix"):
+            # the second dataset of the mixed batches goes to local disk too (its own folder: <dataset>/<view>)
+            config_set(remote, "data.mix.yaml", copy_view_to_local_disk(
+                config_get(remote, "data.mix.yaml"), remote["modal"].get("local_data_dir", "/tmp/local_data")))
     try:
         return run_training(remote, remote_run_dir, extra_callbacks,
                             persist_function=(runs_volume.commit if runs_volume is not None else None))
@@ -3971,10 +4236,17 @@ def train_frames_label(config: dict) -> str:
     fps = config_get(config, "data.train_fps")
     train_list = config_get(config, "data.train_list")
     if fps:
-        return f"{int(fps)} fps"
-    if not train_list:
-        return "5 fps"
-    return {"train_human.txt": "human (5 fps)", "train.txt": "5 fps"}.get(str(train_list), str(train_list))
+        label = f"{int(fps)} fps"
+    elif not train_list:
+        label = "5 fps"
+    else:
+        label = {"train_human.txt": "human (5 fps)", "train.txt": "5 fps"}.get(str(train_list), str(train_list))
+    mix = config_get(config, "data.mix")
+    if mix:                                       # mixed batches: both groups and the split of every batch
+        per_batch = int(mix["per_batch"])
+        label += (f" + {Path(str(mix['train_list'])).stem} "
+                  f"({int(config['ultralytics']['batch']) - per_batch}+{per_batch} per batch)")
+    return label
 
 
 def write_leaderboard(runs_dir, quiet: bool = False) -> Path:

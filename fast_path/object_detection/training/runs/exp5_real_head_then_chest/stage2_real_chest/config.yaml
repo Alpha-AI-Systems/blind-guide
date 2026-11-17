@@ -5,6 +5,7 @@ experiment:
   notes: Controlled Head-pretraining study; Phase 1 only; no GPU execution approved
 model:
   weights: null
+  weights_from: stage1_real_head   # added after the merge: the partner trained this stage from that stage's best.pt (its args.yaml model)
   task: semantic
 data:
   validate_at_training_scale: true
@@ -205,19 +206,10 @@ output:
   plots_dir: plots
   debug_dir: debug
   upload_checkpoints: null
-test:
-  validation_only: true
-  splits:
-    val: val.txt
-  leaderboard_split: val
-  checkpoints:
-  - best
-  leaderboard_checkpoint: best
-  in_leaderboard: false
-  batch: 32
-  gpu: RTX 4060 Ti (local)
-  cpu: 1
-  memory_gb: 32
+# test: (removed 2026-11-17, after the merge into exp5_real_head_then_chest) the partner's local settings were
+# validation_only: true, splits {val: val.txt}, leaderboard_split val, in_leaderboard false, batch 32,
+# gpu "RTX 4060 Ti (local)", cpu 1, memory_gb 32. This stage is now scored with test.py on Modal like every other
+# run, so the shared test settings apply (training/shared_config.yaml: val, val_human, test_human, test_all).
 resume: auto
 resume_force: false
 resume_guard:

@@ -1,0 +1,25 @@
+# exp7_synthetic_mixed: experiment plan step 7, SYNTHETIC MIXED INTO EVERY BATCH, 2 stages trained in order in ONE
+# Modal container by train_all.py (each stage folder can also be trained alone with its own train.py):
+#   1. stage1_mix_head    real head (10,098) + synthetic head (34,836, 5 fps)  <- yolo26n-sem-ade20k.pt
+#   2. stage2_mix_chest   real chest (16,882) + synthetic chest (34,012, 5 fps) <- stage 1 best.pt (scored on test)
+# Every batch of 32 = 16 real + 16 synthetic frames (data.mix, MixedBatchSampler). One epoch = one pass over the
+# real frames at 16 per batch = 2x the batches of exp5 (head 632, chest 1,056), so with exp5's epochs (25, 18) each
+# stage has 2N steps (head 15,800, chest 19,008) and sees the SAME number of real samples as exp5 and exp6 and the
+# same number of synthetic samples as exp6 (notes: "Experiments 5, 6, 7" table). Ultralytics' own per-epoch schedule
+# over these epochs = exp5's learning-rate curve stretched 2x (warmup 2 epochs, cosine to 1%).
+# The synthetic lists are exp6's (train_head_5fps, train_chest_5fps). Validation: the REAL val of each camera,
+# every epoch; best.pt is chosen on it. Only stage 2 has test.py; the leaderboard shows it once, as "exp7_synthetic_mixed".
+# Merge order of a stage: DEFAULTS < training/shared_config.yaml < THIS file < the stage's config.yaml.
+
+ultralytics:
+  imgsz: 352
+  lr0: 0.002
+  batch: 32
+  cache: ram                 # real + synthetic + val in RAM: about 30 GB (head stage) and 35 GB (chest stage)
+  workers: 16                # as exp6 (2 workers per Modal core)
+
+modal:
+  gpu: "A100-40GB"           # as exp6
+  cpu: 8                     # = workers / 2
+  timeout_hours: 12          # 34,808 steps in all (15,800 + 19,008), the same as exp6
+  memory_gb: 64              # the RAM cache above + Ultralytics' 50% check margin (exp4 15 fps: 50k frames ran at 64)
