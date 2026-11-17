@@ -111,6 +111,18 @@ def session_cameras(split: str, session: str) -> list[str]:
             if p.rstrip("/").rsplit("/", 1)[-1].startswith("camera_")]
 
 
+def read_remote_text(rel_path: str) -> str:
+    """Read a small text file from sanpo_dataset/v0/<rel_path> (e.g. 'sanpo-real/splits/test_session_ids.txt')."""
+    url = f"{PUBLIC_URL}/{urllib.parse.quote(f'{REMOTE_ROOT}/{rel_path}')}"
+    with urllib.request.urlopen(url, timeout=60) as r:
+        return r.read().decode()
+
+
+def official_split_sessions(split: str, which: str) -> set[str]:
+    """Session ids of SANPO's official 'train' or 'test' split (sanpo-real only)."""
+    return set(read_remote_text(f"{split}/splits/{which}_session_ids.txt").split())
+
+
 def download(rel_path: str, root: Path) -> Path:
     """Download sanpo_dataset/v0/<rel_path> to root/<rel_path> (skips existing files)."""
     dst = root / rel_path
