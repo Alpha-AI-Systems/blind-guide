@@ -1,0 +1,30 @@
+# exp8_three_classes: experiment 8 (side experiment), 3 CLASSES (SANPO paper, Appendix A.6.1: safe / not safe / obstacle).
+# EXACTLY exp2_start_ade20k (ADE20K start, full frames, lr 0.002, 18 epochs, batch 32, 5 fps, T4) except
+# data.class_merge: the labels are mapped to the 3 groups of logging.class_groups.sanpo3 and the model has 3 outputs.
+# Compared with every 29-class run merged into the same 3 groups afterwards (the '3 classes' table of leaderboard.md).
+# Deviation from the paper: it puts 'unlabeled' in not safe and 'bus stop' in obstacle; both stay ignored here
+# (unlabeled is ignored in training, bus stop has no pixels), as in every run's 3-class score.
+# Everything else comes from ../../shared_config.yaml (md_files/decisions_for_training_yolo.md).
+model:
+  weights: yolo26n-sem-ade20k.pt
+
+ultralytics:
+  epochs: 18   # pinned (old default)
+  warmup_epochs: 2   # pinned (old default)
+  imgsz: 352
+  lr0: 0.002
+
+modal:
+  memory_gb: 32   # pinned (old default)
+  gpu: "T4"            # 6.7 GB of GPU memory measured at batch 32 (full frames 640x352)
+
+# Pinned when the shared default became the 10 fps recipe (exp4_frames_10fps), so this run stays
+# reproducible with the settings it was trained with:
+data:
+  class_merge: sanpo3   # THE change: train and score on the 3 groups
+  train_fps: null   # pinned (old default)
+  extra_archives: []   # pinned (old default)
+schedule:
+  reference: null   # pinned (old default)
+validation:
+  every_steps: null   # pinned (old default)

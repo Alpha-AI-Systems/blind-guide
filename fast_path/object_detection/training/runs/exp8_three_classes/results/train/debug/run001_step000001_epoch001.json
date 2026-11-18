@@ -1,0 +1,50 @@
+{
+ "run_id": "run001",
+ "step": 1,
+ "epoch": 1,
+ "source_files": [
+  "/tmp/local_data/sanpo_real_chest/semantic_v1_short352/frames/train/CCG-oMqgJf90LzEhlqj0WkP3xN0dHlXk_000207.png",
+  "/tmp/local_data/sanpo_real_chest/semantic_v1_short352/frames/train/KG6YYsHIQiosr82KhLO7g-CiXBP2g69u_000366.png",
+  "/tmp/local_data/sanpo_real_chest/semantic_v1_short352/frames/train/wHbdubn2UcxgoE5qVOtwQhJJw2AlZLzC_000021.png",
+  "/tmp/local_data/sanpo_real_chest/semantic_v1_short352/frames/train/SK1d5RB_ktBZhLvPs9-Q9hXeHojD49u-_000255.png"
+ ],
+ "tensor_shape": [
+  32,
+  3,
+  352,
+  640
+ ],
+ "tensor_dtype": "torch.float32",
+ "value_range": [
+  0.0,
+  1.0
+ ],
+ "largest_rounding_error_x255": 1.52587890625e-05,
+ "mask_shape": [
+  4,
+  352,
+  640
+ ],
+ "columns": [
+  "model input (RGB)",
+  "mask (black = ignored)",
+  "blend"
+ ],
+ "class_colours_rgb": {
+  "0": [
+   120,
+   149,
+   203
+  ],
+  "1": [
+   214,
+   238,
+   52
+  ],
+  "2": [
+   177,
+   67,
+   221
+  ]
+ }
+}

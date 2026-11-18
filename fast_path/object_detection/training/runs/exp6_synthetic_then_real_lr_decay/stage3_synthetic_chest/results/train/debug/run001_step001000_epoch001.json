@@ -1,0 +1,180 @@
+{
+ "run_id": "run001",
+ "step": 1000,
+ "epoch": 1,
+ "source_files": [
+  "/tmp/local_data/sanpo_synthetic/semantic_v1_short352/frames/train/9d24ec8e0d96db0d31a0e693a32e8833d03279c8205271f47bb5f305ddc3f01c_000045.png",
+  "/tmp/local_data/sanpo_synthetic/semantic_v1_short352/frames/train/cc2c3672fef8ef4374ba594db263c6f6dee8af53f448b3b1f0c0adccd4678cb8_000041.png",
+  "/tmp/local_data/sanpo_synthetic/semantic_v1_short352/frames/train/eb34e488296fb669ee10a08f59fb171b43ec7f6d04b7873a19d1a589dcaf3ffe_000004.png",
+  "/tmp/local_data/sanpo_synthetic/semantic_v1_short352/frames/train/b571c948fbce51495c59e6bef293f81c8d334f44d302c46b8ae38eab74e28d43_000044.png"
+ ],
+ "tensor_shape": [
+  32,
+  3,
+  352,
+  640
+ ],
+ "tensor_dtype": "torch.float32",
+ "value_range": [
+  0.0,
+  1.0
+ ],
+ "largest_rounding_error_x255": 1.52587890625e-05,
+ "mask_shape": [
+  4,
+  352,
+  640
+ ],
+ "columns": [
+  "model input (RGB)",
+  "mask (black = ignored)",
+  "blend"
+ ],
+ "class_colours_rgb": {
+  "0": [
+   120,
+   149,
+   203
+  ],
+  "1": [
+   214,
+   238,
+   52
+  ],
+  "2": [
+   177,
+   67,
+   221
+  ],
+  "3": [
+   149,
+   249,
+   199
+  ],
+  "4": [
+   53,
+   98,
+   195
+  ],
+  "5": [
+   235,
+   212,
+   105
+  ],
+  "6": [
+   182,
+   91,
+   145
+  ],
+  "7": [
+   48,
+   64,
+   242
+  ],
+  "8": [
+   95,
+   193,
+   72
+  ],
+  "9": [
+   89,
+   43,
+   89
+  ],
+  "10": [
+   108,
+   227,
+   141
+  ],
+  "11": [
+   142,
+   82,
+   215
+  ],
+  "12": [
+   105,
+   63,
+   183
+  ],
+  "13": [
+   236,
+   147,
+   190
+  ],
+  "14": [
+   239,
+   135,
+   143
+  ],
+  "15": [
+   170,
+   98,
+   169
+  ],
+  "16": [
+   149,
+   249,
+   120
+  ],
+  "17": [
+   101,
+   196,
+   201
+  ],
+  "18": [
+   147,
+   225,
+   175
+  ],
+  "19": [
+   234,
+   40,
+   76
+  ],
+  "20": [
+   157,
+   239,
+   201
+  ],
+  "21": [
+   112,
+   160,
+   45
+  ],
+  "22": [
+   235,
+   241,
+   86
+  ],
+  "23": [
+   99,
+   104,
+   207
+  ],
+  "24": [
+   224,
+   215,
+   188
+  ],
+  "25": [
+   161,
+   200,
+   184
+  ],
+  "26": [
+   127,
+   141,
+   242
+  ],
+  "27": [
+   246,
+   124,
+   201
+  ],
+  "28": [
+   222,
+   146,
+   224
+  ]
+ }
+}

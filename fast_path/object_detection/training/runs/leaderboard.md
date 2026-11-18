@@ -1,6 +1,6 @@
 # Leaderboard
 
-Sorted by test mIoU on the human-labeled test frames (SANPO paper's protocol). Written by runs/<run>/test.py, 2026-11-17 22:29 UTC.
+Sorted by test mIoU on the human-labeled test frames (SANPO paper's protocol). Written by runs/<run>/test.py, 2026-11-18 18:36 UTC.
 
 | # | Run | Ckpt | **Test mIoU** (human) | Test mIoU (all) | Test 3-class | Test head (human) | Test paper: chest + head (human) | Val mIoU | Val mIoU (human) | imgsz | Train input | Train frames | lr0 | Start | Params |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -23,6 +23,28 @@ Train input: **center square** = Ultralytics' default, training saw a centered i
 
 Train frames: the training walks' frames used: **5 fps** (train.txt), **10 fps** / **15 fps** (data.train_fps, picked from train_15fps.txt), **human** (only human-labeled frames, train_human.txt).
 
-Left out: exp1_baseline_lr0005 (learning-rate sweep, not chosen on val (exp1_baseline_lr002 was)); exp1_baseline_lr001 (learning-rate sweep, not chosen on val (exp1_baseline_lr002 was))
+## 3 classes: safe / not safe / obstacle (SANPO paper, Appendix A.6.1)
+
+Sorted by the chest test. **Trained on 3** = the model's outputs are the 3 groups (data.class_merge); **29, merged** = a 29-class model whose prediction and label are merged into the groups afterwards (logging.class_groups, from the confusion matrix).
+
+| # | Run | Classes | **Test chest** (human) | Test head (human) | Test paper: chest + head (human) | Val | imgsz | Train frames | lr0 | Start |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | exp8_three_classes | **trained on 3** | **0.7691** | 0.6932 | 0.7444 | 0.6416 | 352 | 5 fps | 0.002 | yolo26n-sem-ade20k |
+| 2 | exp3_imgsz736 | 29, merged | **0.7690** | 0.7369 | 0.7629 | 0.6495 | 736 | 5 fps | 0.002 | yolo26n-sem-ade20k |
+| 3 | exp3_imgsz544 | 29, merged | **0.7635** | 0.7665 | 0.7722 | 0.6459 | 544 | 5 fps | 0.002 | yolo26n-sem-ade20k |
+| 4 | exp7_synthetic_mixed | 29, merged | **0.7626** | 0.7772 | 0.7777 | 0.6595 | 352 | 5 fps + train_chest_5fps (16+16 per batch) | 0.002 | stage1_mix_head_best |
+| 5 | exp5_real_head_then_chest | 29, merged | **0.7614** | 0.7155 | 0.7509 | 0.6515 | 352 | 5 fps | 0.002 | stage1_real_head_best |
+| 6 | exp4_frames_10fps_yolo26s | 29, merged | **0.7593** | 0.7338 | 0.7577 | 0.6484 | 352 | 10 fps | 0.002 | yolo26s-sem-ade20k |
+| 7 | exp4_frames_human_only | 29, merged | **0.7566** | 0.7122 | 0.7461 | 0.6426 | 352 | human (5 fps) | 0.002 | yolo26n-sem-ade20k |
+| 8 | exp4_frames_10fps | 29, merged | **0.7546** | 0.7432 | 0.7593 | 0.6445 | 352 | 10 fps | 0.002 | yolo26n-sem-ade20k |
+| 9 | exp6_synthetic_then_real | 29, merged | **0.7545** | 0.7147 | 0.7457 | 0.6504 | 352 | 5 fps | 0.002 | stage3_synthetic_chest_best |
+| 10 | exp1_baseline_lr002 | 29, merged | **0.7487** | 0.6887 | 0.7303 | 0.6384 | 352 | 5 fps | 0.002 | yolo26n-sem-ade20k |
+| 11 | exp4_frames_15fps | 29, merged | **0.7480** | 0.7297 | 0.7490 | 0.6385 | 352 | 15 fps | 0.002 | yolo26n-sem-ade20k |
+| 12 | exp2_start_cityscapes | 29, merged | **0.7432** | 0.7394 | 0.7503 | 0.6511 | 352 | 5 fps | 0.002 | yolo26n-sem |
+| 13 | exp2_start_ade20k | 29, merged | **0.7407** | 0.7225 | 0.7414 | 0.6353 | 352 | 5 fps | 0.002 | yolo26n-sem-ade20k |
+
+Not tested yet: exp6_synthetic_then_real_lr_decay, exp7_synthetic_mixed_lr_decay
+
+Left out: exp1_baseline_lr0005 (learning-rate sweep, not chosen on val (exp1_baseline_lr002 was)); exp1_baseline_lr001 (learning-rate sweep, not chosen on val (exp1_baseline_lr002 was)); exp1_baseline_lr004 (learning-rate sweep, not chosen on val (exp1_baseline_lr002 was)); exp1_baseline_lr008 (learning-rate sweep, not chosen on val (exp1_baseline_lr002 was))
 
 Choose between runs with the **Val** column; the test columns are the reported scores.

@@ -1,0 +1,32 @@
+# LEARNING-RATE DECAY ACROSS STAGES (the only change from exp6_synthetic_then_real): each stage's peak lr0 is 1/sqrt(2) (0.7071) x
+# the stage before it, so it halves every 2 stages: stage 1 0.002, stage 2 0.0014142136, stage 3 0.001, stage 4
+# 0.00070710678 (rounded to 8 significant digits). (Halving every stage was rejected: over
+# 4 stages it compounds to 1/8, leaving the final real-chest stage at 0.00025, below the exp1 sweep's weakest 0.0005.) Every stage still has its own 2-epoch warmup and cosine down to 1% of
+# ITS peak (lrf 0.01). Stage 1 = exp6_synthetic_then_real's stage 1 exactly (lr0 0.002).
+# exp6_synthetic_then_real_lr_decay: experiment plan step 6, SYNTHETIC THEN REAL, 4 stages trained in order in ONE Modal
+# container by train_all.py (each stage folder can also be trained alone with its own train.py):
+#   1. stage1_synthetic_head   SANPO-Synthetic head camera  (34,836 frames, 5 fps) <- yolo26n-sem-ade20k.pt
+#   2. stage2_real_head        SANPO-Real head camera       (10,098 frames)        <- stage 1 best.pt
+#   3. stage3_synthetic_chest  SANPO-Synthetic chest camera (34,012 frames, 5 fps) <- stage 2 best.pt
+#   4. stage4_real_chest       SANPO-Real chest camera      (16,882 frames)        <- stage 3 best.pt (scored on test)
+# Each synthetic stage has as many optimizer steps as the real stage after it, and that real stage's learning-rate
+# curve, step for step (schedule.reference). Batch 32 everywhere. Each stage chooses its best.pt on its OWN
+# validation set; the next stage starts from that best.pt with a new optimizer and learning-rate schedule.
+# Only stage 4 has test.py; the leaderboard shows it once, as "exp6_synthetic_then_real_lr_decay".
+# Merge order of a stage: DEFAULTS < training/shared_config.yaml < THIS file < the stage's config.yaml.
+# Plan and numbers: notes "exp6 stages" table; md_files/decisions_for_training_yolo.md.
+
+ultralytics:
+  imgsz: 352
+  lr0: 0.002                # stage 1's value; every stage sets its own lr0 (decay above)
+  batch: 32
+  cache: ram                 # synthetic stages: about 24 GB of decoded frames (train + val), real stages 6 to 12 GB
+  workers: 16                # 2x the shared 8, so the CPU keeps up with the A100 (2 workers per Modal core)
+
+modal:
+  gpu: "A100-40GB"           # faster than the T4 of exp2 (only speed changes; same batch 32 and recipe)
+  cpu: 8                     # = workers / 2 (1 core = 2 vCPUs); 2x the shared 4
+  timeout_hours: 12          # 34,808 steps in all (7,900 + 7,900 + 9,504 + 9,504); 9,500 steps took 1h13 to 1h28
+                             # on a T4 (exp2, exp4), so about 5.5 h of training plus data copies and RAM caches
+  memory_gb: 48              # the synthetic RAM cache (about 24 GB) + Ultralytics' 50% check margin, like exp4 10 fps
+                             # (an earlier stage's cache is freed before the next stage, gc + empty_cache)

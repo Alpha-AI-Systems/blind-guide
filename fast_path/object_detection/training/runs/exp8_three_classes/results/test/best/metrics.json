@@ -1,0 +1,291 @@
+{
+ "run": "exp8_three_classes",
+ "checkpoint": "best",
+ "evaluated": "2026-11-18 18:32:33 UTC",
+ "settings": {
+  "image_size": 352,
+  "data": "/data/sanpo_real_chest/views/semantic_v1_short352/data.yaml",
+  "batch": 128,
+  "validate_at_training_scale": true,
+  "lr0": 0.002,
+  "epochs": 18,
+  "class_merge": "sanpo3",
+  "weights_start": "yolo26n-sem-ade20k.pt",
+  "gpu": "T4",
+  "parameters": 1630822
+ },
+ "splits": {
+  "val": {
+   "frames": 1864,
+   "mIoU": 0.6416,
+   "pixel_acc": 0.873,
+   "per_class": {
+    "safe": 0.7709,
+    "not_safe": 0.2723,
+    "obstacle": 0.8817
+   },
+   "groups": {
+    "sanpo3_safe": 0.770897,
+    "sanpo3_not_safe": 0.272257,
+    "sanpo3_obstacle": 0.881709,
+    "sanpo3_mIoU": 0.641621
+   },
+   "confusion_matrix": [
+    [
+     160940480,
+     1543441,
+     12511533
+    ],
+    [
+     25534144,
+     11341512,
+     2207675
+    ],
+    [
+     8240825,
+     1030625,
+     178819152
+    ]
+   ],
+   "seconds": 17
+  },
+  "val_human": {
+   "frames": 935,
+   "mIoU": 0.6388,
+   "pixel_acc": 0.8718,
+   "per_class": {
+    "safe": 0.768,
+    "not_safe": 0.2686,
+    "obstacle": 0.88
+   },
+   "groups": {
+    "sanpo3_safe": 0.76798,
+    "sanpo3_not_safe": 0.268572,
+    "sanpo3_obstacle": 0.879983,
+    "sanpo3_mIoU": 0.638845
+   },
+   "confusion_matrix": [
+    [
+     80633040,
+     804105,
+     6459803
+    ],
+    [
+     12862094,
+     5653047,
+     1134011
+    ],
+    [
+     4234642,
+     595278,
+     91092944
+    ]
+   ],
+   "seconds": 7
+  },
+  "test_human": {
+   "frames": 2561,
+   "mIoU": 0.7691,
+   "pixel_acc": 0.9137,
+   "per_class": {
+    "safe": 0.8651,
+    "not_safe": 0.5714,
+    "obstacle": 0.871
+   },
+   "groups": {
+    "sanpo3_safe": 0.865102,
+    "sanpo3_not_safe": 0.57136,
+    "sanpo3_obstacle": 0.870953,
+    "sanpo3_mIoU": 0.769138
+   },
+   "confusion_matrix": [
+    [
+     246508736,
+     7969746,
+     11398368
+    ],
+    [
+     5728150,
+     31281202,
+     7403399
+    ],
+    [
+     13342469,
+     2366151,
+     232914176
+    ]
+   ],
+   "seconds": 16
+  },
+  "test_all": {
+   "frames": 5107,
+   "mIoU": 0.7739,
+   "pixel_acc": 0.9166,
+   "per_class": {
+    "safe": 0.8702,
+    "not_safe": 0.5761,
+    "obstacle": 0.8755
+   },
+   "groups": {
+    "sanpo3_safe": 0.870195,
+    "sanpo3_not_safe": 0.576132,
+    "sanpo3_obstacle": 0.875487,
+    "sanpo3_mIoU": 0.773938
+   },
+   "confusion_matrix": [
+    [
+     492786048,
+     15834183,
+     21923804
+    ],
+    [
+     10984883,
+     62436976,
+     14852938
+    ],
+    [
+     24765140,
+     4263674,
+     462697152
+    ]
+   ],
+   "seconds": 31
+  },
+  "test_head_human": {
+   "frames": 1289,
+   "mIoU": 0.6932,
+   "pixel_acc": 0.8513,
+   "per_class": {
+    "safe": 0.7099,
+    "not_safe": 0.5409,
+    "obstacle": 0.8287
+   },
+   "groups": {
+    "sanpo3_safe": 0.709914,
+    "sanpo3_not_safe": 0.540867,
+    "sanpo3_obstacle": 0.828724,
+    "sanpo3_mIoU": 0.693169
+   },
+   "confusion_matrix": [
+    [
+     77861352,
+     1942217,
+     3164780
+    ],
+    [
+     12445912,
+     29093776,
+     8435580
+    ],
+    [
+     14262871,
+     1873507,
+     134205440
+    ]
+   ],
+   "seconds": 8
+  },
+  "test_head_all": {
+   "frames": 2603,
+   "mIoU": 0.698,
+   "pixel_acc": 0.8546,
+   "per_class": {
+    "safe": 0.7147,
+    "not_safe": 0.5451,
+    "obstacle": 0.8342
+   },
+   "groups": {
+    "sanpo3_safe": 0.714706,
+    "sanpo3_not_safe": 0.545134,
+    "sanpo3_obstacle": 0.834158,
+    "sanpo3_mIoU": 0.698
+   },
+   "confusion_matrix": [
+    [
+     156727984,
+     3845814,
+     5934368
+    ],
+    [
+     25116854,
+     59002384,
+     16862386
+    ],
+    [
+     27665030,
+     3407118,
+     270951776
+    ]
+   ],
+   "seconds": 15
+  },
+  "test_paper_human": {
+   "frames": 3850,
+   "mIoU": 0.7444,
+   "pixel_acc": 0.8927,
+   "per_class": {
+    "safe": 0.822,
+    "not_safe": 0.5562,
+    "obstacle": 0.855
+   },
+   "groups": {
+    "sanpo3_safe": 0.821971,
+    "sanpo3_not_safe": 0.556248,
+    "sanpo3_obstacle": 0.855026,
+    "sanpo3_mIoU": 0.744415
+   },
+   "confusion_matrix": [
+    [
+     324370144,
+     9911963,
+     14563148
+    ],
+    [
+     18174064,
+     60374980,
+     15838979
+    ],
+    [
+     27605340,
+     4239658,
+     367119648
+    ]
+   ],
+   "seconds": 21
+  },
+  "test_paper_all": {
+   "frames": 7710,
+   "mIoU": 0.7491,
+   "pixel_acc": 0.8956,
+   "per_class": {
+    "safe": 0.8268,
+    "not_safe": 0.5606,
+    "obstacle": 0.8598
+   },
+   "groups": {
+    "sanpo3_safe": 0.826791,
+    "sanpo3_not_safe": 0.560643,
+    "sanpo3_obstacle": 0.859755,
+    "sanpo3_mIoU": 0.749063
+   },
+   "confusion_matrix": [
+    [
+     649513984,
+     19679996,
+     27858176
+    ],
+    [
+     36101736,
+     121439392,
+     31715328
+    ],
+    [
+     52430168,
+     7670792,
+     733648896
+    ]
+   ],
+   "seconds": 41
+  }
+ }
+}
