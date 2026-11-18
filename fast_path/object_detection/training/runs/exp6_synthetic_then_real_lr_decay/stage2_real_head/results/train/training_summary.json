@@ -1,0 +1,391 @@
+{
+  "experiment": "exp6_synthetic_then_real_lr_decay/stage2_real_head",
+  "run_id": "run001",
+  "status": "finished",
+  "updated": "2026-11-18 17:45:41 UTC",
+  "monitor": "val_mIoU",
+  "mode": "max",
+  "best_val_mIoU": 0.38193,
+  "best_epoch": 20,
+  "epochs_done": 26,
+  "steps": 7900,
+  "images_seen": 252450,
+  "elapsed": "24:06",
+  "last_validation": {
+    "epoch": 25,
+    "step": 7900,
+    "trigger": "final_best",
+    "val_mIoU": 0.381985,
+    "val_pixel_acc": 0.829019,
+    "val_iou_road": 0.65887,
+    "val_iou_curb": 0.32261,
+    "val_iou_sidewalk": 0.828028,
+    "val_iou_guard rail/road barrier": 0.0,
+    "val_iou_crosswalk": 0.714384,
+    "val_iou_paved trail": 0.885418,
+    "val_iou_building": 0.627332,
+    "val_iou_wall/fence": 0.677286,
+    "val_iou_hand rail": 0.0,
+    "val_iou_opening-door": 0.023138,
+    "val_iou_opening-gate": 0.0,
+    "val_iou_pedestrian": 0.787069,
+    "val_iou_rider": 0.0,
+    "val_iou_animal": 0.227346,
+    "val_iou_stairs": 0.017239,
+    "val_iou_water body": 0.396426,
+    "val_iou_other walkable surface": 0.061788,
+    "val_iou_inaccessible surface": 0.0,
+    "val_iou_railway track": "",
+    "val_iou_obstacle": 0.305768,
+    "val_iou_vehicle": 0.536501,
+    "val_iou_traffic sign": 0.416112,
+    "val_iou_traffic light": 0.024727,
+    "val_iou_pole": 0.220423,
+    "val_iou_bike rack": 0.000177,
+    "val_iou_sky": 0.954942,
+    "val_iou_tree": 0.633007,
+    "val_iou_vegetation": 0.67786,
+    "val_iou_terrain": 0.699139,
+    "val_group_sanpo3_safe": 0.852411,
+    "val_group_sanpo3_not_safe": 0.902209,
+    "val_group_sanpo3_obstacle": 0.910858,
+    "val_group_sanpo3_mIoU": 0.888493,
+    "val_human_mIoU": 0.37047,
+    "val_human_pixel_acc": 0.82303,
+    "val_human_ce_loss": 1.00449,
+    "val_human_dice_loss": 0.52424,
+    "val_human_aux_loss": 0.0,
+    "val_human_group_sanpo3_safe": 0.841994,
+    "val_human_group_sanpo3_not_safe": 0.890221,
+    "val_human_group_sanpo3_obstacle": 0.900327,
+    "val_human_group_sanpo3_mIoU": 0.877514,
+    "fitness": 0.381985,
+    "epoch_time_s": 56.3,
+    "elapsed_s": 1445.9,
+    "best_fitness": 0.38193
+  },
+  "weights": {
+    "best": "/__modal/volumes/vo-L6CKx1sOq8SZen6DlCMHgs/exp6_synthetic_then_real_lr_decay/stage2_real_head/results/train/ultralytics/weights/best.pt",
+    "last": "/__modal/volumes/vo-L6CKx1sOq8SZen6DlCMHgs/exp6_synthetic_then_real_lr_decay/stage2_real_head/results/train/ultralytics/weights/last.pt"
+  },
+  "model_cost": {
+    "parameters": 1634202,
+    "forward_gflops_per_image": 2.4093,
+    "gflops_input_size": "640x352",
+    "peak_gpu_memory_gb": 6.713,
+    "best_pt_megabytes": 3.44
+  },
+  "hardware": {
+    "gpu_requested": "A100-40GB",
+    "side": "modal-container",
+    "cpu_requested": 8,
+    "memory_gb_requested": 48,
+    "batch": 32,
+    "workers": 16,
+    "torch": "2.15.0+cu132",
+    "gpu": "NVIDIA A100-SXM4-40GB",
+    "gpu_count": 1,
+    "gpu_memory_gb": 39.5,
+    "gpu_capability": "sm_80",
+    "cuda": "13.2",
+    "gpu_peak_gb": 6.71
+  },
+  "config": {
+    "experiment": {
+      "name": "exp6_synthetic_then_real_lr_decay/stage2_real_head",
+      "run_id": "run001",
+      "notes": "",
+      "stage": "2/4"
+    },
+    "model": {
+      "weights": "/runs/exp6_synthetic_then_real_lr_decay/stage1_synthetic_head/results/train/ultralytics/weights/best.pt",
+      "weights_from": "stage1_synthetic_head",
+      "weights_dir": "/runs/_weights",
+      "task": "semantic"
+    },
+    "data": {
+      "yaml": "/tmp/local_data/sanpo_real_head/semantic_v1_short352/data.yaml",
+      "image_dir_name": "frames",
+      "masks_dir": "masks",
+      "validate_at_training_scale": 1,
+      "human_lists": {
+        "val_human.txt": "val.txt"
+      },
+      "annotation_types_dir": "../../sanpo_meta/annotation_types",
+      "extra_validation": {
+        "val_human": "val_human.txt"
+      },
+      "train_list": null,
+      "val_list": null,
+      "train_fps": null,
+      "all_frames_list": "train_15fps.txt",
+      "fps_positions": {
+        "5": [
+          0
+        ],
+        "10": [
+          0,
+          1
+        ],
+        "15": [
+          0,
+          1,
+          2
+        ],
+        "5": [
+          0
+        ],
+        "10": [
+          0,
+          1
+        ],
+        "15": [
+          0,
+          1,
+          2
+        ]
+      },
+      "extra_archives": [],
+      "mix": null
+    },
+    "schedule": {
+      "reference": null,
+      "max_steps": null
+    },
+    "validation": {
+      "every_steps": null
+    },
+    "ultralytics": {
+      "epochs": 25,
+      "batch": 32,
+      "imgsz": 352,
+      "optimizer": "MuSGD",
+      "lr0": 0.0014142136,
+      "lrf": 0.01,
+      "cos_lr": 1,
+      "warmup_epochs": 2,
+      "momentum": 0.9,
+      "weight_decay": 0.0005,
+      "nbs": 32,
+      "mosaic": 0.05,
+      "close_mosaic": 15,
+      "fliplr": 0.5,
+      "flipud": 0.0,
+      "hsv_h": 0.015,
+      "hsv_s": 0.7,
+      "hsv_v": 0.4,
+      "scale": 0.25,
+      "translate": 0.1,
+      "degrees": 3.0,
+      "shear": 0.0,
+      "perspective": 0.0,
+      "mixup": 0.0,
+      "cutmix": 0.0,
+      "copy_paste": 0.0,
+      "cls_pw": 0.0,
+      "patience": 100,
+      "seed": 42,
+      "deterministic": 0,
+      "amp": 1,
+      "workers": 16,
+      "rect": 1,
+      "cache": "ram",
+      "save_period": -1,
+      "val": 1,
+      "plots": 1,
+      "verbose": 1
+    },
+    "dataloader": {
+      "val_workers": null,
+      "val_batch_size": 32,
+      "prefetch_factor": 4,
+      "val_prefetch_factor": 2,
+      "pin_memory": 1,
+      "drop_last": 0,
+      "cap_workers_at_cpu_count": 0
+    },
+    "logging": {
+      "disable_integrations": [
+        "mlflow",
+        "comet",
+        "clearml",
+        "dvc",
+        "neptune",
+        "raytune",
+        "wandb",
+        "tensorboard",
+        "hub"
+      ],
+      "unit": "img",
+      "console_log_every": 20,
+      "ultralytics_progress_bars": 0,
+      "diagnostics_every": 200,
+      "debug_images_every": 500,
+      "debug_images_per_save": 4,
+      "flops_probe": 1,
+      "print": {
+        "config": 1,
+        "raw_config": 1,
+        "environment": 1,
+        "model": 1,
+        "step_line": 1,
+        "throughput": 1,
+        "compute": 1,
+        "ud_ratio": 1,
+        "scale_probe": 1,
+        "per_class_eval": 1,
+        "final_summary": 1
+      },
+      "class_groups": {
+        "sanpo3": {
+          "safe": [
+            "sidewalk",
+            "crosswalk",
+            "paved trail",
+            "stairs",
+            "other walkable surface",
+            "terrain"
+          ],
+          "not_safe": [
+            "road",
+            "curb",
+            "water body",
+            "inaccessible surface",
+            "railway track",
+            "sky"
+          ],
+          "obstacle": [
+            "guard rail/road barrier",
+            "building",
+            "wall/fence",
+            "hand rail",
+            "opening-door",
+            "opening-gate",
+            "pedestrian",
+            "rider",
+            "animal",
+            "obstacle",
+            "vehicle",
+            "traffic sign",
+            "traffic light",
+            "pole",
+            "bike rack",
+            "tree",
+            "vegetation"
+          ]
+        }
+      }
+    },
+    "output": {
+      "run_dir": "results/train",
+      "ultralytics_dir": "ultralytics",
+      "train_log_csv": "train_log.csv",
+      "val_log_csv": "val_log.csv",
+      "summary_json": "training_summary.json",
+      "console_capture_dir": "train_config",
+      "commit_every_steps": 50,
+      "make_plots": 1,
+      "plots_dir": "plots",
+      "debug_dir": "debug",
+      "upload_checkpoints": null
+    },
+    "modal": {
+      "gpu": "A100-40GB",
+      "timeout_hours": 12,
+      "cpu": 8,
+      "memory_gb": 48,
+      "scaledown_window": 2,
+      "python_version": "3.12",
+      "pip": [
+        "ultralytics==8.4.208",
+        "numpy",
+        "pandas",
+        "pyyaml",
+        "matplotlib",
+        "psutil",
+        "nvidia-ml-py"
+      ],
+      "extra_pip": [],
+      "apt": [
+        "libgl1",
+        "libglib2.0-0"
+      ],
+      "runs_volume": "blind-guide-runs",
+      "runs_mount": "/runs",
+      "data_volume": "sanpo",
+      "data_mount": "/data",
+      "path_remap": {
+        "data.yaml": "/data/sanpo_real_head/views/semantic_v1_short352/data.yaml",
+        "test.views.head": "/data/sanpo_real_head/views/semantic_v1_short352/data.yaml"
+      },
+      "local_data_copy": 1,
+      "local_data_dir": "/tmp/local_data",
+      "secrets": [],
+      "sync_checkpoints": 1,
+      "prices_per_hour": {
+        "gpu": {
+          "B200": 6.25,
+          "H200": 4.54,
+          "H100": 3.95,
+          "A100-80GB": 2.5,
+          "A100": 2.1,
+          "L40S": 1.95,
+          "A10": 1.1,
+          "A10G": 1.1,
+          "L4": 0.8,
+          "T4": 0.59
+        },
+        "cpu_core": 0.0473,
+        "memory_gb": 0.008
+      }
+    },
+    "test": {
+      "splits": {
+        "val": "val.txt",
+        "val_human": "val_human.txt",
+        "test_human": "test_human.txt",
+        "test_all": "test.txt",
+        "test_head_human": "head:test_human.txt",
+        "test_head_all": "head:test.txt",
+        "test_paper_human": "test_human.txt+head:test_human.txt",
+        "test_paper_all": "test.txt+head:test.txt"
+      },
+      "views": {
+        "head": "/data/sanpo_real_head/views/semantic_v1_short352/data.yaml"
+      },
+      "leaderboard_split": "test_human",
+      "checkpoints": [
+        "best"
+      ],
+      "leaderboard_checkpoint": "best",
+      "in_leaderboard": 1,
+      "leaderboard_note": "",
+      "batch": 128,
+      "gpu": "T4",
+      "cpu": 4,
+      "memory_gb": 16
+    },
+    "resume": "auto",
+    "resume_force": 0,
+    "resume_guard": [
+      "model.weights",
+      "model.weights_from",
+      "data.yaml",
+      "data.train_list",
+      "data.val_list",
+      "data.train_fps",
+      "data.mix",
+      "validation.every_steps",
+      "schedule.reference",
+      "schedule.max_steps",
+      "ultralytics.epochs",
+      "ultralytics.batch",
+      "ultralytics.imgsz",
+      "ultralytics.optimizer",
+      "ultralytics.lr0",
+      "ultralytics.lrf",
+      "ultralytics.cos_lr",
+      "ultralytics.nbs"
+    ]
+  }
+}

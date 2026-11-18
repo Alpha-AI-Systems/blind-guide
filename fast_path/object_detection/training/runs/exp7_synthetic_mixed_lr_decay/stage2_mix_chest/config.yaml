@@ -1,0 +1,39 @@
+# exp7 stage 2 of 2: MIXED CHEST (the final model). Every batch = 16 real chest + 16 synthetic chest frames, from
+# stage 1's best.pt.
+# real:      train.txt of sanpo_real_chest = 16,882 frames (5 fps) -> 1,056 batches per epoch (one pass at 16 per batch)
+# synthetic: train_chest_5fps.txt of sanpo_synthetic = 34,012 frames (exp6 stage 3's list), 16 per batch
+# 18 epochs x 1,056 = 19,008 steps = 2 x exp2 / exp5's chest stage: 304,128 real samples (18.0 passes) and 304,128
+#   synthetic samples (8.94 passes, as exp6 stage 3)
+# val: the real chest val.txt (1,864 frames, 12 walks), every epoch; best.pt is chosen on it. Only this stage has test.py.
+model:
+  weights_from: stage1_mix_head
+
+data:
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest/views/semantic_v1_short352/data.yaml"
+  train_list: null
+  val_list: null
+  train_fps: null
+  extra_archives: []
+  human_lists: {val_human.txt: val.txt}
+  extra_validation: {val_human: val_human.txt}
+  mix:
+    yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_synthetic/views/semantic_v1_short352/data.yaml"
+    train_list: train_chest_5fps.txt
+    per_batch: 16
+
+ultralytics:
+  lr0: 0.001                  # peak learning rate of this stage (half of stage 1)
+  epochs: 18                 # 18 x 1,056 = 19,008 steps
+  warmup_epochs: 2           # 2,112 steps = exp2's 2-epoch warmup stretched 2x
+
+schedule:
+  reference: null            # Ultralytics' own per-epoch curve: 18 epochs of 1,056 steps = exp2's curve x 2
+  max_steps: null
+
+validation:
+  every_steps: null          # every epoch (1,056 steps)
+
+modal:
+  path_remap:
+    data.yaml: "/data/sanpo_real_chest/views/semantic_v1_short352/data.yaml"
+    data.mix.yaml: "/data/sanpo_synthetic/views/semantic_v1_short352/data.yaml"

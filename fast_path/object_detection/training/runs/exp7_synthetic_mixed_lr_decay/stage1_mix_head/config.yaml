@@ -1,0 +1,39 @@
+# exp7 stage 1 of 2: MIXED HEAD. Every batch = 16 real head + 16 synthetic head frames, from the ADE20K model.
+# real:      train.txt of sanpo_real_head = 10,098 frames (5 fps) -> 632 batches per epoch (one pass at 16 per batch)
+# synthetic: train_head_5fps.txt of sanpo_synthetic = 34,836 frames (exp6 stage 1's list), 16 per batch
+# 25 epochs x 632 = 15,800 steps = 2 x exp5's head stage: 252,800 real samples (25.0 passes, as exp5) and 252,800
+#   synthetic samples (7.26 passes, as exp6 stage 1)
+# val: the real head val.txt (1,120 frames, the partner's 7 walks), every epoch; best.pt is chosen on it
+model:
+  weights: yolo26n-sem-ade20k.pt
+  weights_from: null
+
+data:
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_head/views/semantic_v1_short352/data.yaml"
+  train_list: null           # data.yaml's train.txt (10,098 frames)
+  val_list: null             # data.yaml's val.txt (1,120 frames)
+  train_fps: null
+  extra_archives: []
+  human_lists: {val_human.txt: val.txt}
+  extra_validation: {val_human: val_human.txt}   # logged only; best.pt is chosen on val
+  mix:
+    yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_synthetic/views/semantic_v1_short352/data.yaml"
+    train_list: train_head_5fps.txt
+    per_batch: 16            # synthetic frames per batch; the other 16 are real
+
+ultralytics:
+  lr0: 0.002                  # peak learning rate of this stage (as the source experiment)
+  epochs: 25                 # 25 x 632 = 15,800 steps
+  warmup_epochs: 2           # 1,264 steps = exp5's 2-epoch warmup stretched 2x
+
+schedule:
+  reference: null            # Ultralytics' own per-epoch curve: 25 epochs of 632 steps = exp5's curve x 2
+  max_steps: null
+
+validation:
+  every_steps: null          # every epoch (632 steps)
+
+modal:
+  path_remap:
+    data.yaml: "/data/sanpo_real_head/views/semantic_v1_short352/data.yaml"
+    data.mix.yaml: "/data/sanpo_synthetic/views/semantic_v1_short352/data.yaml"

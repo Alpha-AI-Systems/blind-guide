@@ -1,0 +1,35 @@
+# exp6 stage 2 of 4: REAL HEAD. SANPO-Real head camera, from stage 1's best.pt.
+# train: train.txt = 10,098 frames, 5 fps (316 batches of 32 per epoch)
+# val:   val.txt   =  1,120 frames of the partner's 7 validation walks (data_code/sanpo/head/validation_split/)
+# Same as exp6_synthetic_then_real's stage 2 (and the partner's exp5 head stage) EXCEPT lr0 = 0.0014142136 (1/sqrt(2) x
+# stage 1, the lr decay of this experiment); the rest of the exp2_start_ade20k recipe is unchanged (cosine to 1%,
+# warmup 2 epochs, batch 32, validation every epoch).
+# TO CONFIRM against exp5: epochs (25 here), train.txt (10,098 frames) and his 7-walk val. If they differ, change
+# this file and stage 1's reference / max_steps / every_steps (which copy this stage's length).
+model:
+  weights_from: stage1_synthetic_head   # the best.pt of that sibling stage (it must have finished)
+
+data:
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_head/views/semantic_v1_short352/data.yaml"
+  train_list: null           # data.yaml's train.txt (10,098 frames)
+  val_list: null             # data.yaml's val.txt (1,120 frames)
+  train_fps: null
+  extra_archives: []
+  human_lists: {val_human.txt: val.txt}   # the human-labeled frames of val.txt (SANPO's label-source files)
+  extra_validation: {val_human: val_human.txt}   # logged only; best.pt is chosen on val
+
+ultralytics:
+  lr0: 0.0014142136           # peak learning rate of this stage (1/sqrt(2) x stage 1)
+  epochs: 25                 # 25 x 316 = 7,900 steps (TO CONFIRM: exp5)
+  warmup_epochs: 2           # 632 steps (exp2 recipe)
+
+schedule:
+  reference: null            # Ultralytics' own per-epoch curve (this IS the reference of stage 1)
+  max_steps: null
+
+validation:
+  every_steps: null          # every epoch (316 steps)
+
+modal:
+  path_remap:
+    data.yaml: "/data/sanpo_real_head/views/semantic_v1_short352/data.yaml"

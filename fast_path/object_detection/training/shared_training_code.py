@@ -338,6 +338,11 @@ data:
                              # the second dataset's list (same classes and label_mapping required). One epoch = one pass
                              # over the FIRST list; both lists are drawn as endless streams of fresh shuffles (seeded,
                              # resumable). Validation stays on this data.yaml's val. On Modal, path_remap data.mix.yaml
+  class_merge: null          # TRAIN AND SCORE ON GROUPS OF CLASSES (null = off): the name of a logging.class_groups set,
+                             # e.g. sanpo3 = safe / not_safe / obstacle. data.yaml's label_mapping is composed with the
+                             # groups (raw id -> class -> its group's id; a class in no group -> 255, ignored), so the
+                             # model has one output per group and the labels themselves are the groups. Validation,
+                             # test and the group scores (val_group_<set>_...) then use the groups as the classes
 
 schedule:
   reference: null            # {steps_per_epoch: N, epochs: E, warmup_epochs: W} of a reference run: every optimizer
@@ -490,7 +495,7 @@ test:                        # runs/<run>/test.py: scores the run's checkpoints 
 
 resume: auto                 # auto = continue Ultralytics' last.pt if the run is unfinished | false = start fresh
 resume_force: false          # resume even though guarded settings changed
-resume_guard: [model.weights, model.weights_from, data.yaml, data.train_list, data.val_list, data.train_fps, data.mix, validation.every_steps, schedule.reference, schedule.max_steps, ultralytics.epochs, ultralytics.batch, ultralytics.imgsz,
+resume_guard: [model.weights, model.weights_from, data.yaml, data.train_list, data.val_list, data.train_fps, data.mix, data.class_merge, validation.every_steps, schedule.reference, schedule.max_steps, ultralytics.epochs, ultralytics.batch, ultralytics.imgsz,
                ultralytics.optimizer, ultralytics.lr0, ultralytics.lrf, ultralytics.cos_lr, ultralytics.nbs]
 """
 DEFAULTS = yaml.safe_load(DEFAULTS_YAML)
@@ -1691,6 +1696,39 @@ def make_trainer_class(monitor):
                 # a resumed run starts at start_epoch: the mixed batches continue exactly where that epoch begins
                 self.mix_sampler.restart(self.start_epoch)
 
+        def compute_class_weights(self, class_counts):
+            # Ultralytics 8.4.208 (semantic): w_c = (1 / ln(1.02 + p_c)) ** cls_pw, p_c = class c's share of the
+            # labeled pixels of ALL training masks (ENet, arXiv:1606.02147); kept here to report them
+            weights = super().compute_class_weights(class_counts)
+            self.class_pixel_counts = np.asarray(class_counts, dtype=np.float64)
+            self.class_weights_raw = np.asarray(weights, dtype=np.float64)
+            return weights
+
+        def set_class_weights(self):
+            # ultralytics.cls_pw > 0: Ultralytics divides the weights by their mean (mean = 1) and gives them to the
+            # cross-entropy (main and auxiliary): CE = sum_i w_{y_i} * -log softmax(z_i)[y_i] / sum_i w_{y_i} over
+            # the labeled pixels i. The dice loss is not weighted. Printed and saved to class_weights.json.
+            super().set_class_weights()
+            model = self.model.module if hasattr(self.model, "module") else self.model
+            weights = getattr(model, "class_weights", None)
+            if weights is None or getattr(self, "class_pixel_counts", None) is None:
+                return
+            weights = weights.detach().float().cpu().numpy()
+            counts = self.class_pixel_counts
+            shares = counts / max(counts.sum(), 1.0)
+            names = self.data["names"]
+            rows = [{"id": index, "name": names[index], "pixels": int(counts[index]), "share": float(shares[index]),
+                     "weight_raw": float(self.class_weights_raw[index]), "weight": float(weights[index])}
+                    for index in range(len(weights))]
+            _table(f"class weights (cls_pw {self.args.cls_pw}): w = (1 / ln(1.02 + p)) ** cls_pw, divided by its mean",
+                   ["id", "class", "pixel share p", "w (raw)", "w (mean 1)"],
+                   [[row["id"], row["name"], f"{row['share']:.4%}", f"{row['weight_raw']:.4f}", f"{row['weight']:.4f}"]
+                    for row in sorted(rows, key=lambda row: -row["weight"])], "⚖️")
+            path = monitor.results_dir / "class_weights.json"
+            path.write_text(json.dumps({"cls_pw": float(self.args.cls_pw), "masks": len(self.train_loader.dataset),
+                                        "labeled_pixels": int(counts.sum()), "classes": rows}, indent=1), encoding="utf-8")
+            print(f"  ⚖️  class weights of {len(self.train_loader.dataset):,} training masks -> {path}")
+
         def _close_dataloader_mosaic(self):
             super()._close_dataloader_mosaic()
             if getattr(self, "mix_sampler", None) is not None:
@@ -1760,6 +1798,21 @@ def make_trainer_class(monitor):
             except Exception:
                 gradient_norm = None
             monitor.before_optimizer_step(self)
+            if not getattr(self, "loss_weights_checked", False):
+                # once, after the first loss: which class weights the cross-entropy REALLY uses (Ultralytics builds
+                # the loss lazily, at the first training batch, from model.class_weights)
+                self.loss_weights_checked = True
+                model = self.model.module if hasattr(self.model, "module") else self.model
+                cross_entropy = getattr(getattr(model, "criterion", None), "ce", None)
+                used = getattr(cross_entropy, "weight", None)
+                wanted = getattr(model, "class_weights", None)
+                if used is None:
+                    print(f"  ⚖️  loss check: cross-entropy unweighted (cls_pw {self.args.cls_pw})")
+                elif wanted is not None and torch.allclose(used.float().cpu(), wanted.float().cpu()):
+                    print(f"  ⚖️  loss check: cross-entropy uses the {used.numel()} class weights "
+                          f"(min {float(used.min()):.3f}, max {float(used.max()):.3f}, mean {float(used.mean()):.3f})")
+                else:
+                    print("  ⚠️  loss check: the cross-entropy weights differ from model.class_weights")
             if config_get(monitor.config, "schedule.reference"):
                 # apply_reference_schedule takes: the config, the trainer, this step's 0-based index;
                 # sets every parameter group's lr (and momentum) to the reference run's value at this step
@@ -1808,6 +1861,84 @@ def group_scores(matrix, names: dict, class_groups: dict) -> dict:
         iou = intersection[present] / union[present] if present.any() else np.array([0.0])
         scores[f"val_group_{set_name}_mIoU"] = round(float(iou.mean()), 6)
     return scores
+
+
+def scoring_class_groups(config: dict) -> dict:
+    """The class groups to score with (group_scores). Normally logging.class_groups. With data.class_merge the model's
+    classes ARE that set's groups, so only that set is scored, each group being one class: its group mIoU then equals
+    the run's mIoU, and the val_group_<set>_... columns stay comparable with runs that merge 29 classes afterwards."""
+    class_groups = config["logging"].get("class_groups") or {}
+    merge = config_get(config, "data.class_merge")
+    if not merge:
+        return class_groups
+    return {merge: {group: [group] for group in class_groups[merge]}}
+
+
+def merge_dataset_classes(config: dict, data: dict) -> dict:
+    """data.class_merge: the dataset dict (a loaded data.yaml) with its classes replaced by the groups of
+    logging.class_groups[<set>]. names = the group names in their order (ids 0, 1, 2, ...); label_mapping = raw mask id
+    -> its class (data.yaml's label_mapping) -> that class's group id; ids of a class in no group, and ids already
+    ignored (255), stay 255. Returns the dataset dict unchanged when data.class_merge is null."""
+    merge = config_get(config, "data.class_merge")
+    if not merge:
+        return data
+    groups = (config["logging"].get("class_groups") or {}).get(merge)
+    if not groups:
+        raise SystemExit(f"  ❌ data.class_merge: '{merge}' is not a set of logging.class_groups")
+    names = data["names"]
+    names = dict(enumerate(names)) if isinstance(names, list) else {int(key): value for key, value in names.items()}
+    group_of_class = {}
+    for group_id, (group, members) in enumerate(groups.items()):
+        for member in members:
+            if member in group_of_class:
+                raise SystemExit(f"  ❌ data.class_merge: class '{member}' is in two groups of '{merge}'")
+            group_of_class[member] = group_id
+    unknown = sorted(set(group_of_class) - set(names.values()))
+    if unknown:
+        raise SystemExit(f"  ❌ data.class_merge: classes {unknown} of '{merge}' are not in data.yaml's names")
+    mapping = data.get("label_mapping")
+    if not mapping:
+        raise SystemExit("  ❌ data.class_merge needs data.yaml's label_mapping (raw mask id -> class id)")
+    merged_mapping = {}
+    for raw_id, class_id in mapping.items():
+        class_id = int(class_id)
+        name = names.get(class_id)
+        merged_mapping[int(raw_id)] = group_of_class.get(name, 255) if class_id != 255 else 255
+    merged = {**data, "names": {group_id: group for group_id, group in enumerate(groups)},
+              "label_mapping": dict(sorted(merged_mapping.items()))}
+    if "nc" in data:                                   # Ultralytics requires nc == len(names)
+        merged["nc"] = len(groups)
+    return merged
+
+
+def apply_class_merge(config: dict) -> str:
+    """data.class_merge: write data_<...>__<set>.yaml next to data.yaml with the merged classes (merge_dataset_classes)
+    and print every class -> group; return its path (data.yaml unchanged when data.class_merge is null)."""
+    merge = config_get(config, "data.class_merge")
+    data_yaml = Path(config["data"]["yaml"])
+    if not merge:
+        return str(data_yaml)
+    data = yaml.safe_load(data_yaml.read_text(encoding="utf-8"))
+    # merge_dataset_classes takes: the config, the dataset dict; returns: the dict with names / label_mapping merged
+    merged = merge_dataset_classes(config, data)
+    old_names = data["names"]
+    old_names = dict(enumerate(old_names)) if isinstance(old_names, list) else {int(k): v for k, v in old_names.items()}
+    group_names = merged["names"]
+    rows = []
+    for group_id, group in group_names.items():
+        members = [old_names[int(class_id)] for raw_id, class_id in sorted(data["label_mapping"].items(), key=lambda item: int(item[0]))
+                   if int(class_id) != 255 and merged["label_mapping"][int(raw_id)] == group_id]
+        rows.append((f"{group_id} {group}", f"{len(members)} classes: {', '.join(dict.fromkeys(members))}"))
+    ignored = sorted({old_names[int(class_id)] for raw_id, class_id in data["label_mapping"].items()
+                      if int(class_id) != 255 and merged["label_mapping"][int(raw_id)] == 255})
+    rows.append(("255 ignored", f"classes in no group: {', '.join(ignored) if ignored else 'none'} "
+                                "(plus the ids data.yaml already ignores)"))
+    _kv(f"classes merged into the groups of '{merge}' (data.class_merge)", rows, "\U0001F9E9")
+    target = data_yaml.parent / f"{data_yaml.stem}__{merge}.yaml"
+    header = (f"# {data_yaml.name} with the classes merged into the groups of logging.class_groups.{merge} "
+              f"(made by apply_class_merge, data.class_merge)\n")
+    target.write_text(header + yaml.safe_dump(merged, sort_keys=False, allow_unicode=True), encoding="utf-8")
+    return str(target)
 
 
 class TrainingMonitor:
@@ -2290,10 +2421,11 @@ class TrainingMonitor:
         except Exception:
             pass
         try:
-            # group_scores takes: the validation confusion matrix, class names, logging.class_groups;
+            # group_scores takes: the validation confusion matrix, class names, the class groups (scoring_class_groups:
+            # logging.class_groups, or the merged groups themselves with data.class_merge);
             # returns: {"val_group_<set>_mIoU": ..., "val_group_<set>_<group>": IoU, ...}
             row.update(group_scores(trainer.validator.metrics.matrix, trainer.validator.metrics.names,
-                                    self.config["logging"].get("class_groups") or {}))
+                                    scoring_class_groups(self.config)))
         except Exception as error:
             print(f"  ⚠️  group scores failed: {type(error).__name__}: {error}")
         try:
@@ -2386,8 +2518,7 @@ class TrainingMonitor:
                     scores[f"{name}_{key.split('/')[-1]}"] = round(float(value), 6)
                 except (TypeError, ValueError):
                     pass
-            groups = group_scores(validator.metrics.matrix, validator.metrics.names,
-                                  self.config["logging"].get("class_groups") or {})
+            groups = group_scores(validator.metrics.matrix, validator.metrics.names, scoring_class_groups(self.config))
             scores.update({key.replace("val_group_", f"{name}_group_"): value for key, value in groups.items()})
         return scores
 
@@ -2832,6 +2963,9 @@ def _run_training(config: dict, run_dir: Path, results_dir: Path, extra_callback
     # apply_mix takes: the config; returns: the data.yaml training on one list of both datasets (data.mix), or the
     # same file without data.mix. The batches themselves are composed by MixedBatchSampler in the trainer.
     config["data"]["yaml"] = apply_mix(config)
+    # apply_class_merge takes: the config; returns: the data.yaml with the classes merged into the groups of
+    # data.class_merge (labels mapped to the groups), or the same file without data.class_merge
+    config["data"]["yaml"] = apply_class_merge(config)
     if state == "resume":
         # Ultralytics restores every setting from the checkpoint; only resume=True is passed
         arguments = {"resume": True}
@@ -3213,6 +3347,8 @@ def write_run_report(config: dict, results_dir) -> Path | None:
         settings = [("weights", config_get(config, "model.weights")), ("data", Path(str(config_get(config, "data.yaml"))).parent.name),
                     # train_frames_label takes: the config; returns: which training frames ("5 fps", "human (5 fps)", ...)
                     ("train frames", train_frames_label(config)),
+                    ("classes", f"the groups of {config_get(config, 'data.class_merge')} (data.class_merge)"
+                     if config_get(config, "data.class_merge") else "data.yaml's classes"),
                     ("validation", f"every {config_get(config, 'validation.every_steps')} steps"
                      if config_get(config, "validation.every_steps") else "every epoch")]
         for key in ("epochs", "batch", "imgsz", "optimizer", "lr0", "lrf", "warmup_epochs", "mosaic", "close_mosaic",
@@ -4164,11 +4300,19 @@ def evaluate_checkpoint(config: dict, checkpoint: str, weights: bytes) -> dict:
     # make_dataset_class takes: the config; returns: the training code's dataset class
     ultralytics_build.SemanticDataset = make_dataset_class(remote)
     data = yaml.safe_load(local_yaml.read_text(encoding="utf-8"))
+    # merge_dataset_classes takes: the config, the dataset dict; returns: the dict scored with: the run's classes, or
+    # with data.class_merge the groups (labels mapped to them), exactly as in training. The test views are checked
+    # against the unmerged data.yaml (same raw classes) and scored with the merged one.
+    scoring_data = merge_dataset_classes(remote, data)
+    if config_get(config, "data.class_merge"):
+        say(f"classes     merged into the {len(scoring_data['names'])} groups of '{config['data']['class_merge']}': "
+            f"{', '.join(scoring_data['names'].values())}")
     result = {"run": config["experiment"]["name"], "checkpoint": checkpoint,
               "evaluated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
               "settings": {"image_size": image_size, "data": remote["data"]["yaml"], "batch": test["batch"],
                            "validate_at_training_scale": config_get(config, "data.validate_at_training_scale", True),
                            "lr0": config["ultralytics"]["lr0"], "epochs": config["ultralytics"]["epochs"],
+                           "class_merge": config_get(config, "data.class_merge"),
                            # a later stage of a multi-stage experiment starts from an earlier stage's best.pt
                            "weights_start": (f"{config_get(config, 'model.weights_from')}_best"
                                              if config_get(config, "model.weights_from") else config["model"]["weights"]),
@@ -4226,14 +4370,14 @@ def evaluate_checkpoint(config: dict, checkpoint: str, weights: bytes) -> dict:
             say(f"{split:<11} skipped ({list_name}: missing or empty)")
             continue
         split_yaml = local_yaml.parent / f"data_{split}.yaml"          # the same dataset, val = this list
-        split_yaml.write_text(yaml.safe_dump({**data, "val": str(list_path)}, sort_keys=False), encoding="utf-8")
+        split_yaml.write_text(yaml.safe_dump({**scoring_data, "val": str(list_path)}, sort_keys=False), encoding="utf-8")
         split_start = time.time()
         metrics = model.val(data=str(split_yaml), split="val", imgsz=image_size, batch=int(test["batch"]), rect=True,
                             workers=int(test["cpu"]) * 2, plots=False, verbose=False, project="/tmp/val",
                             name=f"{checkpoint}_{split}", exist_ok=True)
         names = metrics.names
         # group_scores takes: confusion matrix, class names, class groups; returns: {column: IoU}
-        groups = group_scores(metrics.matrix, names, config["logging"].get("class_groups") or {})
+        groups = group_scores(metrics.matrix, names, scoring_class_groups(config))
         scores = {"frames": len(list_path.read_text(encoding="utf-8").split()),
                   "mIoU": round(float(metrics.miou), 4), "pixel_acc": round(float(metrics.pixel_accuracy), 4),
                   "per_class": {names[index]: (round(float(value), 4) if metrics.nt_per_class[index] > 0 else None)
@@ -4329,9 +4473,16 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
         for path in tested:
             result = json.loads(path.read_text(encoding="utf-8"))
             splits = result["splits"]
-            group = next((value for key, value in ((splits.get(main_split) or {}).get("groups") or {}).items()
-                          if key.endswith("_mIoU")), None)
+            def group_miou(split: str):
+                """The first class-group mIoU of a split (the sanpo3 safe / not safe / obstacle score), or None."""
+                return next((value for key, value in ((splits.get(split) or {}).get("groups") or {}).items()
+                             if key.endswith("_mIoU") and isinstance(value, (int, float))), None)
+
+            group = group_miou(main_split)
             rows.append({"run": shown_name, "checkpoint": result["checkpoint"], "group": group,
+                         "class_merge": config_get(config, "data.class_merge"),
+                         **{f"group_{split}": group_miou(split) for split in ("test_human", "test_head_human",
+                                                                             "test_paper_human", "val")},
                          **{split: (splits.get(split) or {}).get("mIoU") for split in ("test_human", "test_all", "test_head_human", "test_paper_human", "val", "val_human")},
                          "main": (splits.get(main_split) or {}).get("mIoU"), "imgsz": result["settings"]["image_size"],
                          "lr0": result["settings"]["lr0"], "start": Path(str(result["settings"]["weights_start"])).stem,
@@ -4342,6 +4493,10 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
                          "train_frames": train_frames_label(config)})
     rows.sort(key=lambda row: -(row["main"] if row["main"] is not None else -1))
     show = lambda value: "" if value is None else f"{value:.4f}"
+    # runs trained on groups of classes (data.class_merge): their mIoU is over 3 groups, not 29 classes, so they are
+    # ranked only in the 3-class table below, next to the 3-class scores of every 29-class run (merged afterwards)
+    class_rows = rows
+    rows = [row for row in rows if not row["class_merge"]]
     lines = ["# Leaderboard", "",
              f"Sorted by test mIoU on the human-labeled test frames (SANPO paper's protocol). Written by runs/<run>/test.py, "
              f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.", "",
@@ -4362,6 +4517,22 @@ def write_leaderboard(runs_dir, quiet: bool = False) -> Path:
                   "each frame; **full frame** = the whole 16:9 frame (ultralytics.rect).",
               "", "Train frames: the training walks' frames used: **5 fps** (train.txt), **10 fps** / **15 fps** "
                   "(data.train_fps, picked from train_15fps.txt), **human** (only human-labeled frames, train_human.txt)."]
+    group_rows = sorted((row for row in class_rows if row["group_test_human"] is not None),
+                        key=lambda row: -row["group_test_human"])
+    if group_rows:
+        lines += ["", "## 3 classes: safe / not safe / obstacle (SANPO paper, Appendix A.6.1)", "",
+                  "Sorted by the chest test. **Trained on 3** = the model's outputs are the 3 groups (data.class_merge); "
+                  "**29, merged** = a 29-class model whose prediction and label are merged into the groups afterwards "
+                  "(logging.class_groups, from the confusion matrix).", "",
+                  "| # | Run | Classes | **Test chest** (human) | Test head (human) | Test paper: chest + head (human) | "
+                  "Val | imgsz | Train frames | lr0 | Start |",
+                  "|---|---|---|---|---|---|---|---|---|---|---|"]
+        for rank, row in enumerate(group_rows, 1):
+            classes = "**trained on 3**" if row["class_merge"] else "29, merged"
+            lines.append(f"| {rank} | {row['run']} | {classes} | **{show(row['group_test_human'])}** | "
+                         f"{show(row['group_test_head_human'])} | {show(row['group_test_paper_human'])} | "
+                         f"{show(row['group_val'])} | {row['imgsz']} | {row['train_frames']} | {row['lr0']} | "
+                         f"{row['start']} |")
     if untested:
         lines += ["", "Not tested yet: " + ", ".join(untested)]
     if excluded:
