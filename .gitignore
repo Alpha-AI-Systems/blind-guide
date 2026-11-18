@@ -253,3 +253,6 @@ fast_path/object_detection/training/runs/*/results/train/debug/*
 
 # SANPO-Synthetic exploration cache (49 MB; explore_sanpo_synthetic.ipynb recomputes it on Modal)
 fast_path/object_detection/data_code/sanpo/synthetic/results/
+
+# Run-id reservation markers written by the training code (local bookkeeping: date, user, Modal session)
+.run_ids/
