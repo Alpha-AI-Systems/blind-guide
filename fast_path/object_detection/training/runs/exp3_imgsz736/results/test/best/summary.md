@@ -1,6 +1,6 @@
 # Test: exp3_imgsz736 / best.pt
 
-2026-11-15 19:45:08 UTC · imgsz 736 (training scale) · trained from yolo26n-sem-ade20k.pt, lr0 0.002
+2026-11-17 22:05:41 UTC · imgsz 736 (training scale) · trained from yolo26n-sem-ade20k.pt, lr0 0.002
 
 | Split | Frames | mIoU | Pixel acc | sanpo3 mIoU |
 |---|---|---|---|---|
@@ -8,6 +8,10 @@
 | val_human | 935 | **0.3552** | 0.7440 | 0.6457 |
 | test_human | 2,561 | **0.3926** | 0.7578 | 0.7690 |
 | test_all | 5,107 | **0.3982** | 0.7629 | 0.7752 |
+| test_head_human | 1,289 | **0.3588** | 0.7217 | 0.7369 |
+| test_head_all | 2,603 | **0.3631** | 0.7259 | 0.7396 |
+| test_paper_human | 3,850 | **0.3988** | 0.7456 | 0.7629 |
+| test_paper_all | 7,710 | **0.4052** | 0.7504 | 0.7678 |
 
 ## IoU per class (test_human)
 

@@ -1,6 +1,6 @@
 # Test: exp2_start_cityscapes / best.pt
 
-2026-11-15 19:20:43 UTC · imgsz 352 (training scale) · trained from yolo26n-sem.pt, lr0 0.002
+2026-11-17 21:31:26 UTC · imgsz 352 (training scale) · trained from yolo26n-sem.pt, lr0 0.002
 
 | Split | Frames | mIoU | Pixel acc | sanpo3 mIoU |
 |---|---|---|---|---|
@@ -8,6 +8,10 @@
 | val_human | 935 | **0.3189** | 0.7296 | 0.6492 |
 | test_human | 2,561 | **0.3518** | 0.7265 | 0.7432 |
 | test_all | 5,107 | **0.3585** | 0.7327 | 0.7503 |
+| test_head_human | 1,289 | **0.3090** | 0.7011 | 0.7394 |
+| test_head_all | 2,603 | **0.3128** | 0.7067 | 0.7433 |
+| test_paper_human | 3,850 | **0.3517** | 0.7179 | 0.7503 |
+| test_paper_all | 7,710 | **0.3583** | 0.7239 | 0.7561 |
 
 ## IoU per class (test_human)
 

@@ -1,0 +1,257 @@
+experiment:
+  name: exp7_synthetic_mixed/stage2_mix_chest
+  run_id: run001
+  notes: ''
+  stage: 2/2
+model:
+  weights: yolo26n-sem-ade20k.pt
+  weights_from: stage1_mix_head
+  weights_dir: /runs/_weights
+  task: semantic
+data:
+  yaml: /tmp/local_data/sanpo_real_chest/semantic_v1_short352/data.yaml
+  image_dir_name: frames
+  masks_dir: masks
+  validate_at_training_scale: true
+  human_lists:
+    val_human.txt: val.txt
+  annotation_types_dir: ../../sanpo_meta/annotation_types
+  extra_validation:
+    val_human: val_human.txt
+  train_list: null
+  val_list: null
+  train_fps: null
+  all_frames_list: train_15fps.txt
+  fps_positions:
+    5:
+    - 0
+    10:
+    - 0
+    - 1
+    15:
+    - 0
+    - 1
+    - 2
+    '5':
+    - 0
+    '10':
+    - 0
+    - 1
+    '15':
+    - 0
+    - 1
+    - 2
+  extra_archives: []
+  mix:
+    yaml: /tmp/local_data/sanpo_synthetic/semantic_v1_short352/data.yaml
+    train_list: train_chest_5fps.txt
+    per_batch: 16
+schedule:
+  reference: null
+  max_steps: null
+validation:
+  every_steps: null
+ultralytics:
+  epochs: 18
+  batch: 32
+  imgsz: 352
+  optimizer: MuSGD
+  lr0: 0.002
+  lrf: 0.01
+  cos_lr: true
+  warmup_epochs: 2
+  momentum: 0.9
+  weight_decay: 0.0005
+  nbs: 32
+  mosaic: 0.05
+  close_mosaic: 15
+  fliplr: 0.5
+  flipud: 0.0
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  scale: 0.25
+  translate: 0.1
+  degrees: 3.0
+  shear: 0.0
+  perspective: 0.0
+  mixup: 0.0
+  cutmix: 0.0
+  copy_paste: 0.0
+  cls_pw: 0.0
+  patience: 100
+  seed: 42
+  deterministic: false
+  amp: true
+  workers: 16
+  rect: true
+  cache: ram
+  save_period: -1
+  val: true
+  plots: true
+  verbose: true
+dataloader:
+  val_workers: null
+  val_batch_size: 32
+  prefetch_factor: 4
+  val_prefetch_factor: 2
+  pin_memory: true
+  drop_last: false
+  cap_workers_at_cpu_count: false
+logging:
+  disable_integrations:
+  - mlflow
+  - comet
+  - clearml
+  - dvc
+  - neptune
+  - raytune
+  - wandb
+  - tensorboard
+  - hub
+  unit: img
+  console_log_every: 20
+  ultralytics_progress_bars: false
+  diagnostics_every: 200
+  debug_images_every: 500
+  debug_images_per_save: 4
+  flops_probe: true
+  print:
+    config: true
+    raw_config: true
+    environment: true
+    model: true
+    step_line: true
+    throughput: true
+    compute: true
+    ud_ratio: true
+    scale_probe: true
+    per_class_eval: true
+    final_summary: true
+  class_groups:
+    sanpo3:
+      safe:
+      - sidewalk
+      - crosswalk
+      - paved trail
+      - stairs
+      - other walkable surface
+      - terrain
+      not_safe:
+      - road
+      - curb
+      - water body
+      - inaccessible surface
+      - railway track
+      - sky
+      obstacle:
+      - guard rail/road barrier
+      - building
+      - wall/fence
+      - hand rail
+      - opening-door
+      - opening-gate
+      - pedestrian
+      - rider
+      - animal
+      - obstacle
+      - vehicle
+      - traffic sign
+      - traffic light
+      - pole
+      - bike rack
+      - tree
+      - vegetation
+output:
+  run_dir: results/train
+  ultralytics_dir: ultralytics
+  train_log_csv: train_log.csv
+  val_log_csv: val_log.csv
+  summary_json: training_summary.json
+  console_capture_dir: train_config
+  commit_every_steps: 50
+  make_plots: true
+  plots_dir: plots
+  debug_dir: debug
+  upload_checkpoints: null
+modal:
+  gpu: A100-40GB
+  timeout_hours: 12
+  cpu: 8
+  memory_gb: 64
+  scaledown_window: 2
+  python_version: '3.12'
+  pip:
+  - ultralytics==8.4.208
+  - numpy
+  - pandas
+  - pyyaml
+  - matplotlib
+  - psutil
+  - nvidia-ml-py
+  extra_pip: []
+  apt:
+  - libgl1
+  - libglib2.0-0
+  runs_volume: blind-guide-runs
+  runs_mount: /runs
+  data_volume: sanpo
+  data_mount: /data
+  path_remap:
+    data.yaml: /data/sanpo_real_chest/views/semantic_v1_short352/data.yaml
+    data.mix.yaml: /data/sanpo_synthetic/views/semantic_v1_short352/data.yaml
+  local_data_copy: true
+  local_data_dir: /tmp/local_data
+  secrets: []
+  sync_checkpoints: true
+  prices_per_hour:
+    gpu:
+      B200: 6.25
+      H200: 4.54
+      H100: 3.95
+      A100-80GB: 2.5
+      A100: 2.1
+      L40S: 1.95
+      A10: 1.1
+      A10G: 1.1
+      L4: 0.8
+      T4: 0.59
+    cpu_core: 0.0473
+    memory_gb: 0.008
+test:
+  splits:
+    val: val.txt
+    val_human: val_human.txt
+    test_human: test_human.txt
+    test_all: test.txt
+  leaderboard_split: test_human
+  checkpoints:
+  - best
+  leaderboard_checkpoint: best
+  in_leaderboard: true
+  leaderboard_note: ''
+  batch: 128
+  gpu: T4
+  cpu: 4
+  memory_gb: 16
+resume: auto
+resume_force: false
+resume_guard:
+- model.weights
+- model.weights_from
+- data.yaml
+- data.train_list
+- data.val_list
+- data.train_fps
+- data.mix
+- validation.every_steps
+- schedule.reference
+- schedule.max_steps
+- ultralytics.epochs
+- ultralytics.batch
+- ultralytics.imgsz
+- ultralytics.optimizer
+- ultralytics.lr0
+- ultralytics.lrf
+- ultralytics.cos_lr
+- ultralytics.nbs

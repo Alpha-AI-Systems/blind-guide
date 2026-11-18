@@ -82,7 +82,13 @@ output:
   commit_every_steps: 50
 
 test:                        # runs/<run>/test.py: scores the run's checkpoints (same code as the training validation)
-  splits: {val: val.txt, val_human: val_human.txt, test_human: test_human.txt, test_all: test.txt}   # split -> list
+  splits: {val: val.txt, val_human: val_human.txt, test_human: test_human.txt, test_all: test.txt,   # split -> list
+           # the official HEAD test walks (sanpo_real_head view), and chest + head together = the SANPO paper's test
+           # set (human-labeled frames of both cameras; the paper does not limit its test set to one camera)
+           test_head_human: "head:test_human.txt", test_head_all: "head:test.txt",
+           test_paper_human: "test_human.txt+head:test_human.txt", test_paper_all: "test.txt+head:test.txt"}
+  views:
+    head: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_head/views/semantic_v1_short352/data.yaml"
   leaderboard_split: test_human   # runs/leaderboard.md is sorted by this split's mIoU (the SANPO paper's protocol)
   checkpoints: [best]        # only best.pt (chosen on val): never choose a checkpoint on the test set
   leaderboard_checkpoint: best   # only this checkpoint of each run appears in runs/leaderboard.md
@@ -104,3 +110,4 @@ modal:
   data_mount: "/data"
   path_remap:
     data.yaml: "/data/sanpo_real_chest/views/semantic_v1_short352/data.yaml"
+    test.views.head: "/data/sanpo_real_head/views/semantic_v1_short352/data.yaml"
