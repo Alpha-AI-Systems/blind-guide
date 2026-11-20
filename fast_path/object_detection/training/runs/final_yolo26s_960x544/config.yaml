@@ -1,0 +1,39 @@
+# final_yolo26s_960x544: FINAL RECIPE, YOLO26s-sem at 960x544 (one of the 4 released models: nano / small x 640x352 / 960x544).
+# exp7_synthetic_mixed's recipe (the best on val among the 640x352 nano runs) with the winners of the other steps:
+#   1. stage1_mix_head    real head at 10 fps (20,167 frames) + synthetic head (34,836, about 5 fps) <- yolo26s-sem-ade20k.pt
+#   2. stage2_mix_chest   real chest at 10 fps (33,728) + synthetic chest (34,012, about 5 fps)      <- stage 1 best.pt
+# Every batch of 32 = 16 real + 16 synthetic (data.mix). 10 fps = take 2, skip 1 of the 15 fps frames (exp4's winner);
+# synthetic stays at about 5 fps (60% of its walks were rendered at 5 fps). Length and learning-rate curve = exp7's,
+# step for step (schedule.reference; exp4's protocol for 10 fps): head 15,800 steps, chest 19,008; lr0 0.002 in both
+# stages (decay across stages: worse on test in exp7_synthetic_mixed_lr_decay). Validation: the REAL val of each camera
+# every 632 / 1,056 steps (= exp7's epochs); best.pt is chosen on it. Only stage 2 has test.py.
+# Data: views semantic_v2_short544 (prepare_sanpo_real_modal.py: every labeled frame in tars/) and the synthetic
+# semantic_v1_short544. 29 classes (exp8: 3 classes was a tie). Class weights on (cls_pw 1.0, exp9).
+# lr 0.002 was tuned on nano at 640x352 (exp1) and kept for small and 960x544.
+# Merge order of a stage: DEFAULTS < training/shared_config.yaml < THIS file < the stage's config.yaml.
+
+model:
+  weights: yolo26s-sem-ade20k.pt       # stage 1 starts from it; stage 2 from stage 1's best.pt (model.weights_from)
+
+test:
+  batch: 32                  # 960x544 small at 128 ran out of memory on the test T4 (16 GB); only speed changes
+  views:
+    head: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_head/views/semantic_v2_short544/data.yaml"
+
+ultralytics:
+  imgsz: 544
+  lr0: 0.002
+  batch: 32
+  cls_pw: 1.0                # class weights (ENet, exp9_class_weights: val 0.3257 vs 0.3222 without, chosen on val)
+  rect: true                 # full frames (as every run since exp2)
+  cache: false               # 960x544 frames are 2.4x bigger: a RAM cache would need about 170 GB in the chest stage;
+                             # instead more workers decode the PNGs from local disk (check "data wait" in the log)
+  workers: 32
+
+modal:
+  gpu: "A100-40GB"
+  cpu: 16                    # = workers / 2 (1 core = 2 vCPUs)
+  timeout_hours: 24          # Modal's maximum; 34,808 steps in all (exp7 at 640x352 nano: about 1h40 of training)
+  memory_gb: 64
+  path_remap:
+    test.views.head: "/data/sanpo_real_head/views/semantic_v2_short544/data.yaml"   # head test frames at this size

@@ -1,0 +1,82 @@
+[
+ {
+  "epoch": 1,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run001"
+ },
+ {
+  "epoch": 2,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run001"
+ },
+ {
+  "epoch": 3,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run001"
+ },
+ {
+  "epoch": 4,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run001"
+ },
+ {
+  "epoch": 5,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run002"
+ },
+ {
+  "epoch": 6,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run002"
+ },
+ {
+  "epoch": 7,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run002"
+ },
+ {
+  "epoch": 8,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run002"
+ },
+ {
+  "epoch": 9,
+  "batches": 2108,
+  "first": 33728,
+  "second": 33728,
+  "other_batches": 0,
+  "run_id": "run002"
+ },
+ {
+  "epoch": 10,
+  "batches": 36,
+  "first": 576,
+  "second": 576,
+  "other_batches": 0,
+  "run_id": "run002"
+ }
+]
