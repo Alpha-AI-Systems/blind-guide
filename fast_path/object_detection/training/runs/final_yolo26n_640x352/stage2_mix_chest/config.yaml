@@ -1,0 +1,40 @@
+# final_yolo26n_640x352 stage 2 of 2: MIXED CHEST. Every batch = 16 real chest (10 fps) + 16 synthetic chest frames, from stage 1's best.pt.
+# real:      train_15fps.txt of sanpo_real_chest, positions 0 and 1 of every 3 (data.train_fps 10) = 33,728 frames
+#            -> 2,108 batches of 16 per epoch
+# synthetic: train_chest_5fps.txt of sanpo_synthetic (exp7's list), 16 per batch
+# length:    19008 optimizer steps (= exp7's chest stage: 18 epochs x 1056) with exp7's
+#            learning-rate curve step for step (schedule.reference) and validation every 1056 steps (exp7's epochs);
+#            ultralytics.epochs 10 x 2,108 >= 19008: training STOPS at schedule.max_steps
+# val:       the real chest val.txt (1,864 frames, 12 walks); best.pt is chosen on it. Only this stage has test.py.
+model:
+  weights_from: stage1_mix_head   # the best.pt of stage 1 (it must have finished)
+data:
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_chest/views/semantic_v2_short352/data.yaml"
+  train_list: null
+  val_list: null
+  train_fps: 10              # take 2, skip 1 of each walk's 15 fps frames (all frames are in the v2 tars)
+  all_frames_list: train_15fps.txt
+  extra_archives: []
+  human_lists: {val_human.txt: val.txt}
+  extra_validation: {val_human: val_human.txt}   # logged only; best.pt is chosen on val
+  mix:
+    yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_synthetic/views/semantic_v1_short352/data.yaml"
+    train_list: train_chest_5fps.txt
+    per_batch: 16            # synthetic frames per batch; the other 16 are real
+
+ultralytics:
+  epochs: 10
+  warmup_epochs: 1.0019      # Ultralytics' own warmup: round(1.0019 x 2,108) = 2,112 steps = exp7's (the reference
+                             # curve below sets lr and momentum at every step anyway)
+
+schedule:
+  reference: {steps_per_epoch: 1056, epochs: 18, warmup_epochs: 2}   # exp7's chest stage, step for step
+  max_steps: 19008
+
+validation:
+  every_steps: 1056
+
+modal:
+  path_remap:
+    data.yaml: "/data/sanpo_real_chest/views/semantic_v2_short352/data.yaml"
+    data.mix.yaml: "/data/sanpo_synthetic/views/semantic_v1_short352/data.yaml"

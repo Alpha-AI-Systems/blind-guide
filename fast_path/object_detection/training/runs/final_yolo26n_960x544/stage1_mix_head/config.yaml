@@ -1,0 +1,41 @@
+# final_yolo26n_960x544 stage 1 of 2: MIXED HEAD. Every batch = 16 real head (10 fps) + 16 synthetic head frames, from yolo26n-sem-ade20k.pt.
+# real:      train_15fps.txt of sanpo_real_head, positions 0 and 1 of every 3 (data.train_fps 10) = 20,167 frames
+#            -> 1,261 batches of 16 per epoch
+# synthetic: train_head_5fps.txt of sanpo_synthetic (exp7's list), 16 per batch
+# length:    15800 optimizer steps (= exp7's head stage: 25 epochs x 632) with exp7's
+#            learning-rate curve step for step (schedule.reference) and validation every 632 steps (exp7's epochs);
+#            ultralytics.epochs 13 x 1,261 >= 15800: training STOPS at schedule.max_steps
+# val:       the real head val.txt (1,120 frames, the partner's 7 walks); best.pt is chosen on it
+model:
+  weights: yolo26n-sem-ade20k.pt
+  weights_from: null
+data:
+  yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_real_head/views/semantic_v2_short544/data.yaml"
+  train_list: null
+  val_list: null
+  train_fps: 10              # take 2, skip 1 of each walk's 15 fps frames (all frames are in the v2 tars)
+  all_frames_list: train_15fps.txt
+  extra_archives: []
+  human_lists: {val_human.txt: val.txt}
+  extra_validation: {val_human: val_human.txt}   # logged only; best.pt is chosen on val
+  mix:
+    yaml: "D:/My Projects/blind-guide/fast_path/object_detection/data/sanpo/sanpo_synthetic/views/semantic_v1_short544/data.yaml"
+    train_list: train_head_5fps.txt
+    per_batch: 16            # synthetic frames per batch; the other 16 are real
+
+ultralytics:
+  epochs: 13
+  warmup_epochs: 1.0024      # Ultralytics' own warmup: round(1.0024 x 1,261) = 1,264 steps = exp7's (the reference
+                             # curve below sets lr and momentum at every step anyway)
+
+schedule:
+  reference: {steps_per_epoch: 632, epochs: 25, warmup_epochs: 2}   # exp7's head stage, step for step
+  max_steps: 15800
+
+validation:
+  every_steps: 632
+
+modal:
+  path_remap:
+    data.yaml: "/data/sanpo_real_head/views/semantic_v2_short544/data.yaml"
+    data.mix.yaml: "/data/sanpo_synthetic/views/semantic_v1_short544/data.yaml"

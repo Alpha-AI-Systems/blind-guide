@@ -192,11 +192,14 @@ def walk_frame_rate(walk: str) -> float:
 
 @app.function(image=image, volumes={VOLUME_MOUNT_PATH: volume}, timeout=3 * 3600, max_containers=MAX_CONTAINERS,
               retries=2, cpu=CPU_PER_CONTAINER, memory=MEMORY_MB_PER_CONTAINER)
-def prepare_walk(walk: str, split: str) -> dict:
+def prepare_walk(walk: str, split: str, sizes: list | None = None) -> dict:
     """Download, convert, resize and pack ONE walk (all frames). Returns a summary dict.
 
-    walk: session id; split: official split ("train"/"test").
+    walk: session id; split: official split ("train"/"test"); sizes: the views' image sizes (default IMAGE_SIZES).
+    A walk prepared earlier (index CSV + its full-size JPGs and masks on the volume) only gets the missing sizes,
+    resized from those saved files (the same source as every earlier view: no download).
     """
+    sizes = list(sizes or IMAGE_SIZES)
     import csv
     import io
     import math
@@ -211,7 +214,7 @@ def prepare_walk(walk: str, split: str) -> dict:
 
     root = Path(VOLUME_MOUNT_PATH) / OUTPUT_DIR
     index_path = root / "index" / f"{walk}.csv"
-    tar_paths = {size: root / "views" / view_name(size) / "tars" / f"{walk}.tar" for size in IMAGE_SIZES}
+    tar_paths = {size: root / "views" / view_name(size) / "tars" / f"{walk}.tar" for size in sizes}
     if index_path.exists() and all(path.exists() for path in tar_paths.values()):
         with open(index_path, newline="") as handle:
             rows = list(csv.DictReader(handle))
@@ -219,6 +222,49 @@ def prepare_walk(walk: str, split: str) -> dict:
                 "skipped": True, "seconds": 0.0}
 
     start = time.time()
+    if index_path.exists():
+        with open(index_path, newline="") as handle:
+            saved_rows = sorted(csv.DictReader(handle), key=lambda row: row["frame_id"])
+        if saved_rows and all((root / row["frame"]).exists() and (root / row["mask"]).exists() for row in saved_rows):
+            missing_sizes = [size for size, path in tar_paths.items() if not path.exists()]
+
+            def resize_saved(row: dict) -> tuple:
+                """One saved frame (full-size JPG + original mask on the volume) -> its PNGs for the missing sizes."""
+                frame = cv2.imread(str(root / row["frame"]), cv2.IMREAD_COLOR)
+                mask = cv2.imread(str(root / row["mask"]), cv2.IMREAD_COLOR)                    # BGR: red = index 2
+                if frame is None or mask is None or frame.shape[:2] != mask.shape[:2]:
+                    raise RuntimeError(f"{row['frame']}: unreadable frame or mask, or different sizes")
+                class_ids = np.ascontiguousarray(mask[:, :, 2])
+                resized = {}
+                for size in missing_sizes:
+                    width, height = training_size(frame.shape[0], frame.shape[1], size)
+                    resized[size] = (
+                        cv2.imencode(".png", cv2.resize(frame, (width, height), interpolation=cv2.INTER_LINEAR))[1].tobytes(),
+                        cv2.imencode(".png", cv2.resize(class_ids, (width, height), interpolation=cv2.INTER_NEAREST))[1].tobytes())
+                return Path(row["frame"]).stem, resized
+
+            temporaries = {size: tar_paths[size].with_name(tar_paths[size].stem + ".tmp.tar") for size in missing_sizes}
+            for path in temporaries.values():
+                path.parent.mkdir(parents=True, exist_ok=True)
+            archives = {size: tarfile.open(path, "w") for size, path in temporaries.items()}
+            try:
+                with ThreadPoolExecutor(THREADS_PER_WALK) as pool:
+                    for stem, resized in pool.map(resize_saved, saved_rows):   # written as they come, in order
+                        for size in missing_sizes:
+                            for kind, content in zip(("frames", "masks"), resized[size]):
+                                info = tarfile.TarInfo(f"{kind}/{split}/{stem}.png")
+                                info.size = len(content)
+                                archives[size].addfile(info, io.BytesIO(content))
+            finally:
+                for archive in archives.values():
+                    archive.close()
+            for size in missing_sizes:
+                os.replace(temporaries[size], tar_paths[size])
+            commit_with_retry()
+            return {"walk": walk, "split": split, "camera": saved_rows[0]["camera"], "frames": len(saved_rows),
+                    "skipped": False, "seconds": round(time.time() - start, 1), "median_step_m": None,
+                    "added_sizes": missing_sizes}
+
     cameras, _ = bucket_listing(f"{SANPO_ROOT}/sanpo-synthetic/{walk}/", delimiter=True)
     if len(cameras) != 1:
         raise RuntimeError(f"{walk}: expected one camera folder, found {cameras}")
@@ -260,7 +306,7 @@ def prepare_walk(walk: str, split: str) -> dict:
         frame = cv2.imdecode(jpg, cv2.IMREAD_COLOR)
         class_ids = np.ascontiguousarray(mask[:, :, 2])      # one channel: raw SANPO class ids (as the real views)
         resized = {}
-        for size in IMAGE_SIZES:
+        for size in sizes:
             width, height = training_size(frame.shape[0], frame.shape[1], size)
             small_frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_LINEAR)
             small_mask = cv2.resize(class_ids, (width, height), interpolation=cv2.INTER_NEAREST)
@@ -335,7 +381,8 @@ def save_metadata(settings: dict, split_lists: dict) -> dict:
 
 
 @app.function(image=image, volumes={VOLUME_MOUNT_PATH: volume}, timeout=1800)
-def write_lists(validation_walks: list[str], names: list[str], label_mapping: dict, walk_fps: dict) -> dict:
+def write_lists(validation_walks: list[str], names: list[str], label_mapping: dict, walk_fps: dict,
+                sizes: list | None = None) -> dict:
     """Write each view's image lists, data.yaml (only with validation walks) and view.yaml from all index CSVs.
     walk_fps: {walk: frame rate used} for the *_5fps lists (every round(fps / TARGET_FPS)-th frame per walk).
     data.yaml uses the 5 fps lists (our experiments run at 5 fps); the full lists stay for other choices.
@@ -353,8 +400,8 @@ def write_lists(validation_walks: list[str], names: list[str], label_mapping: di
     for index_path in sorted((root / "index").glob("*.csv")):
         with open(index_path, newline="") as handle:
             rows = list(csv.DictReader(handle))
-        if not rows or rows[0]["split"] != "train":
-            continue
+        if not rows or rows[0]["split"] != "train" or rows[0]["session"] not in walk_fps:
+            continue                                   # walk_fps holds this run's walks (a --max-walks test: only those)
         part = "val" if rows[0]["session"] in validation else "train"
         camera = rows[0]["camera"]
         stride = max(1, round(walk_fps[rows[0]["session"]] / TARGET_FPS))
@@ -368,7 +415,7 @@ def write_lists(validation_walks: list[str], names: list[str], label_mapping: di
                 walks_per_list.setdefault(name, set()).add(rows[0]["session"])
     missing = validation - {walk for walks in walks_per_list.values() for walk in walks}
     counts = {}
-    for size in IMAGE_SIZES:
+    for size in list(sizes or IMAGE_SIZES):
         view = root / "views" / view_name(size)
         view.mkdir(parents=True, exist_ok=True)
         for name, lines in lists.items():
@@ -400,14 +447,16 @@ def write_lists(validation_walks: list[str], names: list[str], label_mapping: di
 
 
 @app.local_entrypoint()
-def main(max_walks: int = 0):
-    """max_walks > 0 = quick test: that many walks per camera (and split)."""
+def main(max_walks: int = 0, image_sizes: str = ""):
+    """max_walks > 0 = quick test: that many walks per camera (and split). image_sizes "544" = make these views
+    instead of IMAGE_SIZES (walks prepared earlier are resized from their saved full-size frames, no download)."""
     import time
     from concurrent.futures import ThreadPoolExecutor
     from pathlib import Path
 
+    sizes = [int(size) for size in image_sizes.split(",") if size.strip()] or list(IMAGE_SIZES)
     print(f"SANPO-Synthetic -> Volume '{VOLUME_NAME}' / {OUTPUT_DIR} | cameras {CAMERAS} | splits {SPLITS} | "
-          f"sizes {IMAGE_SIZES} | JPG quality {JPEG_QUALITY}")
+          f"sizes {sizes} | JPG quality {JPEG_QUALITY}")
     split_lists = {split: sorted(bucket_file(f"sanpo-synthetic/splits/{split}_session_ids.txt").decode().split())
                    for split in ("train", "test")}
     print(f"official splits: train {len(split_lists['train'])} walks, test {len(split_lists['test'])} walks")
@@ -427,11 +476,11 @@ def main(max_walks: int = 0):
             print(f"  {split} {camera}: {len(chosen)} walks")
             if max_walks > 0:
                 chosen = chosen[:max_walks]
-            jobs += [(walk, split) for walk in chosen]
+            jobs += [(walk, split, sizes) for walk in chosen]
     if max_walks > 0:
         print(f"TEST RUN: {max_walks} walk(s) per camera and split")
 
-    settings = {"cameras": CAMERAS, "splits": SPLITS, "jpeg_quality": JPEG_QUALITY, "image_sizes": IMAGE_SIZES,
+    settings = {"cameras": CAMERAS, "splits": SPLITS, "jpeg_quality": JPEG_QUALITY, "image_sizes": sizes,
                 "view_prefix": VIEW_PREFIX, "ignored_classes": IGNORED_CLASSES, "max_walks": max_walks}
     # save_metadata takes: settings, official split lists; returns: the label mapping and the 29 class names
     metadata = save_metadata.remote(settings, split_lists)
@@ -462,13 +511,13 @@ def main(max_walks: int = 0):
     print(f"validation walks: {len(validation_walks)}" + ("" if validation_walks else
           f" ({validation_file} not found: only train lists, no data.yaml; run again after the validation split)"))
     print("reading each walk's frame rate and render batch from the bucket (about a minute) ...", flush=True)
-    walks_done = [walk for walk, _ in jobs]
+    walks_done = [walk for walk, _, _ in jobs]
     with ThreadPoolExecutor(32) as pool:
         # walk_frame_rate takes: a walk id; returns: the frame rate to use (description.json, EFFECTIVE_FPS)
         walk_fps = dict(zip(walks_done, pool.map(walk_frame_rate, walks_done)))
     print("frame rates used:", {fps: list(walk_fps.values()).count(fps) for fps in sorted(set(walk_fps.values()))})
     # write_lists takes: validation walks, class names, label mapping, frame rate per walk; returns: frames per list
-    result = write_lists.remote(validation_walks, metadata["names"], metadata["label_mapping"], walk_fps)
+    result = write_lists.remote(validation_walks, metadata["names"], metadata["label_mapping"], walk_fps, sizes)
     if result["validation_walks_not_found"]:
         print(f"WARNING: validation walks not prepared here: {result['validation_walks_not_found'][:5]} ...")
     print(f"DONE in {format_duration(time.time() - start)}: {frames:,} frames | lists: {result['counts']}")
